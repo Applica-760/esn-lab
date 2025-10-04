@@ -1,0 +1,7 @@
+[project]
+name = "yourpkg"          # プロジェクト名（pipでの名前）
+version = "0.1.0"
+dependencies = ["numpy"]  # 依存があれば
+
+[tool.setuptools.packages.find]
+where = ["src"]           # src配下をパッケージ探索
