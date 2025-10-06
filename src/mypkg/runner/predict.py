@@ -19,7 +19,7 @@ def single_predict(cfg: Config):
     # load weight
     weight_dir = Path(cfg.predict.single.weight)
     weight_path = sorted(weight_dir.glob("*.npy"))[0]
-    weight = np.load(weight_path)
+    weight = np.load(weight_path, allow_pickle=True)
     model.Output.setweight(weight)
     print(f"[ARTIFACT] {weight_path} is loaded")
 

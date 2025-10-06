@@ -2,6 +2,7 @@
 import json
 import numpy as np
 from pathlib import Path
+import os
 
 from mypkg.utils.constants import Params
 from mypkg.model.esn import ESN
@@ -82,9 +83,27 @@ class Trainer:
         return result
 
 
-    def save_output_weight(self, model: ESN):
-        weight_name = model.get_param_list() + "_Wout.npy"
-        np.save(Path(self.output_weight_dir) / Path(weight_name), model.Output.Wout)
-        print("[INFO] output weight saved\n=====================================")
-        return
-    
+    def save_output_weight(self, model, filename: str | None = None):
+        """
+        学習済みWoutを保存するユーティリティ
+        """
+        # 出力先ディレクトリ
+        out_dir = Path(self.output_weight_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        base = model.get_param_list()
+        if filename is None:
+            save_name = f"{base}_Wout.npy"
+        else:
+            save_name = f"{base}_{filename}_Wout.npy"
+
+        dst = out_dir / save_name
+        tmp = dst.with_suffix(dst.suffix + ".tmp") 
+
+        # 実体は model.Output.Wout（従来どおり）
+        np.save(tmp, model.Output.Wout)
+        os.replace(tmp, dst) 
+        if hasattr(self, "logger"):
+            self.logger.info(f"Saved weight: {dst}")
+        else:
+            print(f"[INFO] Saved weight: {dst}")

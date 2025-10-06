@@ -30,9 +30,15 @@ class Tikhonov:
         # X_pseudo_inv = np.linalg.inv(self.X_XT \
         #                              + self.beta*np.identity(self.N_x))
         #擬似逆行列(正確かは不明)
-        X_pseudo_inv = np.linalg.pinv(self.X_XT \
-                                     + self.beta*np.identity(self.N_x))
-        Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
+        # X_pseudo_inv = np.linalg.pinv(self.X_XT \
+        #                              + self.beta*np.identity(self.N_x))
+        # Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
+
+        # 等価かつよりStable版　逆行列計算ではなく.solveで解くから早い
+        A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
+        B = self.D_XT.T 
+
+        Wout_opt = np.linalg.solve(A, B).T
         return Wout_opt
 
 

@@ -2,7 +2,7 @@
 ## 研究用プログラムを刷新．
 ## 分かりやすく使いやすく，持続可能に．
 
-
+`find . -type f -name '._*' -delete`
 
 ```python cli.py "resistry" "variants"```
 が基本の構文

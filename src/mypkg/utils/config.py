@@ -43,9 +43,14 @@ class TrainBatchCfg:
     class_ids: Optional[list[int]] = None
 
 @dataclass
+class TrainTenfoldCfg:
+    csv_dir: Optional[str] = None
+
+@dataclass
 class Train:
     single: Optional[TrainSingleCfg] = None
     batch: Optional[TrainBatchCfg] = None
+    tenfold: Optional[TrainTenfoldCfg] = None
 
 
 # predict ==============================================================
