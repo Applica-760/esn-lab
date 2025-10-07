@@ -1,4 +1,4 @@
 id: "20210508_00000"
 path: "/home/takumi/share/research-prj/data/complement/20210508/064648S1_ffmpeg.jpg"
 class_id: 2
-weight: "artifacts/runs/20250827-220840_train-batch/output_weight"
+weight: "artifacts/runs/20251008-003337_train-tenfold_search/output_weight"

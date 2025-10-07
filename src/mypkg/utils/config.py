@@ -46,11 +46,18 @@ class TrainBatchCfg:
 class TrainTenfoldCfg:
     csv_dir: Optional[str] = None
 
+
+@dataclass
+class TrainTenfoldSearchCfg:
+    csv_dir: Optional[str] = None
+    search_space: Optional[dict[str, list]] | None = None
+
 @dataclass
 class Train:
     single: Optional[TrainSingleCfg] = None
     batch: Optional[TrainBatchCfg] = None
     tenfold: Optional[TrainTenfoldCfg] = None
+    tenfold_search: Optional[TrainTenfoldSearchCfg] = None
 
 
 # predict ==============================================================

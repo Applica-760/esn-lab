@@ -2,7 +2,7 @@
 import json
 import numpy as np
 from pathlib import Path
-import os
+import os, uuid
 
 from mypkg.utils.constants import Params
 from mypkg.model.esn import ESN
@@ -68,19 +68,20 @@ class Trainer:
         
         model.Output.setweight(optimizer.get_Wout_opt())    # 学習済みの出力結合重み行列を設定
         model.Reservoir.x = np.zeros(model.N_x)     # リザバー状態のリセット
-        print(f"[INFO] {sample_id} is trained")
+        # print(f"[INFO] {sample_id} is trained")
 
-        data = TargetOutputData(
-            target_series= to_jsonable(D_save),
-            output_series= to_jsonable(Y),
-        )
-        result = TargetOutput(
-            id= sample_id,
-            data= data
-        )
+        # 訓練中のノード出力全記録は非現実的という判断に基づく削除
+        # data = TargetOutputData(
+        #     target_series= to_jsonable(D_save),
+        #     output_series= to_jsonable(Y),
+        # )
+        # result = TargetOutput(
+        #     id= sample_id,
+        #     data= data
+        # )
+        # return result
 
-        # return {sample_id : {TARGET_SERIES_KEY: D_save.item(), OUTPUT_SERIES_KEY: Y}}
-        return result
+        return
 
 
     def save_output_weight(self, model, filename: str | None = None):
@@ -98,9 +99,9 @@ class Trainer:
             save_name = f"{base}_{filename}_Wout.npy"
 
         dst = out_dir / save_name
-        tmp = dst.with_suffix(dst.suffix + ".tmp") 
+        # tmp = dst.with_suffix(dst.suffix + ".tmp") 
+        tmp = dst.with_suffix(f".{uuid.uuid4().hex}.tmp.npy")   # 並列処理時の衝突回避
 
-        # 実体は model.Output.Wout（従来どおり）
         np.save(tmp, model.Output.Wout)
         os.replace(tmp, dst) 
         if hasattr(self, "logger"):

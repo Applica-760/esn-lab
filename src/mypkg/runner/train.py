@@ -11,7 +11,7 @@ import os
 
 from mypkg.utils.config import Config
 from mypkg.pipeline.trainer import Trainer
-from mypkg.model.model_builder import get_model
+from mypkg.model.model_builder import get_model, get_model_with_overrides 
 from mypkg.utils.io import save_json, to_keyed_dict
 from mypkg.utils.constants import TRAIN_RECORD_FILE
 
@@ -31,17 +31,13 @@ def single_train(cfg: Config):
 
     # set trainer
     trainer = Trainer(cfg.run_dir)
-    result = trainer.train(model, optimizer, cfg.train.single.id, U, D)
+    trainer.train(model, optimizer, cfg.train.single.id, U, D)
     print("=====================================")
-
-    # log output layer
-    save_json(to_keyed_dict(result), cfg.run_dir, TRAIN_RECORD_FILE)
-    print("[INFO] output layer saved to json\n=====================================")
 
     # save output weight
     trainer.save_output_weight(model)
 
-    return result
+    return
 
 
 def batch_train(cfg: Config):
@@ -49,23 +45,16 @@ def batch_train(cfg: Config):
     model, optimizer = get_model(cfg)
     
     trainer = Trainer(cfg.run_dir)
-    results = {}
     for i in range(len(cfg.train.batch.ids)):
         U = cv2.imread(cfg.train.batch.paths[i], cv2.IMREAD_UNCHANGED).T
         train_len = len(U)
         D = make_onehot(cfg.train.batch.class_ids[i], train_len, cfg.model.Ny)
-        result = to_keyed_dict(trainer.train(model, optimizer, cfg.train.batch.ids[i], U, D))
-        results.update(result)
-    
-    print("=====================================")
-    # log output layer
-    save_json(results, cfg.run_dir, TRAIN_RECORD_FILE)
-    print("[INFO] output layer saved to json\n=====================================")
+        trainer.train(model, optimizer, cfg.train.batch.ids[i], U, D)
 
     # save output weight
     trainer.save_output_weight(model)
 
-    return results
+    return
 
 
 def _load_10fold_csvs(csv_dir: Path) -> dict[str, Path]:
@@ -143,8 +132,7 @@ def _run_one_fold(cfg, table, letters, leave):
     trainer = Trainer(cfg.run_dir)
     model, optimizer = get_model(cfg)
 
-    # 3-3) 学習ループ（既存 batch_train と同じ流れ）
-    results = {}
+    # 3-3) 学習ループ
     Ny = cfg.model.Ny
     for i in range(len(paths)):
         img = cv2.imread(paths[i], cv2.IMREAD_UNCHANGED)
@@ -153,13 +141,7 @@ def _run_one_fold(cfg, table, letters, leave):
         U = img.T
         T = len(U)
         D = make_onehot(class_ids[i], T, Ny)
-        out = to_keyed_dict(trainer.train(model, optimizer, ids[i], U, D))
-        results.update(out)
-
-    base = Path(TRAIN_RECORD_FILE).stem  
-    tag_name = f"{base}_{tag}.jsonl"     
-    save_json(results, str(cfg.run_dir), tag_name)
-    print("[INFO] output series saved to jsonl")
+        trainer.train(model, optimizer, ids[i], U, D)
 
     trainer.save_output_weight(model, filename=tag)
 
@@ -216,5 +198,140 @@ def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
 
     print("=====================================")
     print("[INFO] 10fold training finished (parallel).")
+    print("=====================================")
+    return all_results
+
+
+
+# --- 追記ここから -------------------------------------------------
+def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag: str):
+    idx = letters.index(leave)
+    _worker_setup(idx)
+
+    train_letters = [x for x in letters if x != leave]
+    tag = "".join(train_letters)  # 例: "bcdefghij"
+
+    print("\n=====================================")
+    print(f"[INFO] 10fold train (search: {hp_tag}): use={train_letters} (leave_out='{leave}')")
+    print("=====================================")
+
+    # 3-1) データの読み込み
+    csv_paths = [table[ch] for ch in train_letters]
+    ids, paths, class_ids = _read_pairs(csv_paths)
+    assert len(ids) == len(paths) == len(class_ids), "length mismatch"
+
+    # 3-2) モデル・最適化器・トレーナ初期化（差し替え部分）
+    trainer = Trainer(cfg.run_dir)
+    model, optimizer = get_model_with_overrides(cfg, hp_overrides)
+
+    # 3-3) 学習ループ（既存と同じ）
+    Ny = cfg.model.Ny
+    for i in range(len(paths)):
+        img = cv2.imread(paths[i], cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise FileNotFoundError(f"failed to read image: {paths[i]}")
+        U = img.T
+        T = len(U)
+        D = make_onehot(class_ids[i], T, Ny)
+        trainer.train(model, optimizer, ids[i], U, D)
+
+    trainer.save_output_weight(model, filename=f"{hp_tag}_{tag}")
+
+    return {
+        "hp_tag": hp_tag,
+        "tag" : tag,
+        "num_samples": len(paths),
+        "letters_used": train_letters,
+    }
+
+from itertools import product
+
+def _flatten_search_space(ss: dict[str, list] | None) -> list[tuple[dict, str]]:
+    """
+    {"model.Nx":[10,20], "model.rho":[0.8,0.9]} →
+    [({"Nx":10,"rho":0.8},"Nx=10_rho=0.8"), ...] のリストに変換。
+    ※ model. 以外の prefix が来たときは弾く（勝手な拡張を避ける）
+    """
+    if not ss:
+        return [({}, "default")]
+    # model.* のみ許可（安全策）
+    items = []
+    for k, vals in ss.items():
+        if not k.startswith("model."):
+            raise ValueError(f"search_space key must start with 'model.': {k}")
+        field = k.split(".", 1)[1]
+        items.append((field, list(vals)))
+    # 直積
+    keys = [k for k,_ in items]
+    lists = [v for _,v in items]
+    combos = []
+    for values in product(*lists):
+        d = {k:v for k,v in zip(keys, values)}
+        tag = "_".join([f"{k}={v}" for k,v in d.items()])
+        combos.append((d, tag))
+    return combos
+
+def tenfold_search_train(cfg, *, parallel: bool = True, max_workers: int = 10):
+    """
+    ハイパラ組合せ（外側） × 10fold（内側）
+    既存 tenfold_train を参考に、_run_one_fold_search() を使う。
+    """
+    # tenfold 設定の場所は既存に合わせる（cfg.train.tenfold 下）
+    tenfold_cfg = cfg.train.tenfold_search
+    if tenfold_cfg is None:
+        raise ValueError("cfg.train.tenfold_search が見つかりません（tenfold_search.yaml の読み込み位置を確認してください）")
+
+    csv_dir = Path(tenfold_cfg.csv_dir).expanduser().resolve()
+    if not csv_dir.exists():
+        raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
+
+    # 検索空間の展開（B方式）
+    combos = _flatten_search_space(getattr(tenfold_cfg, "search_space", None))
+    print(f"combos:{combos}\n\n")
+
+    # 10fold 材料は一度作って使い回す
+    table = _load_10fold_csvs(csv_dir)
+    letters = sorted(table.keys())
+
+    # 並列器の設定は既存 tenfold_train と同じ方針
+    workers = min(max_workers, (os.cpu_count() or max_workers))
+    if os.name == "posix":
+        mp_ctx = mp.get_context("fork")
+        executor_kwargs = {"max_workers": workers, "mp_context": mp_ctx}
+    else:
+        executor_kwargs = {"max_workers": workers}
+
+    all_results = {}
+
+    for hp_overrides, hp_tag in combos:
+
+        print("\n=====================================")
+        print(f"[INFO] hyperparam combo: {hp_tag}")
+        print("=====================================")
+
+        if not parallel:
+            res = {}
+            for leave in letters:
+                summary = _run_one_fold_search(cfg, table, letters, leave, hp_overrides, hp_tag)
+                res[summary["tag"]] = summary
+            all_results[hp_tag] = res
+            continue
+
+        with ProcessPoolExecutor(**executor_kwargs, initializer=_init_worker) as ex:
+            futures = []
+            for leave in letters:
+                futures.append(
+                    (leave, ex.submit(_run_one_fold_search, cfg, table, letters, leave, hp_overrides, hp_tag))
+                )
+
+            res = {}
+            for leave, fut in futures:
+                summary = fut.result()
+                res[summary["tag"]] = summary
+
+        all_results[hp_tag] = res
+
+    print("=====================================")
+    print("[INFO] tenfold hyperparameter search finished.")
     print("=====================================")
     return all_results

@@ -1,0 +1,6 @@
+csv_dir: "/home/takumi/share/research-prj/dataset/10fold_csvs/" 
+
+search_space:
+  model.Nx: [10, 20]
+  model.rho: [0.9]
+  model.input_scale: [0.01]

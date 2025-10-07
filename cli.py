@@ -5,9 +5,10 @@ from pathlib import Path
 from datetime import datetime
 from omegaconf import OmegaConf
 
-from mypkg.utils.config import (Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg, PredictSingleCfg, PredictBatchCfg,
+from mypkg.utils.config import (Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg, TrainTenfoldSearchCfg,
+                                PredictSingleCfg, PredictBatchCfg,
                                 EvaluateRunCfg)
-from mypkg.runner.train import single_train, batch_train, tenfold_train
+from mypkg.runner.train import single_train, batch_train, tenfold_train, tenfold_search_train
 from mypkg.runner.predict import single_predict, batch_predict
 from mypkg.runner.evaluate import single_evaluate
 
@@ -18,6 +19,7 @@ REGISTRY = {
             "single": {"schema": TrainSingleCfg, "runner": single_train},
             "batch":  {"schema": TrainBatchCfg,  "runner": batch_train},
             "tenfold": {"schema": TrainTenfoldCfg, "runner": tenfold_train}, 
+            "tenfold_search": {"schema": TrainTenfoldSearchCfg, "runner": tenfold_search_train},
         }
     },
     "predict": {
