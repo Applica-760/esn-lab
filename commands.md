@@ -1,4 +1,8 @@
 
+`find . -type f -name '._*' -delete`
+`find . -type f -name '.DS_Store' -delete`
+
+
 =====================
 スパコン利用に関する手引き
 =====================

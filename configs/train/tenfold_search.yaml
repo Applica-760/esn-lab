@@ -1,4 +1,4 @@
-csv_dir: "/home/takumi/share/research-prj/dataset/10fold_csvs/" 
+csv_dir: "/home/pj24003114/ku50001550/research-prj/dataset/10fold_csvs/" 
 
 search_space:
   model.Nx: [10, 20]
