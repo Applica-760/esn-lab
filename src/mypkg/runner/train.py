@@ -57,6 +57,8 @@ def batch_train(cfg: Config):
     return
 
 
+# 10fold -----------------------------------------------------------------------------------------
+
 def _load_10fold_csvs(csv_dir: Path) -> dict[str, Path]:
     """csv_dir から 10fold_{a..j}.csv を集める。全10枚なければエラー。"""
     letters = [chr(c) for c in range(ord("a"), ord("j") + 1)]
@@ -203,7 +205,8 @@ def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
 
 
 
-# --- 追記ここから -------------------------------------------------
+# 10fold search -----------------------------------------------------------------------------------------
+
 def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag: str):
     idx = letters.index(leave)
     _worker_setup(idx)
