@@ -72,32 +72,6 @@ class Trainer:
         return
 
 
-    # def save_output_weight(self, model, filename: str | None = None):
-    #     """
-    #     学習済みWoutを保存するユーティリティ
-    #     """
-    #     # 出力先ディレクトリ
-    #     out_dir = Path(self.output_weight_dir)
-    #     out_dir.mkdir(parents=True, exist_ok=True)
-
-    #     base = model.get_param_list()
-    #     if filename is None:
-    #         save_name = f"{base}_Wout.npy"
-    #     else:
-    #         save_name = f"{base}_{filename}_Wout.npy"
-
-    #     dst = out_dir / save_name
-    #     # tmp = dst.with_suffix(dst.suffix + ".tmp") 
-    #     tmp = dst.with_suffix(f".{uuid.uuid4().hex}.tmp.npy")   # 並列処理時の衝突回避
-
-    #     np.save(tmp, model.Output.Wout)
-    #     os.replace(tmp, dst) 
-    #     if hasattr(self, "logger"):
-    #         self.logger.info(f"Saved weight: {dst}")
-    #     else:
-    #         print(f"[INFO] Saved weight: {dst}")
-
-
     def save_output_weight(self, Wout: np.ndarray, file_name: str, save_dir: str | None = None,):
         if save_dir is None:
             out_dir = Path(self.output_weight_dir)
@@ -105,11 +79,11 @@ class Trainer:
             out_dir = Path(save_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        save_name = f"{file_name}_Wout.npy"
-        dst = out_dir / save_name
+        dst = out_dir / file_name
         tmp = dst.with_suffix(f".{uuid.uuid4().hex}.tmp.npy")
 
         np.save(tmp, Wout) 
         os.replace(tmp, dst)
         
         print(f"[INFO] Saved weight: {dst}")
+

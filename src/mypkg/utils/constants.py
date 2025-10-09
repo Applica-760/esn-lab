@@ -22,7 +22,6 @@ class Params:
                              'rumination': 2}
 
 
-
 class SampleInfo:
     def __init__(self, id, path, class_id):
         self.id = id

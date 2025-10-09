@@ -1,9 +1,6 @@
 import numpy as np
 
 
-
-
-
 # リッジ回帰（beta=0のときは線形回帰）
 class Tikhonov:
     def __init__(self, N_x, N_y, beta):
@@ -26,19 +23,6 @@ class Tikhonov:
 
     # Woutの最適解（近似解）の導出
     def get_Wout_opt(self):
-        #正確な逆行列(エラー出る)
-        # X_pseudo_inv = np.linalg.inv(self.X_XT \
-        #                              + self.beta*np.identity(self.N_x))
-        #擬似逆行列(正確かは不明)
-        # X_pseudo_inv = np.linalg.pinv(self.X_XT \
-        #                              + self.beta*np.identity(self.N_x))
-        # Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
-
-        # # 等価かつよりStable版　逆行列計算ではなく.solveで解くから早い
-        # A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
-        # B = self.D_XT.T 
-        # Wout_opt = np.linalg.solve(A, B).T
-
 
         A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
         B = self.D_XT.T

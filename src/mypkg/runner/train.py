@@ -30,7 +30,7 @@ def single_train(cfg: Config):
     print("=====================================")
 
     # save output weight
-    trainer.save_output_weight(model.Output.Wout, get_model_param_str(cfg=cfg))
+    trainer.save_output_weight(model.Output.Wout, f"{get_model_param_str(cfg=cfg)}_Wout.npy")
 
     return
 
@@ -47,7 +47,7 @@ def batch_train(cfg: Config):
         trainer.train(model, optimizer, cfg.train.batch.ids[i], U, D)
 
     # save output weight
-    trainer.save_output_weight(model.Output.Wout, get_model_param_str(cfg=cfg))
+    trainer.save_output_weight(model.Output.Wout, f"{get_model_param_str(cfg=cfg)}_Wout.npy")
 
     return
 

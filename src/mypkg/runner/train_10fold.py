@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import multiprocessing as mp
+from functools import partial
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from mypkg.utils.data_processing import make_onehot
 from mypkg.pipeline.trainer import Trainer
@@ -106,7 +107,7 @@ def _flatten_search_space(ss: dict[str, list] | None) -> list[tuple[dict, str]]:
 fold&search ============================================================================
 """
 
-def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag: str):
+def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag: str, weight_dir: str):
     idx = letters.index(leave)
     _worker_setup(idx)
 
@@ -136,17 +137,10 @@ def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag:
         trainer.train(model, optimizer, ids[i], U, D)
 
     trainer.save_output_weight(Wout=model.Output.Wout, 
-                               filename=f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}", 
-                               save_dir="./artifacts/weights/")
+                               filename=f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy", 
+                               save_dir=weight_dir)
 
-    return {
-        "hp_tag": hp_tag,
-        "tag" : tag,
-        "num_samples": len(paths),
-        "letters_used": train_letters,
-    }
-
-
+    return 
 
 
 
@@ -165,7 +159,9 @@ def tenfold_search_train(cfg, *, parallel: bool = True, max_workers: int = 10):
 
     # 10fold 材料は一度作って使い回す
     table = _load_10fold_csvs(csv_dir)
-    letters = sorted(table.keys())
+    letters = sorted(table.keys())  # [a~j]
+
+    weight_dir = f"{os.getcwd()}/{tenfold_cfg.weight_path}"
 
     # 並列器の設定は既存 tenfold_train と同じ方針
     workers = min(max_workers, (os.cpu_count() or max_workers))
@@ -175,74 +171,57 @@ def tenfold_search_train(cfg, *, parallel: bool = True, max_workers: int = 10):
     else:
         executor_kwargs = {"max_workers": workers}
 
-    all_results = {}
+    # ハイパラ組ループ
     for hp_overrides, hp_tag in combos:
         print("\n=====================================")
         print(f"[INFO] hyperparam combo: {hp_tag}")
         print("=====================================")
 
-        # このハイパーパラメータでの結果を格納する辞書
-        fold_results = {}
+        # 処理済みタスクかのフラグ
         tasks_to_run = []
 
         # 1. 全てのfoldをチェックし、実行タスクとスキップタスクを振り分ける
-        # for leave in letters:
-        #     train_letters = [x for x in letters if x != leave]
-        #     tag = "".join(train_letters)
+        # foldループ
+        for leave in letters:
+            train_letters = [x for x in letters if x != leave]
+            tag = "".join(train_letters)
 
-        #     weight_filename = f"{hp_tag}_{tag}*"
-        #     print(weight_filename)
-            
-        #     expected_path = f"./artifacts/{}/{weight_filename}"
+            weight_filename = f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy"
+            expected_path = f"{weight_dir}/{weight_filename}"
+            print(expected_path)
 
-        #     if expected_path.exists():
-        #         print(f"[INFO] Weight file found, skipping fold '{leave}': {expected_path}")
-        #         # スキップした結果を先に記録
-        #         summary = {
-        #             "hp_tag": hp_tag,
-        #             "tag": tag,
-        #             "num_samples": "skipped",
-        #             "letters_used": train_letters,
-        #             "status": "skipped",
-        #         }
-        #         fold_results[tag] = summary
-        #     else:
-        #         # 重みファイルが存在しない場合、実行リストに追加
-        #         tasks_to_run.append(leave)
+            # 重みファイルが存在しない場合、実行リストに追加
+            if expected_path.exists():
+                print(f"[INFO] Weight file found, skipping fold '{leave}': {expected_path}")
+            else:
+                tasks_to_run.append(leave)
 
-        # 2. 実行が必要なタスクがなければ次のハイパラへ
+        # 探索済みの場合スキップ
         if not tasks_to_run:
-            print("[INFO] All folds for this combo are already trained.")
-            all_results[hp_tag] = fold_results
             continue
 
-        # 3. 実行が必要なタスクを実行
-        if not parallel:
+        # 実行部分
+        # 並列がfalseの場合逐次処理
+        if not parallel:    
             for leave in tasks_to_run:
-                summary = _run_one_fold_search(cfg, table, letters, leave, hp_overrides, hp_tag)
-                fold_results[summary["tag"]] = summary
-        else:
+                _run_one_fold_search(cfg, table, letters, leave, hp_overrides, hp_tag, weight_dir)
+        # 並列実行パターン
+        else:  
             with ProcessPoolExecutor(**executor_kwargs, initializer=_init_worker) as ex:
-                futures = []
-                for leave in tasks_to_run:
-                    futures.append(
-                        (leave, ex.submit(_run_one_fold_search, cfg, table, letters, leave, hp_overrides, hp_tag))
-                    )
+                future_to_leave = {
+                    ex.submit(_run_one_fold_search, cfg, table, letters, leave, hp_overrides, hp_tag, weight_dir): leave
+                    for leave in tasks_to_run
+                }
 
-                for leave, fut in futures:
+                for future in as_completed(future_to_leave):
+                    leave = future_to_leave[future]
                     try:
-                        summary = fut.result()
-                        fold_results[summary["tag"]] = summary
+                        future.result()
                     except Exception as e:
                         print(f"[ERROR] Fold '{leave}' in combo '{hp_tag}' failed: {e}")
-                        # エラーが発生した場合も記録を残す
-                        train_letters = [x for x in letters if x != leave]
-                        tag = "".join(train_letters)
-                        fold_results[tag] = {"status": "failed", "error": str(e), "tag": tag, "hp_tag": hp_tag}
-        
-        all_results[hp_tag] = fold_results
+            
 
     print("=====================================")
     print("[INFO] tenfold hyperparameter search finished.")
     print("=====================================")
-    return all_results
+    return
