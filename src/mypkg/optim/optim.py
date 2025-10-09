@@ -34,11 +34,24 @@ class Tikhonov:
         #                              + self.beta*np.identity(self.N_x))
         # Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
 
-        # 等価かつよりStable版　逆行列計算ではなく.solveで解くから早い
-        A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
-        B = self.D_XT.T 
+        # # 等価かつよりStable版　逆行列計算ではなく.solveで解くから早い
+        # A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
+        # B = self.D_XT.T 
+        # Wout_opt = np.linalg.solve(A, B).T
 
-        Wout_opt = np.linalg.solve(A, B).T
+
+        A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
+        B = self.D_XT.T
+
+        try:
+            # 通常ルート（可逆行列の場合）
+            Wout_opt = np.linalg.solve(A, B).T
+
+        except np.linalg.LinAlgError:
+            # 特異行列などで解けなかった場合のフォールバック
+            X_pseudo_inv = np.linalg.pinv(self.X_XT + self.beta * np.identity(self.N_x))
+            Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
+
         return Wout_opt
 
 

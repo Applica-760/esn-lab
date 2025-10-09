@@ -5,12 +5,11 @@ from pathlib import Path
 
 from mypkg.utils.config import Config
 from mypkg.pipeline.predictor import Predictor
+from mypkg.utils.data_processing import make_onehot
 from mypkg.model.model_builder import get_model
 from mypkg.utils.io import save_json, to_keyed_dict
 from mypkg.utils.constants import PREDICT_RECORD_FILE
 
-def make_onehot(class_id: int, T: int, num_of_class: int) -> np.ndarray:
-    return np.tile(np.eye(num_of_class)[class_id], (T, 1))
 
 def single_predict(cfg: Config):
     # model定義

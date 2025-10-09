@@ -50,6 +50,8 @@ class TrainTenfoldCfg:
 @dataclass
 class TrainTenfoldSearchCfg:
     csv_dir: Optional[str] = None
+    workers: Optional[int] = None
+    weight_path: Optional[str] = None
     search_space: Optional[dict[str, list]] | None = None
 
 @dataclass

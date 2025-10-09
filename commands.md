@@ -2,6 +2,10 @@
 `find . -type f -name '._*' -delete`
 `find . -type f -name '.DS_Store' -delete`
 
+SSH接続が切れても処理を続けるコマンド．永続ではない．
+直後の1コマンドにのみ適用される．
+`nohup python your_script.py > output.log 2>&1 &`
+
 
 =====================
 スパコン利用に関する手引き

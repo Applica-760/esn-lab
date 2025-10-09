@@ -181,13 +181,13 @@ class ESN:
                 self.window = np.zeros((average_window, N_x))
 
 
-    def get_param_list(self, seed_id="nonseed"):
-        param_list = ("seed-" + str(seed_id) \
-                    + "_nx-" + str(self.N_x) \
-                    + "_density-" + str(self.density) \
-                    + "_input_scale-" + str(self.input_scale) \
-                    + "_rho-" + str(self.rho) ).replace(".", "")
-        return param_list
+    # def get_param_list(self, seed_id="nonseed"):
+    #     param_list = ("seed-" + str(seed_id) \
+    #                 + "_nx-" + str(self.N_x) \
+    #                 + "_density-" + str(self.density) \
+    #                 + "_input_scale-" + str(self.input_scale) \
+    #                 + "_rho-" + str(self.rho) ).replace(".", "")
+    #     return param_list
 
     # バッチ学習
     def train(self, U, D, optimizer, trans_len = None):
