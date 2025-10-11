@@ -1,9 +1,13 @@
+# prj
 /artifacts/
 /data/
 /dataset/
+
+# mac
 .DS_Store
 ._.DS_Store
 
+# python
 *.pyc
 __pycache__/
 *.egg-info/
