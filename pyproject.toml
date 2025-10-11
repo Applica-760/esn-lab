@@ -1,7 +1,23 @@
 [project]
-name = "yourpkg"          # プロジェクト名（pipでの名前）
+name = "pyesn"
 version = "0.1.0"
-dependencies = ["numpy"]  # 依存があれば
+description = "A Python package for Echo State Network experiments." 
+readme = "README.md" 
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "opencv-python",
+    "PyYAML",
+    "omegaconf",
+    "networkx"
+]
+
+[project.optional-dependencies]
+gpu = ["cupy-cuda13x"]
+
+[project.scripts]
+pyesn = "pyesn.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]           # src配下をパッケージ探索
+where = ["src"]          

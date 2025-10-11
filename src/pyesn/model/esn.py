@@ -2,7 +2,7 @@
 import numpy as np
 import networkx as nx
 
-from mypkg.utils.activate_func import identity
+from pyesn.utils.activate_func import identity
 
 
 # 入力層
@@ -180,14 +180,6 @@ class ESN:
             else:
                 self.window = np.zeros((average_window, N_x))
 
-
-    # def get_param_list(self, seed_id="nonseed"):
-    #     param_list = ("seed-" + str(seed_id) \
-    #                 + "_nx-" + str(self.N_x) \
-    #                 + "_density-" + str(self.density) \
-    #                 + "_input_scale-" + str(self.input_scale) \
-    #                 + "_rho-" + str(self.rho) ).replace(".", "")
-    #     return param_list
 
     # バッチ学習
     def train(self, U, D, optimizer, trans_len = None):

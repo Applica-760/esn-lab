@@ -3,12 +3,11 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-from mypkg.utils.config import Config
-from mypkg.pipeline.predictor import Predictor
-from mypkg.utils.data_processing import make_onehot
-from mypkg.model.model_builder import get_model
-from mypkg.utils.io import save_json, to_keyed_dict
-from mypkg.utils.constants import PREDICT_RECORD_FILE
+from pyesn import Config, Predictor
+from pyesn.model.model_builder import get_model
+from pyesn.utils.data_processing import make_onehot
+from pyesn.utils.io import save_json, to_keyed_dict
+from pyesn.utils.constants import PREDICT_RECORD_FILE
 
 
 def single_predict(cfg: Config):

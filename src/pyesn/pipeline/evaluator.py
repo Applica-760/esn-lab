@@ -3,8 +3,8 @@ import numpy as np
 from pathlib import Path
 from dataclasses import fields
 
-from mypkg.utils.constants import Params
-from mypkg.utils.config import TargetOutput, TargetOutputData
+from pyesn.utils.constants import Params
+from pyesn.utils.config import TargetOutput, TargetOutputData
 
 
 class Evaluator:

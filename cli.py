@@ -5,13 +5,16 @@ from pathlib import Path
 from datetime import datetime
 from omegaconf import OmegaConf
 
-from mypkg.utils.config import (Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg, TrainTenfoldSearchCfg,
-                                PredictSingleCfg, PredictBatchCfg,
-                                EvaluateRunCfg)
-from mypkg.runner.train import single_train, batch_train
-from mypkg.runner.train_10fold import tenfold_search_train
-from mypkg.runner.predict import single_predict, batch_predict
-from mypkg.runner.evaluate import single_evaluate
+from pyesn import (
+    # schema
+    Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg, TrainTenfoldSearchCfg,
+    PredictSingleCfg, PredictBatchCfg, 
+    EvaluateRunCfg,
+    # runner
+    single_train, batch_train, tenfold_search_train,
+    single_predict, batch_predict, 
+    single_evaluate
+)
 
 
 REGISTRY = {

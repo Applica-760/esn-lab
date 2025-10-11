@@ -1,6 +1,7 @@
 # utils/config.py
-from dataclasses import dataclass
 from typing import Optional
+from dataclasses import dataclass
+
 
 # util ==============================================================
 @dataclass

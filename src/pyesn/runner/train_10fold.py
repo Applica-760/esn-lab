@@ -10,9 +10,9 @@ from functools import partial
 from itertools import product
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from mypkg.utils.data_processing import make_onehot
-from mypkg.pipeline.trainer import Trainer
-from mypkg.model.model_builder import get_model_with_overrides, get_model_param_str
+from pyesn import Trainer
+from pyesn.utils.data_processing import make_onehot
+from pyesn.model.model_builder import get_model_with_overrides, get_model_param_str
 
 
 """

@@ -1,10 +1,9 @@
 # runner/evaluate.py
 from pathlib import Path
 
-from mypkg.utils.config import Config
-from mypkg.pipeline.evaluator import Evaluator
-from mypkg.utils.io import load_jsonl, target_output_from_dict
-from mypkg.utils.constants import PREDICT_RECORD_FILE
+from pyesn import Config, Evaluator
+from pyesn.utils.io import load_jsonl, target_output_from_dict
+from pyesn.utils.constants import PREDICT_RECORD_FILE
 
 def single_evaluate(cfg: Config):
     run_dir = Path(cfg.evaluate.run.run_dir)

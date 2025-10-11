@@ -9,10 +9,9 @@ import multiprocessing as mp
 import os
 
 
-from mypkg.utils.config import Config
-from mypkg.utils.data_processing import make_onehot
-from mypkg.pipeline.trainer import Trainer
-from mypkg.model.model_builder import get_model, get_model_param_str
+from pyesn import Config, Trainer
+from pyesn.utils.data_processing import make_onehot
+from pyesn.model.model_builder import get_model, get_model_param_str
 
 
 def single_train(cfg: Config):
