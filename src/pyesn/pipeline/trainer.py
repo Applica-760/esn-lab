@@ -4,10 +4,8 @@ import numpy as np
 from pathlib import Path
 import os, uuid
 
-from pyesn import ESN
+from pyesn.model.esn import ESN
 from pyesn.utils.constants import Params
-from pyesn.utils.config import TargetOutput, TargetOutputData
-from pyesn.utils.io import to_jsonable
 
 
 class Trainer:

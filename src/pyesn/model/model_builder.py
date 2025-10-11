@@ -1,5 +1,5 @@
 # model/model_builder.py
-from pyesn import ESN
+from pyesn.model.esn import ESN
 from pyesn.optim.optim import Tikhonov
 from pyesn.utils.config import Config
 
@@ -27,7 +27,10 @@ def get_model_with_overrides(cfg: Config, overrides: dict):
     return model, optimizer
 
 # weight保存に使用するパラメタ取得へルパ
-def get_model_param_str(cfg: Config, overrides: dict, seed_id="nonseed") -> str:
+def get_model_param_str(cfg: Config, overrides: dict | None = None, seed_id="nonseed") -> str:
+    if overrides is None:
+        overrides = {}
+        
     N_x = overrides.get("Nx", cfg.model.Nx)
     density = overrides.get("density", cfg.model.density)
     input_scale = overrides.get("input_scale", cfg.model.input_scale)

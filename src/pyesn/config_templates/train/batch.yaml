@@ -1,0 +1,4 @@
+ids: ["20210508_00000", "20210508_11111"]
+paths: ["/home/takumi/share/research-prj/data/complement/20210508/064648S1_ffmpeg.jpg", 
+        "/home/takumi/share/research-prj/data/complement/20210508/064936S2_ffmpeg.jpg"]
+class_ids: [2, 2]

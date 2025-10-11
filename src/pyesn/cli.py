@@ -1,20 +1,20 @@
-# src/yourpkg/cli.py
+# src/pyesn/cli.py
 import argparse
 import yaml
+import shutil
 from pathlib import Path
 from datetime import datetime
 from omegaconf import OmegaConf
 
-from pyesn import (
-    # schema
-    Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg, TrainTenfoldSearchCfg,
-    PredictSingleCfg, PredictBatchCfg, 
-    EvaluateRunCfg,
-    # runner
-    single_train, batch_train, tenfold_search_train,
-    single_predict, batch_predict, 
-    single_evaluate
-)
+# scheme
+from pyesn.utils.config import (Config, TrainSingleCfg, TrainBatchCfg, TrainTenfoldSearchCfg,
+                                PredictSingleCfg, PredictBatchCfg,
+                                EvaluateRunCfg)
+# runner
+from pyesn.runner.train import single_train, batch_train
+from pyesn.runner.train_10fold import tenfold_search_train
+from pyesn.runner.predict import single_predict, batch_predict
+from pyesn.runner.evaluate import single_evaluate
 
 
 REGISTRY = {
@@ -44,6 +44,22 @@ REGISTRY = {
     },
 }
 
+
+# 初期化とconfig提供
+def initialize_configs():
+    source_dir = Path(__file__).parent / "config_templates"
+    dest_dir = Path.cwd() / "configs"
+    
+    if dest_dir.exists():
+        print(f"[INFO] '{dest_dir}' は既に存在するため、初期化をスキップします。")
+        return
+    try:
+        shutil.copytree(source_dir, dest_dir)
+        print(f"[OK] 設定ファイルが '{dest_dir}' にコピーされました。")
+    except Exception as e:
+        print(f"[ERROR] 設定ファイルのコピーに失敗しました: {e}")
+
+
 def main():
     # process args =================================================================================
     print("=====================================")
@@ -53,6 +69,9 @@ def main():
 
     sub = ap.add_subparsers(dest="mode", required=True)
 
+    # 'init' コマンドのパーサーを追加
+    sub.add_parser("init", help="configsディレクトリを初期化します。")
+
     for mode, conf in REGISTRY.items():
         p = sub.add_parser(mode)
         variants = list(conf["variants"].keys())
@@ -60,6 +79,10 @@ def main():
 
     args = ap.parse_args()
 
+    # 'init' コマンドが指定された場合の処理
+    if args.mode == "init":
+        initialize_configs()
+        return
 
     # load configs =================================================================================
     # load base config

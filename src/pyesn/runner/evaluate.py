@@ -1,7 +1,8 @@
 # runner/evaluate.py
 from pathlib import Path
 
-from pyesn import Config, Evaluator
+from pyesn.utils.config import Config
+from pyesn.pipeline.evaluator import Evaluator
 from pyesn.utils.io import load_jsonl, target_output_from_dict
 from pyesn.utils.constants import PREDICT_RECORD_FILE
 

@@ -1,0 +1,2 @@
+csv_dir: "/home/takumi/share/research-prj/dataset/10fold_csvs/" 
+workers: 10
