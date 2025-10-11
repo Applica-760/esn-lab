@@ -12,7 +12,7 @@ def single_evaluate(cfg: Config):
     file = list(run_dir.glob(PREDICT_RECORD_FILE))[0]
     datas = load_jsonl(file)
 
-    evaluator = Evaluator(cfg.run_dir)
+    evaluator = Evaluator()
 
     # ↓正解ラベル(時間あたりでなくデータ単位)と予測ラベルのペアをループで取得
 

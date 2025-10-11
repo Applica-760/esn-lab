@@ -12,7 +12,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pyesn.pipeline.trainer import Trainer
 from pyesn.utils.data_processing import make_onehot
-from pyesn.model.model_builder import get_model_with_overrides, get_model_param_str
+from pyesn.model.model_builder import get_model, get_model_param_str
 
 
 """
@@ -123,7 +123,7 @@ def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag:
 
     # 3-2) モデル・最適化器・トレーナ初期化（差し替え部分）
     trainer = Trainer(cfg.run_dir)
-    model, optimizer = get_model_with_overrides(cfg, hp_overrides)
+    model, optimizer = get_model(cfg, hp_overrides)
 
     # 3-3) 学習ループ（既存と同じ）
     Ny = cfg.model.Ny
@@ -144,7 +144,7 @@ def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag:
 
 
 
-def tenfold_search_train(cfg, *, parallel: bool = True, max_workers: int = 10):
+def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
     tenfold_cfg = cfg.train.tenfold_search
     if tenfold_cfg is None:
         raise ValueError("cfg.train.tenfold_search が見つかりません（tenfold_search.yaml の読み込み位置を確認してください）")
