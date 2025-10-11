@@ -3,14 +3,10 @@ import numpy as np
 from pathlib import Path
 from dataclasses import fields
 
-from pyesn.utils.constants import Params
-from pyesn.setup.config import TargetOutput, TargetOutputData
+from pyesn.setup.config import TargetOutput
 
 
 class Evaluator:
-    def __init__(self, run_dir):
-        self.params = Params()
-
 
     # 毎時刻評価
     def evaluate_classification_result(self, record: TargetOutput):

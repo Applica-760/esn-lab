@@ -5,12 +5,10 @@ from pathlib import Path
 import os, uuid
 
 from pyesn.model.esn import ESN
-from pyesn.utils.constants import Params
 
 
 class Trainer:
     def __init__(self, run_dir):
-        self.params = Params()
         self.output_weight_dir = Path(run_dir + "/output_weight")
         self.output_weight_dir.mkdir(parents=True, exist_ok=True)
 
@@ -27,23 +25,8 @@ class Trainer:
         for n in range(train_len):
             x_in = model.Input(U[n])
 
-            # フィードバック結合
-            if model.Feedback is not None:
-                x_back = model.Feedback(model.y_prev)
-                x_in += x_back
-            # ノイズ
-            if model.noise is not None:
-                x_in += model.noise
-
             # リザバー状態ベクトル
             x = model.Reservoir(x_in)
-
-            # 分類問題の場合は窓幅分の平均を取得
-            if model.classification:
-                model.window = np.append(model.window, x.reshape(1, -1),
-                                        axis=0)
-                model.window = np.delete(model.window, 0, 0)
-                x = np.average(model.window, axis=0)
 
             # 目標値
             d = D[n]
