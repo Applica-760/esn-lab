@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-from pyesn.utils.config import Config
+from pyesn.setup.config import Config
 from pyesn.pipeline.predictor import Predictor
 from pyesn.model.model_builder import get_model
 from pyesn.utils.data_processing import make_onehot

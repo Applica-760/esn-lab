@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 from dataclasses import asdict, is_dataclass
 
-from pyesn.utils.config import TargetOutput, TargetOutputData
+from pyesn.setup.config import TargetOutput, TargetOutputData
 
 # データを再帰的に走査し，mdataclass, numpy配列をjson書き込みできるように変換
 def to_jsonable(obj):

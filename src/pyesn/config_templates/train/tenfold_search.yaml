@@ -1,10 +1,7 @@
-csv_dir: "/home/pj24003114/ku50001550/research-prj/dataset/10fold_csvs/" 
-
-workers: 100
-
-weight_path: "artifacts/10fold_weights"
-
+csv_dir: "/path/to/your/10fold_csv_directory/"
+workers: 10
+weight_path: "artifacts/weights/10fold_search"
 search_space:
-  model.Nx: [200, 300, 400, 500, 600, 700, 800, 900]
-  model.rho: [0.9]
-  model.input_scale: [0.01, 0.005, 0.001]
+  model.Nx: [100, 200, 500]
+  model.rho: [0.9, 0.95, 0.99]
+  model.input_scale: [0.1, 0.01]

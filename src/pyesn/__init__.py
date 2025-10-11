@@ -1,7 +1,7 @@
 __version__ = "0.1.0"
 
 # --- configs ---
-from .utils.config import (
+from .setup.config import (
     Config,
     TrainSingleCfg,
     TrainBatchCfg,

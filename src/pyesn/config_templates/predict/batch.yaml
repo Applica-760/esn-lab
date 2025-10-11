@@ -1,5 +1,7 @@
-ids: ["20210508_00000", "20210508_11111"]
-paths: ["/home/takumi/share/research-prj/data/complement/20210508/064648S1_ffmpeg.jpg", 
-        "/home/takumi/share/research-prj/data/complement/20210508/064936S2_ffmpeg.jpg"]
-class_ids: [2, 2]
-weight: "artifacts/runs/20250827-220840_train-batch/output_weight"
+ids: ["test_001", "test_002"]
+paths: [
+  "/path/to/your/test_data/test_001.jpg",
+  "/path/to/your/test_data/test_002.png"
+]
+class_ids: [0, 1]
+weight: "artifacts/runs/your_training_run_id/output_weight"

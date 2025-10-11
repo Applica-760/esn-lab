@@ -4,7 +4,7 @@ from pathlib import Path
 from dataclasses import fields
 
 from pyesn.utils.constants import Params
-from pyesn.utils.config import TargetOutput, TargetOutputData
+from pyesn.setup.config import TargetOutput, TargetOutputData
 
 
 class Evaluator:

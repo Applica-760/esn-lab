@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pyesn.model.esn import ESN
 from pyesn.utils.constants import Params
-from pyesn.utils.config import TargetOutput, TargetOutputData
+from pyesn.setup.config import TargetOutput, TargetOutputData
 from pyesn.utils.io import to_jsonable
 
 
