@@ -6,7 +6,7 @@ from .config import (TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg,
                      EvaluateRunCfg)
 # runner
 from ..runner.train import single_train, batch_train
-from ..runner.train_10fold import tenfold_train
+from ..runner.tenfold.main import run_tenfold
 from ..runner.predict import single_predict, batch_predict
 from ..runner.evaluate import single_evaluate
 
@@ -16,7 +16,7 @@ REGISTRY = {
         "variants": {
             "single": {"schema": TrainSingleCfg, "runner": single_train},
             "batch":  {"schema": TrainBatchCfg,  "runner": batch_train},
-            "tenfold": {"schema": TrainTenfoldCfg, "runner": tenfold_train},
+            "tenfold": {"schema": TrainTenfoldCfg, "runner": run_tenfold},
         }
     },
     "predict": {
