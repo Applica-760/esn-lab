@@ -1,4 +1,6 @@
 import cv2
+import time
+from datetime import datetime
 from pathlib import Path
 
 from . import utils
@@ -17,8 +19,12 @@ def run_one_fold_search(
     hp_overrides: dict,
     weight_dir: Path,
     seed: int
-):
+) -> tuple[float, str]:
+    """
+    1-foldの学習を実行し、実行時間と完了タイムスタンプを返す。
+    """
     setup_worker_seed(seed)
+    start_time = time.monotonic()
 
     train_letters = [x for x in all_letters if x != leave_out_letter]
     train_tag = "".join(train_letters)
@@ -48,3 +54,9 @@ def run_one_fold_search(
         save_dir=str(weight_dir)
     )
     print(f"[INFO] Finished fold '{leave_out_letter}'. Weight saved to {weight_dir / weight_file_name}")
+
+    end_time = time.monotonic()
+    execution_time = end_time - start_time
+    timestamp = datetime.now().isoformat()
+    
+    return execution_time, timestamp

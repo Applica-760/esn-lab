@@ -22,11 +22,14 @@ def run_tenfold(cfg, *, parallel: bool = True, max_workers: int = 10):
             print("[INFO] All folds for this combo are already trained. Skipping.")
             continue
         
-        # 4. タスクを実行
+        # 4. タスクを実行 (結果の保存はexecution内で行われる)
         execution.execute_tasks(
             cfg, env, hp_overrides, hp_tag, tasks_to_run, parallel, max_workers
         )
+        
+        # 5. 結果を保存するロジックは不要になったため削除
 
     print("="*50)
     print("[INFO] 10-fold hyperparameter search finished.")
     print("="*50)
+
