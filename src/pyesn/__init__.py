@@ -6,7 +6,6 @@ from .setup.config import (
     TrainSingleCfg,
     TrainBatchCfg,
     TrainTenfoldCfg,
-    TrainTenfoldSearchCfg,
     PredictSingleCfg,
     PredictBatchCfg,
     EvaluateRunCfg,
@@ -14,7 +13,7 @@ from .setup.config import (
 
 # --- runners ---
 from .runner.train import single_train, batch_train
-from .runner.train_10fold import tenfold_search_train
+from .runner.train_10fold import tenfold_train
 from .runner.predict import single_predict, batch_predict
 from .runner.evaluate import single_evaluate
 

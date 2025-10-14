@@ -1,7 +1,7 @@
 # pyesn/setup/registry.py
 
 # scheme
-from .config import (TrainSingleCfg, TrainBatchCfg, TrainTenfoldSearchCfg,
+from .config import (TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg,
                      PredictSingleCfg, PredictBatchCfg,
                      EvaluateRunCfg)
 # runner
@@ -16,7 +16,7 @@ REGISTRY = {
         "variants": {
             "single": {"schema": TrainSingleCfg, "runner": single_train},
             "batch":  {"schema": TrainBatchCfg,  "runner": batch_train},
-            "tenfold": {"schema": TrainTenfoldSearchCfg, "runner": tenfold_train},
+            "tenfold": {"schema": TrainTenfoldCfg, "runner": tenfold_train},
         }
     },
     "predict": {

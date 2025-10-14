@@ -137,7 +137,7 @@ def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag:
         trainer.train(model, optimizer, ids[i], U, D)
 
     trainer.save_output_weight(Wout=model.Output.Wout, 
-                               filename=f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy", 
+                               file_name=f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy", 
                                save_dir=weight_dir)
 
     return 
@@ -145,7 +145,7 @@ def _run_one_fold_search(cfg, table, letters, leave, hp_overrides: dict, hp_tag:
 
 
 def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
-    tenfold_cfg = cfg.train.tenfold_search
+    tenfold_cfg = cfg.train.tenfold
     if tenfold_cfg is None:
         raise ValueError("cfg.train.tenfold_search が見つかりません（tenfold_search.yaml の読み込み位置を確認してください）")
 
@@ -155,13 +155,14 @@ def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
 
     # 検索空間の展開
     combos = _flatten_search_space(getattr(tenfold_cfg, "search_space", None))
-    print(f"combos:{combos}\n\n")
+    print(f"combos:{combos}")
 
     # 10fold 材料は一度作って使い回す
     table = _load_10fold_csvs(csv_dir)
     letters = sorted(table.keys())  # [a~j]
 
-    weight_dir = f"{os.getcwd()}/{tenfold_cfg.weight_path}"
+    weight_dir = Path(f"{os.getcwd()}/{tenfold_cfg.weight_path}")
+    weight_dir.mkdir(parents=True, exist_ok=True)
 
     # 並列器の設定は既存 tenfold_train と同じ方針
     workers = min(max_workers, (os.cpu_count() or max_workers))
@@ -173,7 +174,7 @@ def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
 
     # ハイパラ組ループ
     for hp_overrides, hp_tag in combos:
-        print("\n=====================================")
+        print("=====================================")
         print(f"[INFO] hyperparam combo: {hp_tag}")
         print("=====================================")
 
@@ -187,8 +188,7 @@ def tenfold_train(cfg, *, parallel: bool = True, max_workers: int = 10):
             tag = "".join(train_letters)
 
             weight_filename = f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy"
-            expected_path = f"{weight_dir}/{weight_filename}"
-            print(expected_path)
+            expected_path = Path(f"{weight_dir}/{weight_filename}")
 
             # 重みファイルが存在しない場合、実行リストに追加
             if expected_path.exists():
