@@ -3,12 +3,12 @@
 # scheme
 from .config import (TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg,
                      PredictSingleCfg, PredictBatchCfg,
-                     EvaluateRunCfg, EvaluateTenfoldCfg)
+                     EvaluateRunCfg, EvaluateTenfoldCfg, EvaluateSummaryCfg)
 # runner
 from ..runner.train import single_train, batch_train
 from ..runner.tenfold.main import run_tenfold
 from ..runner.predict import single_predict, batch_predict
-from ..runner.evaluate import single_evaluate, tenfold_evaluate
+from ..runner.evaluate import single_evaluate, tenfold_evaluate, summary_evaluate
 
 
 REGISTRY = {
@@ -30,6 +30,7 @@ REGISTRY = {
             "run": {"schema": EvaluateRunCfg, "runner": single_evaluate},
             "cv" : {},
             "tenfold": {"schema": EvaluateTenfoldCfg, "runner": tenfold_evaluate},
+            "summary": {"schema": EvaluateSummaryCfg, "runner": summary_evaluate},
         }
     },
     "integ": {

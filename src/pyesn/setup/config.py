@@ -90,9 +90,32 @@ class EvaluateRunCfg:
     run_dir: Optional[str] = None
 
 @dataclass
+class EvaluateSummaryCfg:
+    # Path to directory that contains evaluation_results.csv
+    weight_dir: Optional[str] = None
+    # CSV file name inside weight_dir
+    csv_name: Optional[str] = "evaluation_results.csv"
+    # Which metric to visualize: "majority_acc" or "timestep_acc"
+    metric: Optional[str] = "majority_acc"
+    # Vary one hyperparameter and plot mean±std as error bars over its values
+    vary_param: Optional[str] = "Nx"
+    vary_values: Optional[list] = None  # e.g., [200, 300, 400]
+    # Filters to apply before pivot. Example: {"Nx": 200, "density": 0.5}
+    filters: Optional[dict] = None
+    # Aggregation function when multiple points map to same grid cell
+    agg: Optional[str] = "mean"
+    # Output directory (default: weight_dir/evaluation_plots)
+    output_dir: Optional[str] = None
+    # Plot options
+    fmt: Optional[str] = ".3f"  # number formatting for CSV/logs
+    title: Optional[str] = None
+    dpi: Optional[int] = 150
+
+@dataclass
 class Evaluate:
     run: Optional[EvaluateRunCfg] = None
     tenfold: Optional[EvaluateTenfoldCfg] = None
+    summary: Optional[EvaluateSummaryCfg] = None
 
 
 

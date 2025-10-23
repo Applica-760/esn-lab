@@ -10,7 +10,8 @@ dependencies = [
     "opencv-python",
     "PyYAML",
     "omegaconf",
-    "networkx"
+    "networkx",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]
