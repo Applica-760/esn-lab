@@ -1,9 +1,17 @@
 # pipeline/evaluator.py
+import cv2
 import numpy as np
+import re
 from pathlib import Path
-from dataclasses import fields
+from dataclasses import dataclass
+from collections import defaultdict
 
-from pyesn.setup.config import TargetOutput
+from pyesn.setup.config import TargetOutput, Config
+from pyesn.model.esn import ESN
+from pyesn.model.model_builder import get_model, get_model_param_str
+from pyesn.pipeline.predictor import Predictor
+from pyesn.utils.data_processing import make_onehot
+
 
 
 class Evaluator:
@@ -41,7 +49,6 @@ class Evaluator:
         return success, pred_major, true_major, pred_counts, true_counts
 
 
-    def make_confusion_matrix():
-
+    def make_confusion_matrix(self):
         return
 

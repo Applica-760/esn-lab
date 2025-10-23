@@ -78,7 +78,13 @@ class Predict:
     batch: Optional[PredictBatchCfg] = None
 
 
+
 # evaluate ==============================================================
+@dataclass
+class EvaluateTenfoldCfg:
+    csv_dir: Optional[str] = None
+    weight_dir: Optional[str] = None
+
 @dataclass
 class EvaluateRunCfg:
     run_dir: Optional[str] = None
@@ -86,6 +92,8 @@ class EvaluateRunCfg:
 @dataclass
 class Evaluate:
     run: Optional[EvaluateRunCfg] = None
+    tenfold: Optional[EvaluateTenfoldCfg] = None
+
 
 
 # integ ==============================================================
