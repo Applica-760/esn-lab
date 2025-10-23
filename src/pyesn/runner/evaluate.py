@@ -1,8 +1,11 @@
 # runner/evaluate.py
 import re
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pyesn.setup.config import Config
 from pyesn.pipeline.evaluator import Evaluator
@@ -10,6 +13,44 @@ from pyesn.pipeline.predictor import Predictor
 from pyesn.model.model_builder import get_model
 from pyesn.utils.io import load_jsonl, target_output_from_dict
 from pyesn.runner.tenfold import utils as cv_utils
+from pyesn.runner.tenfold.setup import init_global_worker_env
+
+
+def _eval_one_weight(cfg: Config, weight_path: str, csv_dir: str, overrides: dict, train_tag: str, holdout: str) -> tuple[dict, list[dict]]:
+    """Worker: evaluate one weight file on its holdout fold and return (row, pred_rows)."""
+    from pyesn.pipeline.evaluator import Evaluator
+    from pyesn.pipeline.predictor import Predictor
+    from pyesn.model.model_builder import get_model
+    from pyesn.runner.tenfold import utils as cv_utils
+    import numpy as np
+    import cv2
+
+    # Build model and load weight
+    model, _ = get_model(cfg, overrides)
+    weight = np.load(weight_path, allow_pickle=True)
+    model.Output.setweight(weight)
+
+    # Load holdout data
+    csv_map = cv_utils.load_10fold_csv_mapping(Path(csv_dir))
+    ids, paths, class_ids = cv_utils.read_data_from_csvs([csv_map[holdout]])
+    assert len(ids) == len(paths) == len(class_ids), "length mismatch"
+
+    evaluator = Evaluator()
+    predictor = Predictor(cfg.run_dir)
+
+    row, pred_rows = evaluator.evaluate_dataset_majority(
+        cfg=cfg,
+        model=model,
+        predictor=predictor,
+        ids=ids,
+        paths=paths,
+        class_ids=class_ids,
+        wf_name=Path(weight_path).name,
+        train_tag=train_tag,
+        holdout=holdout,
+        overrides=overrides,
+    )
+    return row, pred_rows
 
 
 def single_evaluate(cfg: Config):
@@ -124,14 +165,14 @@ def tenfold_evaluate(cfg: Config):
         except Exception as e:
             print(f"[WARN] Failed to read existing results CSV ({results_csv}): {e}. Proceeding without skip list.")
 
-    # Iterate weights
+    # Collect tasks (skip already processed)
     weight_files = sorted(weight_dir.glob("*_Wout.npy"))
     if not weight_files:
         print(f"[WARN] No weight files found in {weight_dir}")
         return
 
+    tasks: list[tuple[Path, dict, str, str]] = []  # (wf_path, overrides, train_tag, holdout)
     for wf in weight_files:
-        # Skip if already processed
         if wf.name in processed_weights:
             print(f"[SKIP] Already evaluated: {wf.name}")
             continue
@@ -140,8 +181,6 @@ def tenfold_evaluate(cfg: Config):
         except Exception as e:
             print(f"[SKIP] {wf.name}: {e}")
             continue
-
-        # Determine held-out fold
         train_set = set(train_tag)
         all_set = set(letters)
         holdouts = list(all_set - train_set)
@@ -149,31 +188,42 @@ def tenfold_evaluate(cfg: Config):
             print(f"[SKIP] Could not determine a single held-out fold for {wf.name}")
             continue
         holdout = holdouts[0]
+        tasks.append((wf, overrides, train_tag, holdout))
 
-        # Build model and load weight
-        model, _ = get_model(cfg, overrides)
-        weight = np.load(wf, allow_pickle=True)
-        model.Output.setweight(weight)
-        print(f"[ARTIFACT] Loaded weight: {wf.name} | holdout='{holdout}' | hp={overrides}")
+    if not tasks:
+        print("[INFO] Nothing to evaluate (all weights already processed or skipped).")
+        return
 
-        # Load hold-out CSV data
-        ids, paths, class_ids = cv_utils.read_data_from_csvs([csv_map[holdout]])
-        assert len(ids) == len(paths) == len(class_ids), "length mismatch"
+    # Decide parallelism
+    workers = int(ten_cfg.workers or (os.cpu_count() or 1))
+    do_parallel = bool(ten_cfg.parallel if ten_cfg.parallel is not None else True)
+    if not do_parallel or workers <= 1:
+        print(f"[INFO] Running {len(tasks)} evaluation tasks sequentially.")
+        for (wf, overrides, train_tag, holdout) in tasks:
+            try:
+                row, pred_rows = _eval_one_weight(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
+                evaluator.append_results(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+            except Exception as e:
+                print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
+        return
 
-        # Delegate dataset evaluation and CSV appends to Evaluator
-        row, pred_rows = evaluator.evaluate_dataset_majority(
-            cfg=cfg,
-            model=model,
-            predictor=predictor,
-            ids=ids,
-            paths=paths,
-            class_ids=class_ids,
-            wf_name=wf.name,
-            train_tag=train_tag,
-            holdout=holdout,
-            overrides=overrides,
-        )
-        evaluator.append_results(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+    print(f"[INFO] Running {len(tasks)} evaluation tasks in parallel (workers={workers}).")
+    executor_kwargs = {"max_workers": workers}
+    if os.name == "posix":
+        executor_kwargs["mp_context"] = mp.get_context("fork")
+
+    with ProcessPoolExecutor(**executor_kwargs, initializer=init_global_worker_env) as ex:
+        future_to_wf = {
+            ex.submit(_eval_one_weight, cfg, str(wf), str(csv_dir), overrides, train_tag, holdout): wf
+            for (wf, overrides, train_tag, holdout) in tasks
+        }
+        for fut in as_completed(future_to_wf):
+            wf = future_to_wf[fut]
+            try:
+                row, pred_rows = fut.result()
+                evaluator.append_results(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+            except Exception as e:
+                print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
 
     return
 
