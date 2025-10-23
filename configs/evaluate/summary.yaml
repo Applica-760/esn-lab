@@ -7,7 +7,7 @@ metric: "majority_acc"
 
 # Vary one hyperparameter (x-axis). Specify values explicitly.
 vary_param: "Nx"
-vary_values: [200, 300]
+vary_values: [200, 300, 400, 500]
 
 # Fixed hyperparameters (do NOT include vary_param here)
 filters:
