@@ -8,8 +8,6 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pyesn.setup.config import Config
-from pyesn.pipeline.predictor import Predictor
-from pyesn.model.model_builder import get_model
 from pyesn.utils.io import load_jsonl, target_output_from_dict
 from pyesn.runner.tenfold import utils as cv_utils
 from pyesn.runner.tenfold.setup import init_global_worker_env
@@ -150,14 +148,15 @@ def tenfold_evaluate(cfg: Config):
     if not weight_dir.exists():
         raise FileNotFoundError(f"weight_dir not found: {weight_dir}")
 
+    # Prepare evaluation output directory alongside weight_dir
+    out_dir = (weight_dir.parent / f"{weight_dir.name}_eval").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     # Load CSV mapping and letters
     csv_map = cv_utils.load_10fold_csv_mapping(csv_dir)
     letters = sorted(csv_map.keys())
 
-    # Predictor/evaluator are used inside workers; avoid heavy imports/initialization in parent.
-
-    # Prepare results CSV path and already-processed set
-    results_csv = weight_dir / "evaluation_results.csv"
+    results_csv = out_dir / "evaluation_results.csv"
     processed_weights: set[str] = set()
     if results_csv.exists():
         try:
@@ -207,7 +206,7 @@ def tenfold_evaluate(cfg: Config):
         for (wf, overrides, train_tag, holdout) in tasks:
             try:
                 row, pred_rows = _eval_one_weight(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
-                _append_results_csv(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+                _append_results_csv(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
         return
@@ -227,7 +226,7 @@ def tenfold_evaluate(cfg: Config):
             wf = future_to_wf[fut]
             try:
                 row, pred_rows = fut.result()
-                _append_results_csv(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+                _append_results_csv(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
 
@@ -241,10 +240,14 @@ def summary_evaluate(cfg: Config):
     evaluator.summarize(cfg)
 
 
-def _append_results_csv(weight_dir: Path, row: dict, pred_rows: list[dict]):
-    """親プロセスのみでCSV追記を行う。heavy importを避けるため軽量実装に分離。"""
-    results_csv = weight_dir / "evaluation_results.csv"
-    preds_csv = weight_dir / "evaluation_predictions.csv"
+def _append_results_csv(out_dir: Path, row: dict, pred_rows: list[dict]):
+    """親プロセスのみでCSV追記を行う。heavy importを避けるため軽量実装に分離。
+
+    評価結果は weight_dir と同じ階層の出力ディレクトリ（out_dir）に集約して保存する。
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    results_csv = out_dir / "evaluation_results.csv"
+    preds_csv = out_dir / "evaluation_predictions.csv"
 
     try:
         df_row = pd.DataFrame([row])

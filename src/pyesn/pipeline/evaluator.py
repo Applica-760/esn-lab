@@ -4,12 +4,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
-from dataclasses import dataclass
-from collections import defaultdict
 
 from pyesn.setup.config import TargetOutput, Config
 from pyesn.model.esn import ESN
-from pyesn.model.model_builder import get_model, get_model_param_str
 from pyesn.pipeline.predictor import Predictor
 from pyesn.utils.data_processing import make_onehot
 
@@ -134,13 +131,18 @@ class Evaluator:
 
     def append_results(
         self,
-        weight_dir: Path,
+        out_dir: Path,
         row: dict,
         pred_rows: list[dict],
     ):
-        """Append a summary row and per-sample prediction rows to CSVs in weight_dir."""
-        results_csv = weight_dir / "evaluation_results.csv"
-        preds_csv = weight_dir / "evaluation_predictions.csv"
+        """Append a summary row and per-sample prediction rows to CSVs in the given output directory.
+
+        Note: The caller should provide the evaluation output directory (sibling of weight_dir),
+        not the weight directory itself.
+        """
+        out_dir.mkdir(parents=True, exist_ok=True)
+        results_csv = out_dir / "evaluation_results.csv"
+        preds_csv = out_dir / "evaluation_predictions.csv"
 
         try:
             df_row = pd.DataFrame([row])
@@ -186,7 +188,11 @@ class Evaluator:
             raise ValueError("Config 'cfg.evaluate.summary' not found.")
 
         weight_dir = Path(sum_cfg.weight_dir or ".").expanduser().resolve()
-        csv_path = (weight_dir / (sum_cfg.csv_name or "evaluation_results.csv")).resolve()
+        # Place all evaluation artifacts under a sibling directory of weight_dir
+        out_root = (weight_dir.parent / f"{weight_dir.name}_eval").resolve()
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        csv_path = (out_root / (sum_cfg.csv_name or "evaluation_results.csv")).resolve()
         if not csv_path.exists():
             raise FileNotFoundError(f"results CSV not found: {csv_path}")
 
@@ -238,7 +244,8 @@ class Evaluator:
             raise ValueError("No data points to plot after filtering and varying parameter selection.")
 
         # Prepare output directory
-        out_dir = Path(sum_cfg.output_dir).expanduser().resolve() if sum_cfg.output_dir else (weight_dir / "evaluation_plots").resolve()
+        # By default, save plots into the same evaluation output root alongside CSVs
+        out_dir = Path(sum_cfg.output_dir).expanduser().resolve() if sum_cfg.output_dir else out_root
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot error bars
@@ -266,7 +273,7 @@ class Evaluator:
         print(f"[ARTIFACT] Saved summary CSV: {csv_path2}")
 
         # Confusion matrices (optional)
-        preds_csv = (weight_dir / "evaluation_predictions.csv").resolve()
+        preds_csv = (out_root / "evaluation_predictions.csv").resolve()
         if not preds_csv.exists():
             print(f"[WARN] Predictions CSV not found; skipping confusion matrices: {preds_csv}")
             return

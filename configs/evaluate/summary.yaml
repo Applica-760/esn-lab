@@ -2,21 +2,15 @@
 weight_dir: "artifacts/10fold_weights"
 csv_name: "evaluation_results.csv"
 
-# Metric to visualize: majority_acc or timestep_acc
 metric: "majority_acc"
 
-# Vary one hyperparameter (x-axis). Specify values explicitly.
 vary_param: "Nx"
-vary_values: [200, 300, 400, 500]
+vary_values: [200, 300, 400, 500, 600]
 
-# Fixed hyperparameters (do NOT include vary_param here)
 filters:
   density: 0.5
   input_scale: 0.001
   rho: 0.9
 
-# Output options (optional)
-# output_dir: "artifacts/10fold_weights_test/evaluation_plots"
 fmt: ".3f"
-# title: "majority_acc vs Nx (mean±std)"
 dpi: 150
