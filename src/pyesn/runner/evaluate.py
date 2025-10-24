@@ -8,7 +8,6 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pyesn.setup.config import Config
-from pyesn.pipeline.evaluator import Evaluator
 from pyesn.pipeline.predictor import Predictor
 from pyesn.model.model_builder import get_model
 from pyesn.utils.io import load_jsonl, target_output_from_dict
@@ -35,6 +34,7 @@ def _eval_one_weight(cfg: Config, weight_path: str, csv_dir: str, overrides: dic
     ids, paths, class_ids = cv_utils.read_data_from_csvs([csv_map[holdout]])
     assert len(ids) == len(paths) == len(class_ids), "length mismatch"
 
+    from pyesn.pipeline.evaluator import Evaluator
     evaluator = Evaluator()
     predictor = Predictor(cfg.run_dir)
 
@@ -60,6 +60,7 @@ def single_evaluate(cfg: Config):
     file = list(run_dir.glob("predict_record.jsonl"))[0]
     datas = load_jsonl(file)
 
+    from pyesn.pipeline.evaluator import Evaluator
     evaluator = Evaluator()
 
     for i, data in enumerate(datas):
@@ -130,6 +131,12 @@ def tenfold_evaluate(cfg: Config):
     - Appends a summary row per weight to evaluation_results.csv immediately after each weight.
     - If evaluation_results.csv already exists, skip weights that are already recorded.
     """
+    # Ensure single-threaded math libs in child processes by setting env in parent before spawn
+    # Note: initializer runs after worker process starts; some libs decide threads at import time.
+    # Propagating these via the parent guarantees children import numpy/BLAS with 1 thread.
+    for _k in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[_k] = "1"
+
     ten_cfg = cfg.evaluate.tenfold
     if ten_cfg is None:
         raise ValueError("Config 'cfg.evaluate.tenfold' not found.")
@@ -147,9 +154,7 @@ def tenfold_evaluate(cfg: Config):
     csv_map = cv_utils.load_10fold_csv_mapping(csv_dir)
     letters = sorted(csv_map.keys())
 
-    # Prepare evaluator/predictor
-    evaluator = Evaluator()
-    predictor = Predictor(cfg.run_dir)
+    # Predictor/evaluator are used inside workers; avoid heavy imports/initialization in parent.
 
     # Prepare results CSV path and already-processed set
     results_csv = weight_dir / "evaluation_results.csv"
@@ -202,7 +207,7 @@ def tenfold_evaluate(cfg: Config):
         for (wf, overrides, train_tag, holdout) in tasks:
             try:
                 row, pred_rows = _eval_one_weight(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
-                evaluator.append_results(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+                _append_results_csv(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
         return
@@ -210,7 +215,8 @@ def tenfold_evaluate(cfg: Config):
     print(f"[INFO] Running {len(tasks)} evaluation tasks in parallel (workers={workers}).")
     executor_kwargs = {"max_workers": workers}
     if os.name == "posix":
-        executor_kwargs["mp_context"] = mp.get_context("fork")
+        # forkだと中断/再開後にスレッド系ライブラリで高負荷やハングが起きやすいためspawnに切替
+        executor_kwargs["mp_context"] = mp.get_context("spawn")
 
     with ProcessPoolExecutor(**executor_kwargs, initializer=init_global_worker_env) as ex:
         future_to_wf = {
@@ -221,7 +227,7 @@ def tenfold_evaluate(cfg: Config):
             wf = future_to_wf[fut]
             try:
                 row, pred_rows = fut.result()
-                evaluator.append_results(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
+                _append_results_csv(weight_dir=weight_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
 
@@ -229,6 +235,30 @@ def tenfold_evaluate(cfg: Config):
 
 
 def summary_evaluate(cfg: Config):
-    # Delegate summary plotting (errorbar + confusion) to Evaluator
+    # Delegate summary plotting (errorbar + confusion) to Evaluator（遅延importで親のcv2初期化を回避）
+    from pyesn.pipeline.evaluator import Evaluator
     evaluator = Evaluator()
     evaluator.summarize(cfg)
+
+
+def _append_results_csv(weight_dir: Path, row: dict, pred_rows: list[dict]):
+    """親プロセスのみでCSV追記を行う。heavy importを避けるため軽量実装に分離。"""
+    results_csv = weight_dir / "evaluation_results.csv"
+    preds_csv = weight_dir / "evaluation_predictions.csv"
+
+    try:
+        df_row = pd.DataFrame([row])
+        header_needed = not results_csv.exists()
+        df_row.to_csv(results_csv, mode='a', header=header_needed, index=False)
+        print(f"[INFO] Appended evaluation row to {results_csv}: {row.get('weight_file')}")
+    except Exception as e:
+        print(f"[ERROR] Failed to append result for {row.get('weight_file')} to CSV: {e}")
+
+    try:
+        if pred_rows:
+            df_preds = pd.DataFrame(pred_rows)
+            header_needed_preds = not preds_csv.exists()
+            df_preds.to_csv(preds_csv, mode='a', header=header_needed_preds, index=False)
+            print(f"[INFO] Appended {len(pred_rows)} prediction rows to {preds_csv}: {row.get('weight_file')}")
+    except Exception as e:
+        print(f"[ERROR] Failed to append prediction rows for {row.get('weight_file')} to CSV: {e}")

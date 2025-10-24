@@ -2,4 +2,4 @@ csv_dir: "dataset/10fold_csvs/"
 weight_dir: "artifacts/10fold_weights"
 
 parallel: true
-workers: 8
+workers: 4
