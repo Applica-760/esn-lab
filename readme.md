@@ -51,7 +51,7 @@ data:
 model:
     name: "esn"
     Nu: 256
-    Nx: 10
+    Nx: 100
     Ny: 3
     density: 0.5
     input_scale: 0.01
@@ -77,22 +77,7 @@ pyesn train single
 
 学習が完了すると、実行結果（重みファイルやログ）が `artifacts/runs/{実行日時}_{モード}-{バリアント}/` ディレクトリに保存されます。
 
-### 4\. 予測の実行
 
-学習済みの重みファイルを使って予測を行うには、まず `configs/predict/single.yaml` を編集し、使用する重みファイルのパスを指定します。
-
-```yaml:configs/predict/single.yaml
-id: "test_sample_001"
-path: "/path/to/your/test_data/sample_001.jpg"
-class_id: 0
-weight: "artifacts/runs/your_training_run_id/output_weight" # 学習済み重みへのパス
-```
-
-その後、以下のコマンドを実行します。
-
-```bash
-pyesn predict single
-```
 
 ## 🛠️ コマンドラインインターフェース
 
@@ -100,12 +85,14 @@ pyesn predict single
 
 | モード     | バリアント         | 説明                                                     |
 | :--------- | :----------------- | :------------------------------------------------------- |
-| `train`    | `single`           | 単一のデータで学習します。                               |
-|            | `batch`            | 複数のデータを一括で学習します。                         |
-|            | `tenfold_search`   | 10-fold交差検証を行い、ハイパーパラメータを探索します。 |
+| `train`    | `single`           | 単一のデータで訓練します。                               |
+|            | `batch`            | 複数のデータを一括で訓練します。                         |
+|            | `tenfold`          | 10-fold交差検証を行い、ハイパーパラメータを探索します。 |
 | `predict`  | `single`           | 単一のデータで予測を行います。                           |
 |            | `batch`            | 複数のデータを一括で予測します。                         |
 | `evaluate` | `run`              | 予測結果を評価します。                                   |
+|            | `summary`          | 10-fold交差検証の評価結果を混同行列にプロットします。|
+|            | `tenfold`          | 10-fold交差検証の訓練結果を用いてテストデータを推論させます。|
 
 
 ## 今後の展望 (ロードマップ)
@@ -119,6 +106,7 @@ pyesn predict single
 ## 依存パッケージ
 
   * numpy
+  * matplotlib
   * pandas
   * opencv-python
   * PyYAML

@@ -1,2 +1,10 @@
-csv_dir: "/path/to/your/10fold_csv_directory/"
-workers: 8
+csv_dir: "dataset/10fold_csvs/" 
+
+workers: 10
+
+weight_path: "artifacts/10fold_weights"
+
+search_space:
+  model.Nx: [200, 300]
+  model.rho: [0.7, 0.9]
+  model.input_scale: [0.01, 0.005, 0.001]

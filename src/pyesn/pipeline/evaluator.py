@@ -300,6 +300,8 @@ class Evaluator:
         except Exception:
             n_classes = int(max(dfp_f[["true_label", "pred_label"]].max()) + 1)
 
+    # Confusion matrices are row-normalized only (each true-label row sums to 1)
+
         for v in xs:
             series = dfp_f[vary_param]
             if pd.api.types.is_numeric_dtype(series) and isinstance(v, (int, float)):
@@ -318,20 +320,32 @@ class Evaluator:
                 if 0 <= t < n_classes and 0 <= p < n_classes:
                     cm[t, p] += 1
 
+            # Compute normalized matrix for plotting (row-normalized 0..1)
+            cm_norm = cm.astype(float)
+            row_sums = cm_norm.sum(axis=1, keepdims=True)
+            row_sums[row_sums == 0.0] = 1.0  # keep zero rows as zeros
+            cm_norm = cm_norm / row_sums
+
             fig, ax = plt.subplots(figsize=(5, 4))
-            im = ax.imshow(cm, interpolation='nearest', cmap='Blues')
-            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            im = ax.imshow(cm_norm, interpolation='nearest', cmap='Blues', vmin=0.0, vmax=1.0)
+            cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar.ax.set_ylabel('fraction', rotation=270, labelpad=12)
             ax.set_xlabel('Predicted label')
             ax.set_ylabel('True label')
-            ax.set_title(f"Confusion matrix: {vary_param}={v}")
+            ax.set_title(f"Confusion matrix: {vary_param}={v} | normalized (row)")
             ax.set_xticks(range(n_classes))
             ax.set_yticks(range(n_classes))
 
-            thresh = cm.max() / 2 if cm.max() > 0 else 0.5
+            # Annotate each cell with normalized value only (0..1)
+            # Choose threshold based on normalized values for text color
+            vmax = cm_norm.max() if cm_norm.size else 0
+            thresh = vmax / 2 if vmax > 0 else 0.5
             for i in range(n_classes):
                 for j in range(n_classes):
-                    val = cm[i, j]
-                    ax.text(j, i, str(val), ha='center', va='center', color='white' if val > thresh else 'black')
+                    frac = cm_norm[i, j]
+                    text = f"{frac:.2f}"
+                    ax.text(j, i, text, ha='center', va='center',
+                            color='white' if frac > thresh else 'black')
 
             fig.tight_layout()
             fname_base_cm = f"confusion_{vary_param}-{v}"
@@ -343,6 +357,11 @@ class Evaluator:
             csv_cm = out_dir / f"{fname_base_cm}.csv"
             pd.DataFrame(cm).to_csv(csv_cm, index=False, header=[f"pred_{i}" for i in range(n_classes)])
             print(f"[ARTIFACT] Saved confusion counts CSV: {csv_cm}")
+
+            # Also save normalized confusion matrix (row-normalized)
+            csv_cm_norm = out_dir / f"{fname_base_cm}_normalized.csv"
+            pd.DataFrame(cm_norm).to_csv(csv_cm_norm, index=False, header=[f"pred_{i}" for i in range(n_classes)])
+            print(f"[ARTIFACT] Saved normalized confusion CSV: {csv_cm_norm}")
 
         return
 

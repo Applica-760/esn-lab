@@ -6,12 +6,12 @@ readme = "README.md"
 
 dependencies = [
     "numpy",
+    "matplotlib",
     "pandas",
     "opencv-python",
     "PyYAML",
     "omegaconf",
     "networkx",
-    "matplotlib"
 ]
 
 [project.optional-dependencies]
