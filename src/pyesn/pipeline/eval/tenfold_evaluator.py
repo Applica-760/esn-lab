@@ -1,6 +1,5 @@
 from pathlib import Path
 import numpy as np
-import cv2
 
 from pyesn.pipeline.eval.evaluator import Evaluator
 from pyesn.pipeline.pred.predictor import Predictor

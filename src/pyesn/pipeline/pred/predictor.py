@@ -1,5 +1,4 @@
 # pipeline/predictor.py
-import json
 import numpy as np
 from pathlib import Path
 
@@ -15,6 +14,10 @@ class Predictor:
 
 
     def predict(self, model:ESN, sample_id, U, D):
+        # Reset states per sample to avoid cross-sequence leakage
+        model.Reservoir.reset_reservoir_state()
+        model.y_prev = np.zeros(model.N_y)
+
         test_len = len(U)
         Y_pred = []
         # 時間発展

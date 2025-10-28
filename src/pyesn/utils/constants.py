@@ -1,6 +1,4 @@
-import cv2
-import numpy as np
-from pathlib import Path
+"""Project-wide constants (no imports required)."""
 
 TRAIN_RECORD_FILE = "train_record.jsonl"
 PREDICT_RECORD_FILE = "predict_record.jsonl"

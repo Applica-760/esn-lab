@@ -3,22 +3,30 @@ from pathlib import Path
 from . import utils
 from pyesn.pipeline.tenfold_util import make_weight_filename, load_10fold_csv_mapping
 
-def prepare_run_environment(cfg):
+def prepare_run_environment(cfg, tenfold_cfg=None):
     """
     実行に必要な設定を検証し、パスやファイルマッピングを準備する。
+
+    引数:
+        tenfold_cfg: TrainTenfoldCfg または同等のオブジェクト（csv_dir, weight_path を持つ）。
+                     None の場合は cfg.train.tenfold を参照。
 
     戻り値:
         dict: 実行に必要な情報（weight_dir, csv_map, letters）を含む辞書
     """
-    tenfold_cfg = cfg.train.tenfold
+    tenfold_cfg = tenfold_cfg or getattr(getattr(cfg, "train", None), "tenfold", None)
     if tenfold_cfg is None:
         raise ValueError("Config 'cfg.train.tenfold' not found.")
 
-    csv_dir = Path(tenfold_cfg.csv_dir).expanduser().resolve()
+    csv_dir = Path(getattr(tenfold_cfg, "csv_dir")).expanduser().resolve()
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    weight_dir = Path.cwd() / tenfold_cfg.weight_path
+    # Prefer unified name 'weight_dir' with fallback to legacy 'weight_path'
+    weight_dir_str = getattr(tenfold_cfg, "weight_dir", None) or getattr(tenfold_cfg, "weight_path", None)
+    if not weight_dir_str:
+        raise ValueError("Config requires 'weight_dir' (or legacy 'weight_path').")
+    weight_dir = Path.cwd() / weight_dir_str
     weight_dir.mkdir(parents=True, exist_ok=True)
     
     csv_map = load_10fold_csv_mapping(csv_dir)

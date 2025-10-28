@@ -1,0 +1,27 @@
+train:
+  csv_dir: "dataset/10fold_csvs/"
+  workers: 10
+  weight_path: "artifacts/10fold_weights"
+  search_space:
+    model.Nx: [200, 300]
+    model.rho: [0.9]
+    model.input_scale: [0.01, 0.005]
+
+eval:
+  tenfold:
+    csv_dir: "dataset/10fold_csvs/"
+    weight_dir: "artifacts/10fold_weights"
+    parallel: true
+    workers: 10
+  summary:
+    weight_dir: "artifacts/10fold_weights"
+    csv_name: "evaluation_results.csv"
+    metric: "majority_acc"
+    vary_param: "Nx"
+    # grid の探索範囲に合わせて必要に応じて更新
+    vary_values: [200, 300]
+    filters:
+      rho: 0.9
+      input_scale: 0.01
+    fmt: ".3f"
+    dpi: 150

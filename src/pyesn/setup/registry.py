@@ -9,8 +9,8 @@ from ..runner.train.train import single_train, batch_train
 from ..runner.train.tenfold.main import run_tenfold
 from ..runner.pred.predict import single_predict, batch_predict
 from ..runner.eval.evaluate import single_evaluate, tenfold_evaluate, summary_evaluate
-from ..runner.integ.tenfold import run_tenfold_integration
-from .config import IntegTenfoldCfg
+from ..runner.integ.grid import run_grid
+from .config import IntegGridCfg
 
 
 REGISTRY = {
@@ -37,7 +37,7 @@ REGISTRY = {
     },
     "integ": {
         "variants": {
-            "tenfold": {"schema": IntegTenfoldCfg, "runner": run_tenfold_integration}
+            "grid": {"schema": IntegGridCfg, "runner": run_grid}
         }
     },
 }

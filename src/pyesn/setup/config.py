@@ -1,6 +1,6 @@
 # utils/config.py
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 # util ==============================================================
@@ -47,6 +47,8 @@ class TrainBatchCfg:
 class TrainTenfoldCfg:
     csv_dir: Optional[str] = None
     workers: Optional[int] = None
+    # 統一名: weight_dir（従来の weight_path は後方互換のため残す）
+    weight_dir: Optional[str] = None
     weight_path: Optional[str] = None
     search_space: Optional[dict[str, list]] | None = None
 
@@ -115,17 +117,14 @@ class Evaluate:
 
 # integ ==============================================================
 @dataclass
-class IntegTenfoldCfg:
-    """Integration config: run 10-fold train and immediate evaluation in one command.
-
-    Reuses TrainTenfoldCfg and EvaluateTenfoldCfg schemas to avoid duplication.
-    """
+class IntegGridCfg:
     train: Optional[TrainTenfoldCfg] = None
-    eval: Optional[EvaluateTenfoldCfg] = None
+    # eval は Evaluate の tenfold/summary を再利用（run は未使用）
+    eval: Optional[Evaluate] = None
 
 @dataclass
 class Integ:
-    tenfold: Optional[IntegTenfoldCfg] = None
+    grid: Optional[IntegGridCfg] = None
 
 @dataclass
 class Config:
@@ -134,8 +133,8 @@ class Config:
     num_of_classes: int
     data: dict
     run_dir: str
-    model: ModelCfg = ModelCfg()
-    train: Optional[Train] = Train
-    predict: Optional[Predict] = Predict
-    evaluate: Optional[Evaluate] = Evaluate
-    integ: Optional[Integ] = Integ
+    model: ModelCfg = field(default_factory=ModelCfg)
+    train: Optional[Train] = field(default_factory=Train)
+    predict: Optional[Predict] = field(default_factory=Predict)
+    evaluate: Optional[Evaluate] = field(default_factory=Evaluate)
+    integ: Optional[Integ] = field(default_factory=Integ)
