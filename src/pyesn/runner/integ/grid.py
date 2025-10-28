@@ -41,19 +41,20 @@ def run_grid(cfg) -> None:
     # なければ学習設定から補完
     if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
         csv_dir_str: str = getattr(grid_eval_cfg.tenfold, "csv_dir", None) or getattr(train_cfg, "csv_dir")
-        # Prefer unified 'weight_dir' with fallback to legacy 'weight_path'
+        # Require unified 'weight_dir'
         weight_dir_str: str = (
             getattr(grid_eval_cfg.tenfold, "weight_dir", None)
             or getattr(train_cfg, "weight_dir", None)
-            or getattr(train_cfg, "weight_path")
         )
         eval_workers: int = int(getattr(grid_eval_cfg.tenfold, "workers", None) or getattr(train_cfg, "workers", 1) or 1)
         eval_parallel: bool = bool(getattr(grid_eval_cfg.tenfold, "parallel", True))
     else:
         csv_dir_str = getattr(train_cfg, "csv_dir")
-        weight_dir_str = getattr(train_cfg, "weight_dir", None) or getattr(train_cfg, "weight_path")
+        weight_dir_str = getattr(train_cfg, "weight_dir", None)
         eval_workers = auto_workers
         eval_parallel = True
+    if not weight_dir_str:
+        raise ValueError("'weight_dir' is required in integ.grid.eval.tenfold or integ.grid.train.")
 
     for overrides, tag in combos:
         print("=" * 50)
@@ -96,7 +97,22 @@ def run_grid(cfg) -> None:
         cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
 
     if grid_eval_cfg and getattr(grid_eval_cfg, "summary", None):
+        # ユーザ指定を尊重しつつ、vary_values が未指定なら search_space から自動補完
         cfg.evaluate.summary = grid_eval_cfg.summary
+        try:
+            if getattr(cfg.evaluate.summary, "vary_values", None) in (None, []) and ss:
+                vary_param = getattr(cfg.evaluate.summary, "vary_param", None) or "Nx"
+                # search_space は 'model.X' か 'X' で指定されうる
+                candidates = []
+                if isinstance(ss, dict):
+                    if f"model.{vary_param}" in ss:
+                        candidates = list(ss[f"model.{vary_param}"])
+                    elif vary_param in ss:
+                        candidates = list(ss[vary_param])
+                if candidates:
+                    cfg.evaluate.summary.vary_values = candidates
+        except Exception as e:
+            print(f"[WARN] Failed to auto-fill summary.vary_values: {e}")
     else:
         # vary_param は search_space が単一項目ならそれを用いる
         vary_param = "Nx"

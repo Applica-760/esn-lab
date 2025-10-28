@@ -1,9 +1,9 @@
 train:
   csv_dir: "dataset/10fold_csvs/"
   workers: 10
-  weight_path: "artifacts/10fold_weights"
+  weight_dir: "artifacts/10fold_pred0"
   search_space:
-    model.Nx: [200, 300]
+    model.Nx: [200, 300, 400, 500, 600, 700, 800]
     model.density: [0.5]
     model.rho: [0.9]
     model.input_scale: [0.01]
@@ -11,16 +11,15 @@ train:
 eval:
   tenfold:
     csv_dir: "dataset/10fold_csvs/"
-    weight_dir: "artifacts/10fold_weights"
+    weight_dir: "artifacts/10fold_pred0"
     parallel: true
     workers: 10
   summary:
-    weight_dir: "artifacts/10fold_weights"
+    weight_dir: "artifacts/10fold_pred0"
     csv_name: "evaluation_results.csv"
     metric: "majority_acc"
     vary_param: "Nx"
-    # grid の探索範囲に合わせて必要に応じて更新
-    vary_values: [200, 300]
+    vary_values: [200, 300, 400, 500, 600, 700, 800]
     filters:
       density: 0.5
       input_scale: 0.01

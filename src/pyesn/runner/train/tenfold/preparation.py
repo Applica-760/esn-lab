@@ -8,7 +8,7 @@ def prepare_run_environment(cfg, tenfold_cfg=None):
     実行に必要な設定を検証し、パスやファイルマッピングを準備する。
 
     引数:
-        tenfold_cfg: TrainTenfoldCfg または同等のオブジェクト（csv_dir, weight_path を持つ）。
+    tenfold_cfg: TrainTenfoldCfg または同等のオブジェクト（csv_dir, weight_dir を持つ）。
                      None の場合は cfg.train.tenfold を参照。
 
     戻り値:
@@ -22,10 +22,10 @@ def prepare_run_environment(cfg, tenfold_cfg=None):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Prefer unified name 'weight_dir' with fallback to legacy 'weight_path'
-    weight_dir_str = getattr(tenfold_cfg, "weight_dir", None) or getattr(tenfold_cfg, "weight_path", None)
+    # Require unified name 'weight_dir'
+    weight_dir_str = getattr(tenfold_cfg, "weight_dir", None)
     if not weight_dir_str:
-        raise ValueError("Config requires 'weight_dir' (or legacy 'weight_path').")
+        raise ValueError("Config requires 'weight_dir'.")
     weight_dir = Path.cwd() / weight_dir_str
     weight_dir.mkdir(parents=True, exist_ok=True)
     

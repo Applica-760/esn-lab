@@ -47,9 +47,8 @@ class TrainBatchCfg:
 class TrainTenfoldCfg:
     csv_dir: Optional[str] = None
     workers: Optional[int] = None
-    # 統一名: weight_dir（従来の weight_path は後方互換のため残す）
+    # 統一名: weight_dir のみを使用
     weight_dir: Optional[str] = None
-    weight_path: Optional[str] = None
     search_space: Optional[dict[str, list]] | None = None
 
 @dataclass
