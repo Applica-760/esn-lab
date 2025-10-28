@@ -4,8 +4,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import pandas as pd
 from pathlib import Path
 
-from . import task
-from .setup import init_global_worker_env
+from .setup import init_global_worker_env, setup_worker_seed
+from pyesn.pipeline.train.tenfold_trainer import TenfoldTrainer
 
 def _append_result_to_csv(result: dict, weight_dir: Path):
     """
@@ -36,14 +36,14 @@ def _execute_sequentially(cfg, env, hp_overrides, hp_tag, tasks_to_run):
     print(f"[INFO] Running {len(tasks_to_run)} tasks sequentially.")
     for i, leave in enumerate(tasks_to_run):
         try:
-            execution_time, timestamp = task.run_one_fold_search(
+            execution_time, timestamp = _run_one_fold_search(
                 cfg,
                 csv_map=env["csv_map"],
                 all_letters=env["letters"],
                 leave_out_letter=leave,
                 hp_overrides=hp_overrides,
                 weight_dir=env["weight_dir"],
-                seed=i
+                seed=i,
             )
             result = {
                 "timestamp": timestamp,
@@ -66,15 +66,16 @@ def _execute_in_parallel(cfg, env, hp_overrides, hp_tag, tasks_to_run, max_worke
     with ProcessPoolExecutor(**executor_kwargs, initializer=init_global_worker_env) as ex:
         future_to_leave = {
             ex.submit(
-                task.run_one_fold_search,
+                _run_one_fold_search,
                 cfg,
                 csv_map=env["csv_map"],
                 all_letters=env["letters"],
                 leave_out_letter=leave,
                 hp_overrides=hp_overrides,
                 weight_dir=env["weight_dir"],
-                seed=i
-            ): leave for i, leave in enumerate(tasks_to_run)
+                seed=i,
+            ): leave
+            for i, leave in enumerate(tasks_to_run)
         }
 
         for future in as_completed(future_to_leave):
@@ -90,3 +91,25 @@ def _execute_in_parallel(cfg, env, hp_overrides, hp_tag, tasks_to_run, max_worke
                 _append_result_to_csv(result, env["weight_dir"])
             except Exception as e:
                 print(f"[ERROR] Fold '{leave}' in combo '{hp_tag}' failed: {e}")
+
+
+def _run_one_fold_search(
+    cfg,
+    csv_map: dict[str, Path],
+    all_letters: list[str],
+    leave_out_letter: str,
+    hp_overrides: dict,
+    weight_dir: Path,
+    seed: int,
+) -> tuple[float, str]:
+    """Thin wrapper: set seed (runner responsibility) and delegate to pipeline TenfoldTrainer."""
+    setup_worker_seed(seed)
+    trainer = TenfoldTrainer(cfg.run_dir)
+    return trainer.run_one_fold_search(
+        cfg=cfg,
+        csv_map=csv_map,
+        all_letters=all_letters,
+        leave_out_letter=leave_out_letter,
+        hp_overrides=hp_overrides,
+        weight_dir=weight_dir,
+    )
