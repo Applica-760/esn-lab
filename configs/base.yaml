@@ -8,7 +8,7 @@ data:
 model: 
     name: "esn"
     Nu: 256
-    Nx: 10
+    Nx: 200
     Ny: 3
     density: 0.5
     input_scale: 0.01
