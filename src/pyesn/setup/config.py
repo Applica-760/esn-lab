@@ -115,6 +115,19 @@ class Evaluate:
 
 # integ ==============================================================
 @dataclass
+class IntegTenfoldCfg:
+    """Integration config: run 10-fold train and immediate evaluation in one command.
+
+    Reuses TrainTenfoldCfg and EvaluateTenfoldCfg schemas to avoid duplication.
+    """
+    train: Optional[TrainTenfoldCfg] = None
+    eval: Optional[EvaluateTenfoldCfg] = None
+
+@dataclass
+class Integ:
+    tenfold: Optional[IntegTenfoldCfg] = None
+
+@dataclass
 class Config:
     project: str
     seeds: list[int]
@@ -125,3 +138,4 @@ class Config:
     train: Optional[Train] = Train
     predict: Optional[Predict] = Predict
     evaluate: Optional[Evaluate] = Evaluate
+    integ: Optional[Integ] = Integ
