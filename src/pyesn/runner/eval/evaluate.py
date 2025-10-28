@@ -1,5 +1,3 @@
-# runner/evaluate.py
-import re
 import os
 import numpy as np
 import pandas as pd
@@ -9,46 +7,13 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pyesn.setup.config import Config
 from pyesn.utils.io import load_jsonl, target_output_from_dict
-from pyesn.runner.tenfold import utils as cv_utils
-from pyesn.runner.tenfold.setup import init_global_worker_env
+from pyesn.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
+from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename
+from pyesn.pipeline.eval.evaluator import Evaluator
+from pyesn.runner.train.tenfold.setup import init_global_worker_env
 
 
-def _eval_one_weight(cfg: Config, weight_path: str, csv_dir: str, overrides: dict, train_tag: str, holdout: str) -> tuple[dict, list[dict]]:
-    """Worker: evaluate one weight file on its holdout fold and return (row, pred_rows)."""
-    from pyesn.pipeline.eval.evaluator import Evaluator
-    from pyesn.pipeline.pred.predictor import Predictor
-    from pyesn.model.model_builder import get_model
-    from pyesn.runner.tenfold import utils as cv_utils
-    import numpy as np
-    import cv2
-
-    # Build model and load weight
-    model, _ = get_model(cfg, overrides)
-    weight = np.load(weight_path, allow_pickle=True)
-    model.Output.setweight(weight)
-
-    # Load holdout data
-    csv_map = cv_utils.load_10fold_csv_mapping(Path(csv_dir))
-    ids, paths, class_ids = cv_utils.read_data_from_csvs([csv_map[holdout]])
-    assert len(ids) == len(paths) == len(class_ids), "length mismatch"
-
-    from pyesn.pipeline.eval.evaluator import Evaluator
-    evaluator = Evaluator()
-    predictor = Predictor(cfg.run_dir)
-
-    row, pred_rows = evaluator.evaluate_dataset_majority(
-        cfg=cfg,
-        model=model,
-        predictor=predictor,
-        ids=ids,
-        paths=paths,
-        class_ids=class_ids,
-        wf_name=Path(weight_path).name,
-        train_tag=train_tag,
-        holdout=holdout,
-        overrides=overrides,
-    )
-    return row, pred_rows
+# per-weight 評価ロジックは pipeline 側に移行（eval_one_weight_worker）
 
 
 def single_evaluate(cfg: Config):
@@ -58,7 +23,6 @@ def single_evaluate(cfg: Config):
     file = list(run_dir.glob("predict_record.jsonl"))[0]
     datas = load_jsonl(file)
 
-    from pyesn.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
 
     for i, data in enumerate(datas):
@@ -68,56 +32,7 @@ def single_evaluate(cfg: Config):
     return
 
 
-def _decode_decimal(token: str) -> float:
-    """Reconstruct a float value encoded by removing the decimal point.
-
-    Example:
-    - "09"   -> 0.9
-    - "095"  -> 0.95
-    - "0005" -> 0.0005
-    - "0001" -> 0.001
-    The rule is: int(token) / (10 ** (len(token) - 1)).
-    """
-    if not token or not token.isdigit():
-        raise ValueError(f"Invalid decimal token: {token}")
-    return int(token) / (10 ** (len(token) - 1))
-
-
-def _parse_weight_filename(path: Path) -> tuple[dict, str]:
-    """Parse weight filename and return (overrides, train_tag).
-
-    Expected pattern (stem):
-    seed-<seedid>_nx-<Nx>_density-<dd>_input_scale-<ii>_rho-<rr>_<trainletters>_Wout
-    Where dd/ii/rr are numbers without decimal points, trainletters are 9 letters a-j.
-    """
-    stem = path.stem  # without .npy
-    # Ensure trailing _Wout exists in stem
-    if not stem.endswith("_Wout"):
-        raise ValueError(f"Unexpected weight filename (no _Wout suffix): {path.name}")
-
-    # Regex to capture fields
-    # Example: seed-nonseed_nx-200_density-05_input_scale-0001_rho-09_abcdefghi_Wout
-    pat = re.compile(
-        r"seed-(?P<seed>[^_]+)"  # seed tag (ignored for overrides)
-        r"_nx-(?P<nx>\d+)"
-        r"_density-(?P<density>\d+)"
-        r"_input_scale-(?P<input>\d+)"
-        r"_rho-(?P<rho>\d+)"
-        r"_(?P<train>[a-j]{9})"
-        r"_Wout$"
-    )
-    m = pat.match(stem)
-    if not m:
-        raise ValueError(f"Unexpected weight filename format: {path.name}")
-
-    nx = int(m.group("nx"))
-    density = _decode_decimal(m.group("density"))
-    input_scale = _decode_decimal(m.group("input"))
-    rho = _decode_decimal(m.group("rho"))
-    train_tag = m.group("train")
-
-    overrides = {"Nx": nx, "density": density, "input_scale": input_scale, "rho": rho}
-    return overrides, train_tag
+## Naming is centralized in pipeline.tenfold_util
 
 
 def tenfold_evaluate(cfg: Config):
@@ -153,7 +68,7 @@ def tenfold_evaluate(cfg: Config):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load CSV mapping and letters
-    csv_map = cv_utils.load_10fold_csv_mapping(csv_dir)
+    csv_map = load_10fold_csv_mapping(csv_dir)
     letters = sorted(csv_map.keys())
 
     results_csv = out_dir / "evaluation_results.csv"
@@ -181,7 +96,7 @@ def tenfold_evaluate(cfg: Config):
             print(f"[SKIP] Already evaluated: {wf.name}")
             continue
         try:
-            overrides, train_tag = _parse_weight_filename(wf)
+            overrides, train_tag = parse_weight_filename(wf)
         except Exception as e:
             print(f"[SKIP] {wf.name}: {e}")
             continue
@@ -198,15 +113,16 @@ def tenfold_evaluate(cfg: Config):
         print("[INFO] Nothing to evaluate (all weights already processed or skipped).")
         return
 
-    # Decide parallelism
+    # Prepare appender and decide parallelism
+    ev_appender = Evaluator()
     workers = int(ten_cfg.workers or (os.cpu_count() or 1))
     do_parallel = bool(ten_cfg.parallel if ten_cfg.parallel is not None else True)
     if not do_parallel or workers <= 1:
         print(f"[INFO] Running {len(tasks)} evaluation tasks sequentially.")
         for (wf, overrides, train_tag, holdout) in tasks:
             try:
-                row, pred_rows = _eval_one_weight(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
-                _append_results_csv(out_dir=out_dir, row=row, pred_rows=pred_rows)
+                row, pred_rows = eval_one_weight_worker(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
+                ev_appender.append_results(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
         return
@@ -219,14 +135,14 @@ def tenfold_evaluate(cfg: Config):
 
     with ProcessPoolExecutor(**executor_kwargs, initializer=init_global_worker_env) as ex:
         future_to_wf = {
-            ex.submit(_eval_one_weight, cfg, str(wf), str(csv_dir), overrides, train_tag, holdout): wf
+            ex.submit(eval_one_weight_worker, cfg, str(wf), str(csv_dir), overrides, train_tag, holdout): wf
             for (wf, overrides, train_tag, holdout) in tasks
         }
         for fut in as_completed(future_to_wf):
             wf = future_to_wf[fut]
             try:
                 row, pred_rows = fut.result()
-                _append_results_csv(out_dir=out_dir, row=row, pred_rows=pred_rows)
+                ev_appender.append_results(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
 
@@ -240,28 +156,4 @@ def summary_evaluate(cfg: Config):
     evaluator.summarize(cfg)
 
 
-def _append_results_csv(out_dir: Path, row: dict, pred_rows: list[dict]):
-    """親プロセスのみでCSV追記を行う。heavy importを避けるため軽量実装に分離。
-
-    評価結果は weight_dir と同じ階層の出力ディレクトリ（out_dir）に集約して保存する。
-    """
-    out_dir.mkdir(parents=True, exist_ok=True)
-    results_csv = out_dir / "evaluation_results.csv"
-    preds_csv = out_dir / "evaluation_predictions.csv"
-
-    try:
-        df_row = pd.DataFrame([row])
-        header_needed = not results_csv.exists()
-        df_row.to_csv(results_csv, mode='a', header=header_needed, index=False)
-        print(f"[INFO] Appended evaluation row to {results_csv}: {row.get('weight_file')}")
-    except Exception as e:
-        print(f"[ERROR] Failed to append result for {row.get('weight_file')} to CSV: {e}")
-
-    try:
-        if pred_rows:
-            df_preds = pd.DataFrame(pred_rows)
-            header_needed_preds = not preds_csv.exists()
-            df_preds.to_csv(preds_csv, mode='a', header=header_needed_preds, index=False)
-            print(f"[INFO] Appended {len(pred_rows)} prediction rows to {preds_csv}: {row.get('weight_file')}")
-    except Exception as e:
-        print(f"[ERROR] Failed to append prediction rows for {row.get('weight_file')} to CSV: {e}")
+# CSV追記は Evaluator.append_results に集約

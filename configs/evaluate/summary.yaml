@@ -5,7 +5,7 @@ csv_name: "evaluation_results.csv"
 metric: "majority_acc"
 
 vary_param: "Nx"
-vary_values: [200, 300, 400, 500, 600]
+vary_values: [200, 300, 400, 500, 600, 700, 800]
 
 filters:
   density: 0.5

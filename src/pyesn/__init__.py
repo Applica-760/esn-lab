@@ -13,7 +13,7 @@ from .setup.config import (
 
 # --- runners ---
 from .runner.train.train import single_train, batch_train
-from .runner.tenfold.main import run_tenfold
+from .runner.train.tenfold.main import run_tenfold
 from .runner.pred.predict import single_predict, batch_predict
 from .runner.eval.evaluate import single_evaluate
 

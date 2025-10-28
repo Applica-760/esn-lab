@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from . import utils
-from pyesn.model.model_builder import get_model_param_str
+from pyesn.pipeline.tenfold_util import make_weight_filename, load_10fold_csv_mapping
 
 def prepare_run_environment(cfg):
     """
@@ -21,7 +21,7 @@ def prepare_run_environment(cfg):
     weight_dir = Path.cwd() / tenfold_cfg.weight_path
     weight_dir.mkdir(parents=True, exist_ok=True)
     
-    csv_map = utils.load_10fold_csv_mapping(csv_dir)
+    csv_map = load_10fold_csv_mapping(csv_dir)
     letters = sorted(csv_map.keys())
     
     return {
@@ -42,7 +42,7 @@ def determine_tasks_to_run(cfg, hp_overrides, letters, weight_dir):
     for leave in letters:
         train_letters = [x for x in letters if x != leave]
         tag = "".join(train_letters)
-        weight_filename = f"{get_model_param_str(cfg=cfg, overrides=hp_overrides)}_{tag}_Wout.npy"
+        weight_filename = make_weight_filename(cfg=cfg, overrides=hp_overrides, train_tag=tag)
         expected_path = weight_dir / weight_filename
 
         if expected_path.exists():
