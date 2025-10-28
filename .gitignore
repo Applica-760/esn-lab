@@ -14,3 +14,7 @@ memo.md
 *.pyc
 __pycache__/
 *.egg-info/
+
+# genkai
+/logs/
+run.sh*

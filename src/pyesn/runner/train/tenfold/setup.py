@@ -24,8 +24,8 @@ def setup_worker_seed(seed: int):
     """
     random.seed(seed)
     np.random.seed(seed)
-    try:
-        import cupy as cp
-        cp.random.seed(seed)
-    except ImportError:
-        pass
+    # try:
+    #     import cupy as cp
+    #     cp.random.seed(seed)
+    # except ImportError:
+    #     pass
