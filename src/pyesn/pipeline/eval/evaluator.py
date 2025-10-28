@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pyesn.setup.config import TargetOutput, Config
 from pyesn.model.esn import ESN
-from pyesn.pipeline.predictor import Predictor
+from pyesn.pipeline.pred.predictor import Predictor
 from pyesn.utils.data_processing import make_onehot
 
 

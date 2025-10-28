@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 from pyesn.setup.config import Config
-from pyesn.pipeline.predictor import Predictor
+from pyesn.pipeline.pred.predictor import Predictor
 from pyesn.model.model_builder import get_model
 from pyesn.utils.data_processing import make_onehot
 from pyesn.utils.io import save_json, to_keyed_dict

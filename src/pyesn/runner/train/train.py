@@ -2,7 +2,7 @@
 import cv2
 
 from pyesn.setup.config import Config
-from pyesn.pipeline.trainer import Trainer
+from pyesn.pipeline.train.trainer import Trainer
 from pyesn.utils.data_processing import make_onehot
 from pyesn.model.model_builder import get_model, get_model_param_str
 

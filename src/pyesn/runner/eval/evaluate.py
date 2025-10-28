@@ -15,8 +15,8 @@ from pyesn.runner.tenfold.setup import init_global_worker_env
 
 def _eval_one_weight(cfg: Config, weight_path: str, csv_dir: str, overrides: dict, train_tag: str, holdout: str) -> tuple[dict, list[dict]]:
     """Worker: evaluate one weight file on its holdout fold and return (row, pred_rows)."""
-    from pyesn.pipeline.evaluator import Evaluator
-    from pyesn.pipeline.predictor import Predictor
+    from pyesn.pipeline.eval.evaluator import Evaluator
+    from pyesn.pipeline.pred.predictor import Predictor
     from pyesn.model.model_builder import get_model
     from pyesn.runner.tenfold import utils as cv_utils
     import numpy as np
@@ -32,7 +32,7 @@ def _eval_one_weight(cfg: Config, weight_path: str, csv_dir: str, overrides: dic
     ids, paths, class_ids = cv_utils.read_data_from_csvs([csv_map[holdout]])
     assert len(ids) == len(paths) == len(class_ids), "length mismatch"
 
-    from pyesn.pipeline.evaluator import Evaluator
+    from pyesn.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
     predictor = Predictor(cfg.run_dir)
 
@@ -58,7 +58,7 @@ def single_evaluate(cfg: Config):
     file = list(run_dir.glob("predict_record.jsonl"))[0]
     datas = load_jsonl(file)
 
-    from pyesn.pipeline.evaluator import Evaluator
+    from pyesn.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
 
     for i, data in enumerate(datas):
@@ -235,7 +235,7 @@ def tenfold_evaluate(cfg: Config):
 
 def summary_evaluate(cfg: Config):
     # Delegate summary plotting (errorbar + confusion) to Evaluator（遅延importで親のcv2初期化を回避）
-    from pyesn.pipeline.evaluator import Evaluator
+    from pyesn.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
     evaluator.summarize(cfg)
 
