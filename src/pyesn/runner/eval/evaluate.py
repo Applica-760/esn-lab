@@ -7,9 +7,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pyesn.setup.config import Config
 from pyesn.utils.io import load_jsonl, target_output_from_dict
 from pyesn.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename
+from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename, make_weight_filename
 from pyesn.pipeline.eval.evaluator import Evaluator
 from pyesn.runner.train.tenfold.setup import init_global_worker_env
+from pyesn.utils.param_grid import flatten_search_space
 
 
 # per-weight 評価ロジックは pipeline 側に移行（eval_one_weight_worker）
@@ -83,30 +84,35 @@ def tenfold_evaluate(cfg: Config):
         except Exception as e:
             print(f"[WARN] Failed to read existing results CSV ({results_csv}): {e}. Proceeding without skip list.")
 
-    # Collect tasks (skip already processed)
-    weight_files = sorted(weight_dir.glob("*_Wout.npy"))
-    if not weight_files:
-        print(f"[WARN] No weight files found in {weight_dir}")
+    tasks: list[tuple[Path, dict, str, str]] = []  # (wf_path, overrides, train_tag, holdout)
+
+    # Require search_space to be specified; directory scanning fallback is removed
+    if not getattr(ten_cfg, "search_space", None):
+        raise ValueError("cfg.evaluate.tenfold.search_space is required (keys like 'model.Nx').")
+
+    try:
+        combos = flatten_search_space(ten_cfg.search_space)
+    except Exception as e:
+        raise ValueError(f"Invalid evaluate.tenfold.search_space: {e}")
+
+    if not combos:
+        print("[INFO] No parameter combos to evaluate.")
         return
 
-    tasks: list[tuple[Path, dict, str, str]] = []  # (wf_path, overrides, train_tag, holdout)
-    for wf in weight_files:
-        if wf.name in processed_weights:
-            print(f"[SKIP] Already evaluated: {wf.name}")
-            continue
-        try:
-            overrides, train_tag = parse_weight_filename(wf)
-        except Exception as e:
-            print(f"[SKIP] {wf.name}: {e}")
-            continue
-        train_set = set(train_tag)
-        all_set = set(letters)
-        holdouts = list(all_set - train_set)
-        if len(holdouts) != 1:
-            print(f"[SKIP] Could not determine a single held-out fold for {wf.name}")
-            continue
-        holdout = holdouts[0]
-        tasks.append((wf, overrides, train_tag, holdout))
+    # for each combo and for each holdout, add existing weight path if available
+    for overrides, _tag in combos:
+        for holdout in letters:
+            train_letters = [x for x in letters if x != holdout]
+            train_tag = "".join(train_letters)
+            fname = make_weight_filename(cfg=cfg, overrides=overrides, train_tag=train_tag)
+            wf = weight_dir / fname
+            if not wf.exists():
+                # weight not trained yet; skip quietly
+                continue
+            if wf.name in processed_weights:
+                # already evaluated
+                continue
+            tasks.append((wf, overrides, train_tag, holdout))
 
     if not tasks:
         print("[INFO] Nothing to evaluate (all weights already processed or skipped).")

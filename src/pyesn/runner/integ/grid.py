@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 from pathlib import Path
 
 from pyesn.runner.train.tenfold.main import run_tenfold
-from pyesn.runner.train.tenfold.utils import flatten_search_space
+from pyesn.utils.param_grid import flatten_search_space
 from pyesn.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
 from pyesn.setup.config import Evaluate, EvaluateTenfoldCfg, EvaluateSummaryCfg
 
@@ -68,7 +68,7 @@ def run_grid(cfg) -> None:
             max_workers=max_workers,
         )
 
-        # 学習直後に、未評価の重みのみ tenfold 評価を実行する
+    # 学習直後に、対応パラメタ集合のみ tenfold 評価を実行する（ディレクトリ全走査を回避）
         # tenfold 評価の設定を優先順位で決定
         if getattr(cfg, "evaluate", None) is None:
             cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
@@ -82,6 +82,10 @@ def run_grid(cfg) -> None:
                 workers=eval_workers,
                 parallel=eval_parallel,
             )
+        # このセットだけを評価対象にするため search_space を1要素で付与
+        # overrides は {"Nx":..,"density":..} 形式。search_space は "model." 接頭を要求。
+        one_search = {f"model.{k}": [v] for k, v in (overrides or {}).items()}
+        cfg.evaluate.tenfold.search_space = one_search if one_search else None
         print("-" * 50)
         print(f"[GRID] start evaluation for newly trained weights in: {weight_dir_str}")
         tenfold_evaluate(cfg)

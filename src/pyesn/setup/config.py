@@ -87,6 +87,9 @@ class EvaluateTenfoldCfg:
     weight_dir: Optional[str] = None
     workers: Optional[int] = None 
     parallel: Optional[bool] = True
+    # Optional: limit evaluation to specific parameter combinations.
+    # Use the same schema as TrainTenfoldCfg.search_space: keys like 'model.Nx'.
+    search_space: Optional[dict[str, list]] | None = None
 
 @dataclass
 class EvaluateRunCfg:
