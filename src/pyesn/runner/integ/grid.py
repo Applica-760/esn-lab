@@ -6,7 +6,12 @@ from pathlib import Path
 from pyesn.runner.train.tenfold.main import run_tenfold
 from pyesn.utils.param_grid import flatten_search_space
 from pyesn.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
-from pyesn.setup.config import Evaluate, EvaluateTenfoldCfg, EvaluateSummaryCfg
+from pyesn.setup.config import (
+    Evaluate,
+    EvaluateTenfoldCfg,
+    EvaluateSummaryCfg,
+    TrainTenfoldCfg,
+)
 
 
 def run_grid(cfg) -> None:
@@ -23,14 +28,51 @@ def run_grid(cfg) -> None:
         raise ValueError("Config 'integ.grid' not found.")
 
     grid_cfg = getattr(integ, "grid")
-    train_cfg = getattr(grid_cfg, "train", None)
-    grid_eval_cfg = getattr(grid_cfg, "eval", None)
-    if train_cfg is None:
-        raise ValueError("Config 'integ.grid.train' is required.")
 
-    # search_space をフラット化
-    ss = getattr(train_cfg, "search_space", None)
-    combos: List[Tuple[Dict, str]] = flatten_search_space(ss)
+    # helper to read attribute or dict key
+    def _g(obj, key, default=None):
+        if obj is None:
+            return default
+        try:
+            return getattr(obj, key)
+        except Exception:
+            try:
+                return obj.get(key, default)  # type: ignore[attr-defined]
+            except Exception:
+                return default
+
+    # 新形式: integ.grid が単一の grid.yaml 形式を持つ
+    # structure: base, param_grid (or search_space), train, eval, summary
+    is_new_grid_schema = (_g(grid_cfg, "param_grid") is not None) or (_g(grid_cfg, "base") is not None)
+
+    if is_new_grid_schema:
+        base = _g(grid_cfg, "base") or {}
+        param_grid = _g(grid_cfg, "param_grid") or _g(grid_cfg, "search_space")
+        train_template = _g(grid_cfg, "train") or {}
+        grid_eval_cfg = _g(grid_cfg, "eval") or {}
+        summary_template = _g(grid_cfg, "summary") or {}
+
+        # 組み合わせ展開
+        ss = param_grid
+        combos: List[Tuple[Dict, str]] = flatten_search_space(ss)
+
+        # tenfold 設定を base + train_template から作る
+        csv_dir = _g(train_template, "csv_dir") or _g(base, "csv_dir")
+        weight_dir = _g(train_template, "weight_dir") or _g(base, "weight_dir")
+        workers = _g(train_template, "workers") or _g(base, "workers") or 1
+
+        train_cfg = TrainTenfoldCfg(csv_dir=csv_dir, weight_dir=weight_dir, workers=workers, search_space=None)
+
+    else:
+        # 既存単純形: integ.grid.train をそのまま利用
+        train_cfg = getattr(grid_cfg, "train", None)
+        grid_eval_cfg = getattr(grid_cfg, "eval", None)
+        if train_cfg is None:
+            raise ValueError("Config 'integ.grid.train' is required.")
+
+        # search_space をフラット化
+        ss = getattr(train_cfg, "search_space", None)
+        combos: List[Tuple[Dict, str]] = flatten_search_space(ss)
 
     # 各ハイパラセットごとに単独の tenfold 学習を実行
     auto_workers = int(getattr(train_cfg, "workers", 1) or 1)
@@ -74,7 +116,16 @@ def run_grid(cfg) -> None:
             cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
         # integ.grid.eval.tenfold があればそれを使用、なければ補完値
         if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
+            # ユーザ指定の tenfold をベースに、不足項目を補完
             cfg.evaluate.tenfold = grid_eval_cfg.tenfold
+            if getattr(cfg.evaluate.tenfold, "csv_dir", None) in (None, ""):
+                cfg.evaluate.tenfold.csv_dir = csv_dir_str
+            if getattr(cfg.evaluate.tenfold, "weight_dir", None) in (None, ""):
+                cfg.evaluate.tenfold.weight_dir = weight_dir_str
+            if getattr(cfg.evaluate.tenfold, "workers", None) in (None, 0):
+                cfg.evaluate.tenfold.workers = eval_workers
+            if getattr(cfg.evaluate.tenfold, "parallel", None) is None:
+                cfg.evaluate.tenfold.parallel = eval_parallel
         else:
             cfg.evaluate.tenfold = EvaluateTenfoldCfg(
                 csv_dir=csv_dir_str,
@@ -101,8 +152,13 @@ def run_grid(cfg) -> None:
         cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
 
     if grid_eval_cfg and getattr(grid_eval_cfg, "summary", None):
-        # ユーザ指定を尊重しつつ、vary_values が未指定なら search_space から自動補完
+        # ユーザ指定を尊重しつつ、不足項目（特に weight_dir）を補完。
         cfg.evaluate.summary = grid_eval_cfg.summary
+        try:
+            if getattr(cfg.evaluate.summary, "weight_dir", None) in (None, ""):
+                cfg.evaluate.summary.weight_dir = weight_dir_str
+        except Exception:
+            pass
         try:
             if getattr(cfg.evaluate.summary, "vary_values", None) in (None, []) and ss:
                 vary_param = getattr(cfg.evaluate.summary, "vary_param", None) or "Nx"

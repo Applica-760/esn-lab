@@ -1,28 +1,28 @@
-train:
+base:
   csv_dir: "dataset/10fold_csvs/"
+  weight_dir: "artifacts/10fold_weights"
   workers: 10
-  weight_dir: "artifacts/10fold_pred0"
-  search_space:
-    model.Nx: [200, 300, 400, 500, 600, 700, 800]
-    model.density: [0.5]
-    model.rho: [0.9]
-    model.input_scale: [0.01]
+
+# 探索するハイパーパラメタはここに一度だけ定義します
+param_grid:
+  "model.Nx": &nx_list [700, 800, 900, 1000, 1100, 1200, 1300]
+  "model.density": &density_list [0.5]
+  "model.rho": &rho_list [0.9]
+  "model.input_scale": &input_scale_list [0.01, 0.005, 0.001]
+
+train: {}
 
 eval:
   tenfold:
-    csv_dir: "dataset/10fold_csvs/"
-    weight_dir: "artifacts/10fold_pred0"
     parallel: true
-    workers: 10
   summary:
-    weight_dir: "artifacts/10fold_pred0"
     csv_name: "evaluation_results.csv"
     metric: "majority_acc"
     vary_param: "Nx"
-    vary_values: [200, 300, 400, 500, 600, 700, 800]
+    vary_values: *nx_list
     filters:
       density: 0.5
-      input_scale: 0.01
+      input_scale: 0.001
       rho: 0.9
     fmt: ".3f"
     dpi: 150

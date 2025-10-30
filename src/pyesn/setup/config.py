@@ -120,6 +120,11 @@ class Evaluate:
 # integ ==============================================================
 @dataclass
 class IntegGridCfg:
+    # 新スキーマ: grid.yaml を単一ファイルで受け、
+    # - base: csv_dir/weight_dir/workers などの共通デフォルト
+    # - param_grid: {"model.<field>": [values, ...]} の探索範囲（flatten_search_space が解釈）
+    base: Optional[dict] = None
+    param_grid: Optional[dict[str, list]] = None
     train: Optional[TrainTenfoldCfg] = None
     # eval は Evaluate の tenfold/summary を再利用（run は未使用）
     eval: Optional[Evaluate] = None
