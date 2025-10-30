@@ -1,8 +1,11 @@
-# pyesn: Echo State Network 実験用Pythonパッケージ
+# esn-lab: Echo State Network 実験用Pythonパッケージ
+
+[日本語](./readme.md) | [English](./readme-en.md)
+
 
 ## 概要
 
-`pyesn` は、Echo State Network (ESN) を用いた研究・実験を効率的に行うために開発したPythonパッケージです。
+`esn-lab` は、Echo State Network (ESN) を用いた研究・実験を効率的に行うために開発したPythonパッケージです。
 
 私が大学の研究で使用するために作成したもので、設定ファイルベースで柔軟な実験管理を行えるように設計しています。<br>
 ある程度一般的な実装もありますが、特定ドメインにフィットさせた実装もあります。<br>
@@ -21,7 +24,7 @@
 ## 📦 インストール
 
 ```bash
-pip install -e .
+pip install esn-lab
 ```
 
 ## 🚀 使い方
@@ -31,7 +34,7 @@ pip install -e .
 まず、以下のコマンドを実行して、カレントディレクトリに `configs` ディレクトリを生成します。
 
 ```bash
-pyesn init
+esnlab init
 ```
 
 これにより、各種設定ファイルのテンプレートがコピーされます。
@@ -72,7 +75,7 @@ class_id: 0
 単一のデータで学習を行う場合は、以下のコマンドを実行します。
 
 ```bash
-pyesn train single
+esnlab train single
 ```
 
 学習が完了すると、実行結果（重みファイルやログ）が `artifacts/runs/{実行日時}_{モード}-{バリアント}/` ディレクトリに保存されます。
@@ -81,7 +84,7 @@ pyesn train single
 
 ## 🛠️ コマンドラインインターフェース
 
-`pyesn` は、以下のモードとバリアントをサポートしています。
+`esn-lab` は、以下のモードとバリアントをサポートしています。
 
 | モード     | バリアント         | 説明                                                     |
 | :--------- | :----------------- | :------------------------------------------------------- |
@@ -114,3 +117,5 @@ pyesn train single
   * networkx
 
 
+## License
+This project is licensed under the MIT License.

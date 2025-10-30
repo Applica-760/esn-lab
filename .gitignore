@@ -2,7 +2,7 @@
 /artifacts/
 /data/
 /dataset/
-/experiments/
+/dist/
 
 commands.md
 memo.md

@@ -1,8 +1,20 @@
 [project]
-name = "pyesn"
+name = "esn-lab"
 version = "0.1.0"
 description = "A Python package for Echo State Network experiments." 
-readme = "README.md" 
+readme = "readme-en.md" 
+
+license = { text = "MIT License" }
+
+classifiers = [
+    "Development Status :: 3 - Alpha", 
+    "License :: OSI Approved :: MIT License", 
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
 
 dependencies = [
     "numpy",
@@ -18,10 +30,16 @@ dependencies = [
 gpu = ["cupy-cuda13x"]
 
 [project.scripts]
-pyesn = "pyesn.cli:main"
+esnlab = "esn_lab.cli:main"
+
+[project.urls]
+"Homepage" = "https://github.com/Applica-760/esn-lab"
+"Repository" = "https://github.com/Applica-760/esn-lab"
+"Bug Tracker" = "https://github.com/Applica-760/esn-lab/issues"
+
 
 [tool.setuptools.packages.find]
 where = ["src"] 
 
 [tool.setuptools.package-data]
-pyesn = ["config_templates/**"]
+esn_lab = ["config_templates/**"]
