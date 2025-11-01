@@ -77,6 +77,11 @@ class Evaluator:
         total_correct = 0
         total_frames = 0
         pred_rows: list[dict] = []
+        
+        # Class-wise counters for robust evaluation (dynamic for any number of classes)
+        num_classes = int(cfg.model.Ny)
+        class_wise_correct = {cls: 0 for cls in range(num_classes)}
+        class_wise_total = {cls: 0 for cls in range(num_classes)}
 
         for i in range(num_samples):
             img = cv2.imread(paths[i], cv2.IMREAD_UNCHANGED)
@@ -84,12 +89,28 @@ class Evaluator:
                 raise FileNotFoundError(f"Failed to read image: {paths[i]}")
             U = img.T
             T = len(U)
-            D = make_onehot(class_ids[i], T, cfg.model.Ny)
+            expected_label = int(class_ids[i])
+            D = make_onehot(expected_label, T, cfg.model.Ny)
 
             record = predictor.predict(model, ids[i], U, D)
 
             # Majority per-sample
             success, pred_major, true_major, _, _ = self.majority_success(record)
+            
+            # Validate that true_major derived from D matches expected_label
+            if true_major != expected_label:
+                raise ValueError(
+                    f"Label mismatch for sample {ids[i]}: "
+                    f"class_ids[{i}]={expected_label} but true_major={true_major}. "
+                    f"This indicates data corruption or incorrect one-hot encoding."
+                )
+            
+            # Track class-wise accuracy
+            if expected_label in class_wise_total:
+                class_wise_total[expected_label] += 1
+                if success:
+                    class_wise_correct[expected_label] += 1
+            
             majority_success_count += int(success)
 
             pred_rows.append({
@@ -101,8 +122,9 @@ class Evaluator:
                 "input_scale": overrides.get("input_scale"),
                 "rho": overrides.get("rho"),
                 "sample_id": ids[i],
-                "true_label": int(true_major),
-                "pred_label": int(pred_major),
+                "expected_label": expected_label,  # From class_ids
+                "true_label": int(true_major),     # From D (should match expected_label)
+                "pred_label": int(pred_major),     # Model prediction
                 "majority_success": bool(success),
             })
 
@@ -113,6 +135,14 @@ class Evaluator:
 
         majority_acc = (majority_success_count / num_samples) if num_samples > 0 else 0.0
         timestep_acc = (total_correct / total_frames) if total_frames > 0 else 0.0
+        
+        # Compute class-wise accuracies (dynamic for all classes)
+        class_accs = {}
+        for cls in range(num_classes):
+            total = class_wise_total[cls]
+            correct = class_wise_correct[cls]
+            class_accs[f"class_{cls}_acc"] = round(float(correct / total), 6) if total > 0 else None
+            class_accs[f"class_{cls}_count"] = total
 
         row = {
             "weight_file": wf_name,
@@ -125,6 +155,7 @@ class Evaluator:
             "num_samples": num_samples,
             "majority_acc": round(float(majority_acc), 6),
             "timestep_acc": round(float(timestep_acc), 6),
+            **class_accs,  # Add class-wise metrics
         }
 
         return row, pred_rows

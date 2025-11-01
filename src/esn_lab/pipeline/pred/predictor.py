@@ -14,7 +14,6 @@ class Predictor:
 
 
     def predict(self, model:ESN, sample_id, U, D):
-        # Reset states per sample to avoid cross-sequence leakage
         model.Reservoir.reset_reservoir_state()
         model.y_prev = np.zeros(model.N_y)
 
@@ -42,6 +41,5 @@ class Predictor:
             id= sample_id,
             data= data
         )
-        
-        # return {sample_id : {TARGET_SERIES_KEY: D, OUTPUT_SERIES_KEY: np.array(Y_pred)}}
+
         return result
