@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 from pathlib import Path
 
-from pyesn.runner.train.tenfold.main import run_tenfold
-from pyesn.utils.param_grid import flatten_search_space
-from pyesn.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
-from pyesn.setup.config import (
+from esn_lab.runner.train.tenfold.main import run_tenfold
+from esn_lab.utils.param_grid import flatten_search_space
+from esn_lab.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
+from esn_lab.setup.config import (
     Evaluate,
     EvaluateTenfoldCfg,
     EvaluateSummaryCfg,

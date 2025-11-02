@@ -1,10 +1,10 @@
 # runner/train.py
 import cv2
 
-from pyesn.setup.config import Config
-from pyesn.pipeline.train.trainer import Trainer
-from pyesn.utils.data_processing import make_onehot
-from pyesn.model.model_builder import get_model, get_model_param_str
+from esn_lab.setup.config import Config
+from esn_lab.pipeline.train.trainer import Trainer
+from esn_lab.utils.data_processing import make_onehot
+from esn_lab.model.model_builder import get_model, get_model_param_str
 
 
 def single_train(cfg: Config):

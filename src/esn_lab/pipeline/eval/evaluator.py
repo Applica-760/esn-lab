@@ -5,10 +5,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from pyesn.setup.config import TargetOutput, Config
-from pyesn.model.esn import ESN
-from pyesn.pipeline.pred.predictor import Predictor
-from pyesn.utils.data_processing import make_onehot
+from esn_lab.setup.config import TargetOutput, Config
+from esn_lab.model.esn import ESN
+from esn_lab.pipeline.pred.predictor import Predictor
+from esn_lab.utils.data_processing import make_onehot
+from esn_lab.utils.eval_utils import apply_filters
+from esn_lab.utils.plotting import plot_errorbar_and_save, plot_confusion_matrices_and_save
 
 
 
@@ -196,23 +198,6 @@ class Evaluator:
     # ==============================
     # Summary/plot helpers
     # ==============================
-    @staticmethod
-    def _apply_filters(df: pd.DataFrame, filters: dict | None) -> pd.DataFrame:
-        if not filters:
-            return df
-        out = df.copy()
-        for key, val in filters.items():
-            if key not in out.columns:
-                print(f"[WARN] Filter column not found: {key}. Skipped.")
-                continue
-            series = out[key]
-            if pd.api.types.is_numeric_dtype(series) and isinstance(val, (int, float)):
-                tol = 1e-9
-                out = out[(series - float(val)).abs() < tol]
-            else:
-                out = out[series.astype(str) == str(val)]
-        return out
-
     def summarize(self, cfg: Config):
         sum_cfg = cfg.evaluate.summary
         if sum_cfg is None:
@@ -242,7 +227,7 @@ class Evaluator:
         if vary_param in filters:
             print(f"[WARN] filters contains vary_param '{vary_param}'. Removing it from filters for aggregation.")
             filters.pop(vary_param, None)
-        df_f = self._apply_filters(df, filters)
+        df_f = apply_filters(df, filters)
         if df_f.empty:
             raise ValueError("No rows remain after applying filters. Adjust cfg.evaluate.summary.filters")
 
@@ -279,29 +264,21 @@ class Evaluator:
         out_dir = Path(sum_cfg.output_dir).expanduser().resolve() if sum_cfg.output_dir else out_root
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Plot error bars
-        fig, ax = plt.subplots(figsize=(max(4, 0.8 * len(xs)), 4))
-        marker_style = dict(fmt='o', linestyle='none', markersize=6, markerfacecolor='C0', markeredgecolor='C0')
-        ax.errorbar(xs, means, yerr=stds, capsize=4, elinewidth=1.0, **marker_style)
-        ax.set_xlabel(vary_param)
-        ax.set_ylabel(metric)
-        title = sum_cfg.title or f"{metric} vs {vary_param} (mean±std)"
-        ax.set_title(title)
-        ax.grid(True, linestyle='--', alpha=0.4)
-        ax.set_ylim(0.78, 0.96)
-        fig.tight_layout()
-
+        # Plot error bars via utility
         fname_base = f"errorbar_{metric}_by_{vary_param}"
-        png_path = out_dir / f"{fname_base}.png"
-        fig.savefig(png_path, dpi=int(sum_cfg.dpi or 150))
-        plt.close(fig)
-        print(f"[ARTIFACT] Saved errorbar plot: {png_path}")
-
-        # Also save aggregated table
-        out_df = pd.DataFrame({vary_param: xs, f"{metric}_mean": means, f"{metric}_std": stds, "count": counts})
-        csv_path2 = out_dir / f"{fname_base}.csv"
-        out_df.to_csv(csv_path2, index=False)
-        print(f"[ARTIFACT] Saved summary CSV: {csv_path2}")
+        _png, _csv = plot_errorbar_and_save(
+            xs=xs,
+            means=means,
+            stds=stds,
+            vary_param=vary_param,
+            metric=metric,
+            title=sum_cfg.title,
+            out_dir=out_dir,
+            dpi=int(sum_cfg.dpi or 150),
+            ylim=(0.78, 0.96),
+            counts=counts,
+            fname_base=fname_base,
+        )
 
         # Confusion matrices (optional)
         preds_csv = (out_root / "evaluation_predictions.csv").resolve()
@@ -321,7 +298,7 @@ class Evaluator:
             print(f"[WARN] Missing columns in predictions CSV: {missing_pred}. Skipping confusion matrices.")
             return
 
-        dfp_f = self._apply_filters(dfp, filters)
+        dfp_f = apply_filters(dfp, filters)
         if dfp_f.empty:
             print("[WARN] No prediction rows remain after applying filters. Skipping confusion matrices.")
             return
@@ -332,82 +309,15 @@ class Evaluator:
             n_classes = int(max(dfp_f[["true_label", "pred_label"]].max()) + 1)
 
         # Confusion matrices are row-normalized only (each true-label row sums to 1)
-
-        for v in xs:
-            series = dfp_f[vary_param]
-            if pd.api.types.is_numeric_dtype(series) and isinstance(v, (int, float)):
-                tol = 1e-9
-                df_v = dfp_f[(series - float(v)).abs() < tol]
-            else:
-                df_v = dfp_f[series.astype(str) == str(v)]
-
-            if df_v.empty:
-                print(f"[WARN] No prediction rows for {vary_param}={v}. Skipping confusion plot.")
-                continue
-
-            cm = np.zeros((n_classes, n_classes), dtype=int)
-            for _, rowp in df_v.iterrows():
-                t = int(rowp["true_label"]) ; p = int(rowp["pred_label"])
-                if 0 <= t < n_classes and 0 <= p < n_classes:
-                    cm[t, p] += 1
-
-            # Decide display order and labels. For 3 classes, use order [1,2,0] with names.
-            if n_classes == 3:
-                perm = [1, 2, 0]
-                tick_labels = ["foraging", "rumination", "other"]
-            else:
-                perm = list(range(n_classes))
-                tick_labels = [str(i) for i in perm]
-
-            # Reorder counts for display to avoid off-diagonal mix-ups
-            cm_disp = cm[np.ix_(perm, perm)]
-
-            # Compute normalized matrix for plotting (row-normalized 0..1) after reordering
-            cm_norm = cm_disp.astype(float)
-            row_sums = cm_norm.sum(axis=1, keepdims=True)
-            row_sums[row_sums == 0.0] = 1.0  # keep zero rows as zeros
-            cm_norm = cm_norm / row_sums
-
-            # Use constrained_layout to automatically allocate space for ylabel, ticks, and colorbar
-            fig, ax = plt.subplots(figsize=(5, 4), constrained_layout=True)
-            im = ax.imshow(cm_norm, interpolation='nearest', cmap='Blues', vmin=0.0, vmax=1.0)
-            cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.ax.set_ylabel('fraction', rotation=270, labelpad=12)
-            ax.set_xlabel('Predicted label')
-            ax.set_ylabel('True label')
-            ax.set_title(f"Confusion matrix: {vary_param}={v} | normalized (row)")
-            ax.set_xticks(range(len(perm)))
-            ax.set_yticks(range(len(perm)))
-            ax.set_xticklabels(tick_labels)
-            ax.set_yticklabels(tick_labels)
-
-            # Annotate each cell with normalized value only (0..1)
-            # Choose threshold based on normalized values for text color
-            vmax = cm_norm.max() if cm_norm.size else 0
-            thresh = vmax / 2 if vmax > 0 else 0.5
-            for i in range(len(perm)):
-                for j in range(len(perm)):
-                    frac = cm_norm[i, j]
-                    text = f"{frac:.2f}"
-                    ax.text(j, i, text, ha='center', va='center',
-                            color='white' if frac > thresh else 'black')
-
-            fname_base_cm = f"confusion_{vary_param}-{v}"
-            png_cm = out_dir / f"{fname_base_cm}.png"
-            # bbox_inches='tight' additionally avoids clipping without manual padding
-            fig.savefig(png_cm, dpi=int(sum_cfg.dpi or 150), bbox_inches='tight')
-            plt.close(fig)
-            print(f"[ARTIFACT] Saved confusion matrix: {png_cm}")
-
-            csv_cm = out_dir / f"{fname_base_cm}.csv"
-            # Save counts CSV in the same display order; keep headers minimal-risk as pred_{id}
-            pd.DataFrame(cm_disp).to_csv(csv_cm, index=False, header=[f"pred_{i}" for i in perm])
-            print(f"[ARTIFACT] Saved confusion counts CSV: {csv_cm}")
-
-            # Also save normalized confusion matrix (row-normalized)
-            csv_cm_norm = out_dir / f"{fname_base_cm}_normalized.csv"
-            pd.DataFrame(cm_norm).to_csv(csv_cm_norm, index=False, header=[f"pred_{i}" for i in perm])
-            print(f"[ARTIFACT] Saved normalized confusion CSV: {csv_cm_norm}")
+        plot_confusion_matrices_and_save(
+            dfp=dfp_f,
+            xs=xs,
+            vary_param=vary_param,
+            n_classes=n_classes,
+            out_dir=out_dir,
+            dpi=int(sum_cfg.dpi or 150),
+            base_prefix="confusion_",
+        )
 
         return
 

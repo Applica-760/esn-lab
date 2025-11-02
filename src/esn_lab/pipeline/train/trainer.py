@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 import os, uuid
 
-from pyesn.model.esn import ESN
+from esn_lab.model.esn import ESN
 
 
 class Trainer:

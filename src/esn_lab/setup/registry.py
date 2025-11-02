@@ -1,4 +1,4 @@
-# pyesn/setup/registry.py
+# esn_lab/setup/registry.py
 
 # scheme
 from .config import (TrainSingleCfg, TrainBatchCfg, TrainTenfoldCfg,

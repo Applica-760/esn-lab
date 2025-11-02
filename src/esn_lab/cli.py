@@ -1,8 +1,8 @@
-# pyesn/cli.py
-from pyesn.setup.workspace import initialize_configs, setup_rundir
-from pyesn.setup.args import parse_args
-from pyesn.setup.config_loader import load_and_merge_configs
-from pyesn.setup.executor import execute_runner
+# esn_lab/cli.py
+from esn_lab.setup.workspace import initialize_configs, setup_rundir
+from esn_lab.setup.args import parse_args
+from esn_lab.setup.config_loader import load_and_merge_configs
+from esn_lab.setup.executor import execute_runner
 
 def main():
     print("=====================================")

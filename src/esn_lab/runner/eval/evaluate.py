@@ -4,13 +4,13 @@ from pathlib import Path
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from pyesn.setup.config import Config
-from pyesn.utils.io import load_jsonl, target_output_from_dict
-from pyesn.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename, make_weight_filename
-from pyesn.pipeline.eval.evaluator import Evaluator
-from pyesn.runner.train.tenfold.setup import init_global_worker_env
-from pyesn.utils.param_grid import flatten_search_space
+from esn_lab.setup.config import Config
+from esn_lab.utils.io import load_jsonl, target_output_from_dict
+from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
+from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename, make_weight_filename
+from esn_lab.pipeline.eval.evaluator import Evaluator
+from esn_lab.runner.train.tenfold.setup import init_global_worker_env
+from esn_lab.utils.param_grid import flatten_search_space
 
 
 # per-weight 評価ロジックは pipeline 側に移行（eval_one_weight_worker）
@@ -156,7 +156,7 @@ def tenfold_evaluate(cfg: Config):
 
 def summary_evaluate(cfg: Config):
     # Delegate summary plotting (errorbar + confusion) to Evaluator（遅延importで親のcv2初期化を回避）
-    from pyesn.pipeline.eval.evaluator import Evaluator
+    from esn_lab.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
     evaluator.summarize(cfg)
 

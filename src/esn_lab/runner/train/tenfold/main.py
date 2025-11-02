@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from . import execution
-from pyesn.model.model_builder import get_model_param_str
-from pyesn.pipeline.tenfold_util import make_weight_filename, load_10fold_csv_mapping
+from esn_lab.model.model_builder import get_model_param_str
+from esn_lab.pipeline.tenfold_util import make_weight_filename, load_10fold_csv_mapping
 
 
 def _prepare_run_environment(cfg, tenfold_cfg=None):

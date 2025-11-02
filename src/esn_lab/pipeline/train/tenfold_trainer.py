@@ -3,11 +3,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from pyesn.pipeline.train.trainer import Trainer
-from pyesn.pipeline.tenfold_util import read_data_from_csvs
-from pyesn.pipeline.tenfold_util import make_weight_filename
-from pyesn.utils.data_processing import make_onehot
-from pyesn.model.model_builder import get_model
+from esn_lab.pipeline.train.trainer import Trainer
+from esn_lab.pipeline.tenfold_util import read_data_from_csvs
+from esn_lab.pipeline.tenfold_util import make_weight_filename
+from esn_lab.utils.data_processing import make_onehot
+from esn_lab.model.model_builder import get_model
 
 
 class TenfoldTrainer:

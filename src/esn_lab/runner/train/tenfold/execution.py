@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 from .setup import init_global_worker_env, setup_worker_seed
-from pyesn.pipeline.train.tenfold_trainer import TenfoldTrainer
+from esn_lab.pipeline.train.tenfold_trainer import TenfoldTrainer
 
 def _append_result_to_csv(result: dict, weight_dir: Path):
     """

@@ -1,4 +1,4 @@
-# pyesn/setup/executor.py
+# esn_lab/setup/executor.py
 from omegaconf import OmegaConf
 from .registry import REGISTRY
 from .config import Config

@@ -1,7 +1,7 @@
 # model/model_builder.py
-from pyesn.model.esn import ESN
-from pyesn.optim.optim import Tikhonov
-from pyesn.setup.config import Config
+from esn_lab.model.esn import ESN
+from esn_lab.optim.optim import Tikhonov
+from esn_lab.setup.config import Config
 
 # モデル取得メソッド
 def get_model(cfg: Config, overrides: dict | None = None):
