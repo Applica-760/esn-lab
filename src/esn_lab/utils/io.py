@@ -1,5 +1,7 @@
 # utils/io
 import json
+import os
+import uuid
 import numpy as np
 from pathlib import Path
 from dataclasses import asdict, is_dataclass
@@ -48,3 +50,15 @@ def load_jsonl(saved_path):
     with path.open("r", encoding="utf-8") as f:
         return [json.loads(line) for line in f]
     
+ 
+def save_numpy_npy_atomic(arr: np.ndarray, save_dir: str | Path, file_name: str) -> Path:
+    out_dir = Path(save_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    dst = out_dir / file_name
+    tmp = dst.with_suffix(dst.suffix + f".{uuid.uuid4().hex}.tmp")
+
+    np.save(tmp, arr)
+    os.replace(tmp, dst)
+
+    return dst
