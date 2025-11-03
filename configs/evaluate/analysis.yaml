@@ -1,0 +1,23 @@
+# Evaluate analysis configuration
+# 既存 tenfold の予測CSVから、パラメタ組に一致する画像単位の成功/失敗履歴を集約し、
+# 極端なケース（全失敗/全成功）を列挙、画像のコピーも行います。
+
+# 10-fold 用の成果物ルート（eval/ 配下の既存出力を参照します）
+tenfold_root: "artifacts/tenfold_integ"
+
+# 予測CSV（絶対/相対どちらでも可）。未指定なら <tenfold_integ>/eval/evaluation_predictions.csv を検索します。
+# Predictions CSV name under the eval root
+csv_name: "evaluation_predictions.csv"
+
+# 10-fold データセットCSVのディレクトリ（画像コピーのため必須推奨）
+csv_dir: "dataset/10fold_csvs/"
+
+# 画像コピーのON/OFF（trueで、極端ケースの画像を同階層へコピー出力）
+export_images: true
+
+# 集計対象のパラメタ組
+filters:
+  Nx: 700
+  density: 0.5
+  input_scale: 0.001
+  rho: 0.9

@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from pyesn.model.model_builder import get_model_param_str
+from esn_lab.model.model_builder import get_model_param_str
 
 def make_weight_filename(cfg, overrides: dict | None, train_tag: str) -> str:
     """共有の命名規則で重みファイル名を生成する。

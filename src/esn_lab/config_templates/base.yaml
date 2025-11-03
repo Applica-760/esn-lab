@@ -14,4 +14,4 @@ model:
     input_scale: 0.01
     rho: 0.9
 
-    optimizer: "tikhonov"
+        optimizer: "tikhonov"

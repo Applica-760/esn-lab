@@ -3,11 +3,12 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from pyesn.pipeline.train.trainer import Trainer
-from pyesn.pipeline.tenfold_util import read_data_from_csvs
-from pyesn.pipeline.tenfold_util import make_weight_filename
-from pyesn.utils.data_processing import make_onehot
-from pyesn.model.model_builder import get_model
+from esn_lab.pipeline.train.trainer import Trainer
+from esn_lab.pipeline.tenfold_util import read_data_from_csvs
+from esn_lab.pipeline.tenfold_util import make_weight_filename
+from esn_lab.utils.data_processing import make_onehot
+from esn_lab.model.model_builder import get_model
+from esn_lab.utils.io import save_numpy_npy_atomic
 
 
 class TenfoldTrainer:
@@ -53,12 +54,12 @@ class TenfoldTrainer:
             self._trainer.train(model, optimizer, ids[i], U, D)
 
         weight_file_name = make_weight_filename(cfg=cfg, overrides=hp_overrides, train_tag=train_tag)
-        self._trainer.save_output_weight(
-            Wout=model.Output.Wout,
-            file_name=weight_file_name,
-            save_dir=str(weight_dir)
+        dst = save_numpy_npy_atomic(
+            model.Output.Wout,
+            weight_dir,
+            weight_file_name,
         )
-        print(f"[INFO] Finished fold '{leave_out_letter}'. Weight saved to {weight_dir / weight_file_name}")
+        print(f"[INFO] Finished fold '{leave_out_letter}'. Weight saved to {dst}")
 
         end_time = time.monotonic()
         execution_time = end_time - start_time

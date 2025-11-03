@@ -2,9 +2,9 @@
 import numpy as np
 from pathlib import Path
 
-from pyesn.model.esn import ESN
-from pyesn.setup.config import TargetOutput, TargetOutputData
-from pyesn.utils.io import to_jsonable
+from esn_lab.model.esn import ESN
+from esn_lab.setup.config import TargetOutput, TargetOutputData
+from esn_lab.utils.io import to_jsonable
 
 
 class Predictor:

@@ -2,7 +2,7 @@
 import numpy as np
 import networkx as nx
 
-from pyesn.utils.activate_func import identity
+from esn_lab.utils.activate_func import identity
 
 
 # 入力層

@@ -1,6 +1,8 @@
 # Evaluate summary/plot configuration
-weight_dir: "artifacts/10fold_weights"
 csv_name: "evaluation_results.csv"
+
+# 10-fold artifacts root (summary will use <root>/eval/)
+tenfold_root: "artifacts/tenfold_integ"
 
 metric: "majority_acc"
 

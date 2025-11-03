@@ -1,10 +1,10 @@
 from pathlib import Path
 import numpy as np
 
-from pyesn.pipeline.eval.evaluator import Evaluator
-from pyesn.pipeline.pred.predictor import Predictor
-from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, read_data_from_csvs
-from pyesn.model.model_builder import get_model
+from esn_lab.pipeline.eval.evaluator import Evaluator
+from esn_lab.pipeline.pred.predictor import Predictor
+from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, read_data_from_csvs
+from esn_lab.model.model_builder import get_model
 
 
 class TenfoldEvaluator:

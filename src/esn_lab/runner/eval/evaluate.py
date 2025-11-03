@@ -4,16 +4,13 @@ from pathlib import Path
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from pyesn.setup.config import Config
-from pyesn.utils.io import load_jsonl, target_output_from_dict
-from pyesn.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from pyesn.pipeline.tenfold_util import load_10fold_csv_mapping, parse_weight_filename, make_weight_filename
-from pyesn.pipeline.eval.evaluator import Evaluator
-from pyesn.runner.train.tenfold.setup import init_global_worker_env
-from pyesn.utils.param_grid import flatten_search_space
-
-
-# per-weight 評価ロジックは pipeline 側に移行（eval_one_weight_worker）
+from esn_lab.setup.config import Config
+from esn_lab.utils.io import load_jsonl, target_output_from_dict
+from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
+from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, make_weight_filename
+from esn_lab.pipeline.eval.evaluator import Evaluator
+from esn_lab.runner.train.tenfold.setup import init_global_worker_env
+from esn_lab.utils.param_grid import flatten_search_space
 
 
 def single_evaluate(cfg: Config):
@@ -32,9 +29,6 @@ def single_evaluate(cfg: Config):
     return
 
 
-## Naming is centralized in pipeline.tenfold_util
-
-
 def tenfold_evaluate(cfg: Config):
     """Evaluate tenfold-trained weights by inferring on the held-out fold for each weight.
 
@@ -44,11 +38,7 @@ def tenfold_evaluate(cfg: Config):
     - Appends a summary row per weight to evaluation_results.csv immediately after each weight.
     - If evaluation_results.csv already exists, skip weights that are already recorded.
     """
-    # Ensure single-threaded math libs in child processes by setting env in parent before spawn
-    # Note: initializer runs after worker process starts; some libs decide threads at import time.
-    # Propagating these via the parent guarantees children import numpy/BLAS with 1 thread.
-    for _k in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
-        os.environ[_k] = "1"
+    init_global_worker_env()
 
     ten_cfg = cfg.evaluate.tenfold
     if ten_cfg is None:
@@ -59,12 +49,16 @@ def tenfold_evaluate(cfg: Config):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    weight_dir = (Path.cwd() / ten_cfg.weight_dir).resolve()
+    # Resolve tenfold_root and output dirs (required)
+    tenfold_root = getattr(ten_cfg, "tenfold_root", None)
+    if not tenfold_root:
+        raise FileNotFoundError("Config requires 'evaluate.tenfold.tenfold_root'.")
+    weight_dir = (Path(tenfold_root).expanduser() / "weights").resolve()
+    out_dir = (Path(tenfold_root).expanduser() / "eval").resolve()
     if not weight_dir.exists():
         raise FileNotFoundError(f"weight_dir not found: {weight_dir}")
 
-    # Prepare evaluation output directory alongside weight_dir
-    out_dir = (weight_dir.parent / f"{weight_dir.name}_eval").resolve()
+    # Ensure output dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load CSV mapping and letters
@@ -155,10 +149,7 @@ def tenfold_evaluate(cfg: Config):
 
 
 def summary_evaluate(cfg: Config):
-    # Delegate summary plotting (errorbar + confusion) to Evaluator（遅延importで親のcv2初期化を回避）
-    from pyesn.pipeline.eval.evaluator import Evaluator
+    from esn_lab.pipeline.eval.evaluator import Evaluator
     evaluator = Evaluator()
     evaluator.summarize(cfg)
 
-
-# CSV追記は Evaluator.append_results に集約

@@ -1,9 +1,8 @@
 # pipeline/trainer
 import numpy as np
 from pathlib import Path
-import os, uuid
 
-from pyesn.model.esn import ESN
+from esn_lab.model.esn import ESN
 
 
 class Trainer:
@@ -50,20 +49,4 @@ class Trainer:
         model.Reservoir.x = np.zeros(model.N_x)     # リザバー状態のリセット
 
         return
-
-
-    def save_output_weight(self, Wout: np.ndarray, file_name: str, save_dir: str | None = None,):
-        if save_dir is None:
-            out_dir = Path(self.output_weight_dir)
-        else:
-            out_dir = Path(save_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        dst = out_dir / file_name
-        tmp = dst.with_suffix(f".{uuid.uuid4().hex}.tmp.npy")
-
-        np.save(tmp, Wout) 
-        os.replace(tmp, dst)
-        
-        print(f"[INFO] Saved weight: {dst}")
 

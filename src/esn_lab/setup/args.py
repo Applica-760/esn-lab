@@ -1,4 +1,4 @@
-# pyesn/setup/args.py
+# esn_lab/setup/args.py
 import argparse
 from .registry import REGISTRY
 

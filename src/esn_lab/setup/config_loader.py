@@ -1,4 +1,4 @@
-# pyesn/setup/config_loader.py
+# esn_lab/setup/config_loader.py
 import yaml
 from pathlib import Path
 

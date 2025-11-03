@@ -1,8 +1,10 @@
 csv_dir: "dataset/10fold_csvs/"
-weight_dir: "artifacts/10fold_weights"
 
 parallel: true
 workers: 4
+
+# 10-fold artifacts root (expands to weights/, eval/)
+tenfold_root: "artifacts/tenfold_integ"
 
 # 必須: 評価対象とするパラメタ組（'model.' 接頭辞）
 search_space:
