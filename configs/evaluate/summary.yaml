@@ -1,5 +1,5 @@
 # Evaluate summary/plot configuration
-weight_dir: "artifacts/10fold_weights"
+weight_dir: "artifacts/tenfold_integ/weights"
 csv_name: "evaluation_results.csv"
 
 metric: "majority_acc"

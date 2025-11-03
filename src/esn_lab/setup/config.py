@@ -110,10 +110,24 @@ class EvaluateSummaryCfg:
     dpi: Optional[int] = 150
 
 @dataclass
+class EvaluateAnalysisCfg:
+    weight_dir: Optional[str] = None
+    csv_name: Optional[str] = "evaluation_predictions.csv"
+    filters: Optional[dict] = None
+    output_dir: Optional[str] = None
+    # Optional dataset CSV directory (10-fold) to enable locating and exporting images
+    csv_dir: Optional[str] = None
+    # Whether to export/copy extreme images into subfolders
+    export_images: Optional[bool] = True
+    title: Optional[str] = None
+    dpi: Optional[int] = 150
+
+@dataclass
 class Evaluate:
     run: Optional[EvaluateRunCfg] = None
     tenfold: Optional[EvaluateTenfoldCfg] = None
     summary: Optional[EvaluateSummaryCfg] = None
+    analysis: Optional[EvaluateAnalysisCfg] = None
 
 
 

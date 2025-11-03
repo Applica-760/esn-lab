@@ -1,4 +1,4 @@
 id: "test_sample_001"
 path: "/path/to/your/test_data/sample_001.jpg"
 class_id: 0 
-weight: "artifacts/10fold_weights"
+weight: "artifacts/tenfold_integ/weights"

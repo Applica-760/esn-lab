@@ -2,9 +2,9 @@ csv_dir: "dataset/10fold_csvs/"
 
 workers: 10
 
-weight_dir: "artifacts/10fold_weights"
+weight_dir: "artifacts/tenfold_integ/weights"
 
 search_space:
-  model.Nx: [200, 300, 400, 500, 600, 700, 800, 900]
+  model.Nx: [200, 300, 400, 500, 600]
   model.rho: [0.9]
   model.input_scale: [0.01, 0.005, 0.001]

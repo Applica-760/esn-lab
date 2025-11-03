@@ -15,7 +15,8 @@ def _append_result_to_csv(result: dict, weight_dir: Path):
     df = pd.DataFrame([result])
     df = df[["timestamp", "hp_tag", "fold", "execution_time_sec"]] # カラム順を整理
     
-    csv_path = weight_dir / "execution_times.csv"
+    # Save execution_times.csv at the common tenfold_integ root (parent of weights)
+    csv_path = weight_dir.parent / "execution_times.csv"
     
     file_exists = csv_path.exists()
     df.to_csv(csv_path, mode='a', header=not file_exists, index=False, float_format='%.4f')

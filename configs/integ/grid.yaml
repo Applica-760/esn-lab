@@ -1,11 +1,11 @@
 base:
   csv_dir: "dataset/10fold_csvs/"
-  weight_dir: "artifacts/10fold_weights"
+  weight_dir: "artifacts/tenfold_integ/weights"
   workers: 10
 
 # 探索するハイパーパラメタはここに一度だけ定義します
 param_grid:
-  "model.Nx": &nx_list [700, 800, 900, 1000, 1100, 1200, 1300]
+  "model.Nx": &nx_list [200, 300, 400]
   "model.density": &density_list [0.5]
   "model.rho": &rho_list [0.9]
   "model.input_scale": &input_scale_list [0.01, 0.005, 0.001]

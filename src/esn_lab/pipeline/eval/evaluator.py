@@ -204,8 +204,13 @@ class Evaluator:
             raise ValueError("Config 'cfg.evaluate.summary' not found.")
 
         weight_dir = Path(sum_cfg.weight_dir or ".").expanduser().resolve()
-        # Place all evaluation artifacts under a sibling directory of weight_dir
-        out_root = (weight_dir.parent / f"{weight_dir.name}_eval").resolve()
+        # Place all evaluation artifacts under the common tenfold_integ root
+        # Expected structure:
+        #  <tenfold_integ>/eval/
+        #    - evaluation_results.csv (input)
+        #    - images/ (plots)
+        #    - csv/    (summary CSVs)
+        out_root = (weight_dir.parent / "eval").resolve()
         out_root.mkdir(parents=True, exist_ok=True)
 
         csv_path = (out_root / (sum_cfg.csv_name or "evaluation_results.csv")).resolve()
@@ -259,10 +264,11 @@ class Evaluator:
         if not xs:
             raise ValueError("No data points to plot after filtering and varying parameter selection.")
 
-        # Prepare output directory
-        # By default, save plots into the same evaluation output root alongside CSVs
-        out_dir = Path(sum_cfg.output_dir).expanduser().resolve() if sum_cfg.output_dir else out_root
-        out_dir.mkdir(parents=True, exist_ok=True)
+        # Prepare output directories (separate images and CSVs)
+        images_dir = (Path(sum_cfg.output_dir).expanduser().resolve() if getattr(sum_cfg, "output_dir", None) else (out_root / "images")).resolve()
+        csv_dir = (out_root / "csv").resolve()
+        images_dir.mkdir(parents=True, exist_ok=True)
+        csv_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot error bars via utility
         fname_base = f"errorbar_{metric}_by_{vary_param}"
@@ -273,12 +279,19 @@ class Evaluator:
             vary_param=vary_param,
             metric=metric,
             title=sum_cfg.title,
-            out_dir=out_dir,
+            out_dir=images_dir,
             dpi=int(sum_cfg.dpi or 150),
             ylim=(0.78, 0.96),
             counts=counts,
             fname_base=fname_base,
         )
+        # Move the aggregated CSV to csv_dir
+        try:
+            target_csv = csv_dir / _csv.name
+            _csv.replace(target_csv)
+            print(f"[ARTIFACT] Moved summary CSV to: {target_csv}")
+        except Exception as e:
+            print(f"[WARN] Failed to move summary CSV to csv_dir: {e}")
 
         # Confusion matrices (optional)
         preds_csv = (out_root / "evaluation_predictions.csv").resolve()
@@ -314,10 +327,18 @@ class Evaluator:
             xs=xs,
             vary_param=vary_param,
             n_classes=n_classes,
-            out_dir=out_dir,
+            out_dir=images_dir,
             dpi=int(sum_cfg.dpi or 150),
             base_prefix="confusion_",
         )
+        # Move confusion CSVs to csv_dir
+        try:
+            for p in images_dir.glob("confusion_*.csv"):
+                target = csv_dir / p.name
+                p.replace(target)
+                print(f"[ARTIFACT] Moved confusion CSV to: {target}")
+        except Exception as e:
+            print(f"[WARN] Failed to move confusion CSVs: {e}")
 
         return
 
