@@ -1,6 +1,8 @@
 # Evaluate summary/plot configuration
-weight_dir: "artifacts/tenfold_integ/weights"
 csv_name: "evaluation_results.csv"
+
+# 10-fold 用の成果物ルート（eval/ 配下にサマリ成果物が出力されます）
+tenfold_root: "artifacts/tenfold_integ"
 
 metric: "majority_acc"
 

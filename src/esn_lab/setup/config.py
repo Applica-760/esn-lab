@@ -30,6 +30,8 @@ class ModelCfg:
     optimizer: str = "tikhonov"
 
 
+
+
 # train ==============================================================
 @dataclass
 class TrainSingleCfg:
@@ -49,6 +51,8 @@ class TrainTenfoldCfg:
     workers: Optional[int] = None
     # 統一名: weight_dir のみを使用
     weight_dir: Optional[str] = None
+    # 推奨: tenfold_root を指定すると配下の固定構成 (weights/, eval/) を自動利用
+    tenfold_root: Optional[str] = None
     search_space: Optional[dict[str, list]] | None = None
 
 @dataclass
@@ -85,6 +89,7 @@ class Predict:
 class EvaluateTenfoldCfg:
     csv_dir: Optional[str] = None
     weight_dir: Optional[str] = None
+    tenfold_root: Optional[str] = None
     workers: Optional[int] = None 
     parallel: Optional[bool] = True
     # Optional: limit evaluation to specific parameter combinations.
@@ -98,6 +103,7 @@ class EvaluateRunCfg:
 @dataclass
 class EvaluateSummaryCfg:
     weight_dir: Optional[str] = None
+    tenfold_root: Optional[str] = None
     csv_name: Optional[str] = "evaluation_results.csv"
     metric: Optional[str] = "majority_acc"
     vary_param: Optional[str] = "Nx"
@@ -112,6 +118,7 @@ class EvaluateSummaryCfg:
 @dataclass
 class EvaluateAnalysisCfg:
     weight_dir: Optional[str] = None
+    tenfold_root: Optional[str] = None
     csv_name: Optional[str] = "evaluation_predictions.csv"
     filters: Optional[dict] = None
     output_dir: Optional[str] = None

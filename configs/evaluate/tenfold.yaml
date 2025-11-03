@@ -1,8 +1,10 @@
 csv_dir: "dataset/10fold_csvs/"
-weight_dir: "artifacts/tenfold_integ/weights"
 
 parallel: true
 workers: 4
+
+# 10-fold 用の成果物ルート（weights/, eval/ などの固定構成に展開されます）
+tenfold_root: "artifacts/tenfold_integ"
 
 # 必須: 評価対象とするパラメタ組（'model.' 接頭辞）
 # 例は代表的な組（Nx=200, density=0.5, rho=0.9, input_scaleは2値）

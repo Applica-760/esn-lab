@@ -24,10 +24,11 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Require unified name 'weight_dir' (supports absolute or relative)
-    weight_dir_str = getattr(tenfold_cfg, "weight_dir", None)
-    if not weight_dir_str:
-        raise ValueError("Config requires 'weight_dir'.")
+    # Resolve weight_dir from required tenfold_root only (no legacy fallbacks)
+    tenfold_root_local = getattr(tenfold_cfg, "tenfold_root", None)
+    if not tenfold_root_local:
+        raise ValueError("Config requires 'train.tenfold.tenfold_root'.")
+    weight_dir_str = str(Path(tenfold_root_local).expanduser() / "weights")
     wd_in = Path(weight_dir_str).expanduser()
     weight_dir = (wd_in if wd_in.is_absolute() else (Path.cwd() / wd_in)).resolve()
     weight_dir.mkdir(parents=True, exist_ok=True)

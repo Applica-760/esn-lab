@@ -80,6 +80,13 @@ esnlab train single
 
 学習が完了すると、実行結果（重みファイルやログ）が `artifacts/runs/{実行日時}_{モード}-{バリアント}/` ディレクトリに保存されます。
 
+なお、10-fold 関連の成果物（学習済み重みや評価結果など）は、各セクションの設定で指定する `tenfold_root` を基準に以下の固定構成で保存されます。
+
+- `<tenfold_root>/weights/` 学習済み重み (`*_Wout.npy`)
+- `<tenfold_root>/eval/` 評価CSVや図表（`evaluation_results.csv`, `evaluation_predictions.csv`, `images/`, `csv/`）
+
+`weight_dir` は不要で、train/evaluate/summary/analysis それぞれの YAML に `tenfold_root` を指定すれば配下の固定構成が自動で使われます。
+
 
 
 ## 🛠️ コマンドラインインターフェース

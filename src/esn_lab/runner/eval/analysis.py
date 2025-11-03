@@ -36,23 +36,15 @@ def _make_param_tag(cfg: Config, filters: dict | None, df_cols: list[str]) -> st
 
 
 def analysis_evaluate(cfg: Config):
-    """Analyze per-sample success/failure across folds for a specific parameter set.
-
-    Reads evaluation_predictions.csv (produced by eval tenfold) and summarizes:
-      - Per-fold success rate
-      - Per-sample success/failure rows for the selected parameter combination
-
-    Outputs two CSVs under the evaluation output root (sibling of weight_dir):
-      <out_root>/analysis/<param_tag>/folds.csv
-      <out_root>/analysis/<param_tag>/samples.csv
-    """
     ana_cfg = cfg.evaluate.analysis if cfg.evaluate else None
     if ana_cfg is None:
         raise ValueError("Config 'cfg.evaluate.analysis' not found.")
 
-    weight_dir = Path(ana_cfg.weight_dir or ".").expanduser().resolve()
-    # Use common tenfold_integ eval root
-    out_root = (weight_dir.parent / "eval").resolve()
+    # Resolve tenfold_root (required) and evaluation root
+    tenfold_root = getattr(ana_cfg, "tenfold_root", None)
+    if not tenfold_root:
+        raise ValueError("Config requires 'evaluate.analysis.tenfold_root'.")
+    out_root = (Path(tenfold_root).expanduser() / "eval").resolve()
     out_root.mkdir(parents=True, exist_ok=True)
 
     preds_name = ana_cfg.csv_name or "evaluation_predictions.csv"

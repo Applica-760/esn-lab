@@ -1,7 +1,8 @@
 base:
   csv_dir: "dataset/10fold_csvs/"
-  weight_dir: "artifacts/tenfold_integ/weights"
   workers: 10
+  # 10-fold artifacts root (can be inherited by train/eval)
+  tenfold_root: "artifacts/tenfold_integ"
 
 # 単一ファイルで探索範囲を一度だけ定義
 param_grid:

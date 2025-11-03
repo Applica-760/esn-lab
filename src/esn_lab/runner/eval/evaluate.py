@@ -49,15 +49,16 @@ def tenfold_evaluate(cfg: Config):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Support absolute or relative weight_dir
-    _wd_in = Path(ten_cfg.weight_dir).expanduser()
-    weight_dir = (_wd_in if _wd_in.is_absolute() else (Path.cwd() / _wd_in)).resolve()
+    # Resolve tenfold_root and output dirs (required)
+    tenfold_root = getattr(ten_cfg, "tenfold_root", None)
+    if not tenfold_root:
+        raise FileNotFoundError("Config requires 'evaluate.tenfold.tenfold_root'.")
+    weight_dir = (Path(tenfold_root).expanduser() / "weights").resolve()
+    out_dir = (Path(tenfold_root).expanduser() / "eval").resolve()
     if not weight_dir.exists():
         raise FileNotFoundError(f"weight_dir not found: {weight_dir}")
 
-    # Prepare evaluation output directory under common tenfold_integ root
-    # Expected structure: <tenfold_integ>/eval/
-    out_dir = (weight_dir.parent / "eval").resolve()
+    # Ensure output dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load CSV mapping and letters

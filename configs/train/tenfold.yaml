@@ -2,7 +2,8 @@ csv_dir: "dataset/10fold_csvs/"
 
 workers: 10
 
-weight_dir: "artifacts/tenfold_integ/weights"
+# 10-fold 用の成果物ルート（weights/, eval/ などの固定構成に展開されます）
+tenfold_root: "artifacts/tenfold_integ"
 
 search_space:
   model.Nx: [200, 300, 400, 500, 600]

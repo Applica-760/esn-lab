@@ -1,9 +1,9 @@
 base:
   csv_dir: "dataset/10fold_csvs/"
-  weight_dir: "artifacts/tenfold_integ/weights"
   workers: 10
+  # 10-fold 用の成果物ルート（未指定なら下位 train/eval セクションで指定）
+  tenfold_root: "artifacts/tenfold_integ"
 
-# 探索するハイパーパラメタはここに一度だけ定義します
 param_grid:
   "model.Nx": &nx_list [200, 300, 400]
   "model.density": &density_list [0.5]

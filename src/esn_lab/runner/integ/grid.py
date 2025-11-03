@@ -17,11 +17,11 @@ from esn_lab.setup.config import (
 def run_grid(cfg) -> None:
     """ハイパーパラメタグリッドを総当たりし、各組み合わせでシンプルな tenfold 学習を実行する。
 
-    期待する設定（cfg.integ.grid.train）:
-      - csv_dir: 10-fold分割済みCSVのディレクトリ
-    - weight_dir: 重み出力先ディレクトリ（従来 'weight_path' は後方互換）
-      - workers: 並列ワーカ数（1で逐次、2以上で並列）
-      - search_space: {"model.<field>": [values, ...], ...}
+        期待する設定（cfg.integ.grid.train）:
+            - csv_dir: 10-fold分割済みCSVのディレクトリ
+            - tenfold_root: 成果物ルート（weights/, eval/ が固定配置）
+            - workers: 並列ワーカ数（1で逐次、2以上で並列）
+            - search_space: {"model.<field>": [values, ...], ...}
     """
     integ = getattr(cfg, "integ", None)
     if integ is None or getattr(integ, "grid", None) is None:
@@ -58,10 +58,12 @@ def run_grid(cfg) -> None:
 
         # tenfold 設定を base + train_template から作る
         csv_dir = _g(train_template, "csv_dir") or _g(base, "csv_dir")
-        weight_dir = _g(train_template, "weight_dir") or _g(base, "weight_dir")
+        tenfold_root = _g(train_template, "tenfold_root") or _g(base, "tenfold_root")
+        if not tenfold_root:
+            raise ValueError("integ.grid.base.tenfold_root or integ.grid.train.tenfold_root is required.")
         workers = _g(train_template, "workers") or _g(base, "workers") or 1
 
-        train_cfg = TrainTenfoldCfg(csv_dir=csv_dir, weight_dir=weight_dir, workers=workers, search_space=None)
+        train_cfg = TrainTenfoldCfg(csv_dir=csv_dir, tenfold_root=tenfold_root, workers=workers, search_space=None)
 
     else:
         # 既存単純形: integ.grid.train をそのまま利用
@@ -83,20 +85,18 @@ def run_grid(cfg) -> None:
     # なければ学習設定から補完
     if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
         csv_dir_str: str = getattr(grid_eval_cfg.tenfold, "csv_dir", None) or getattr(train_cfg, "csv_dir")
-        # Require unified 'weight_dir'
-        weight_dir_str: str = (
-            getattr(grid_eval_cfg.tenfold, "weight_dir", None)
-            or getattr(train_cfg, "weight_dir", None)
-        )
+        tenfold_root_eval: str | None = getattr(grid_eval_cfg.tenfold, "tenfold_root", None) or getattr(train_cfg, "tenfold_root", None)
+        if not tenfold_root_eval:
+            raise ValueError("integ.grid.eval.tenfold.tenfold_root or integ.grid.train.tenfold_root is required.")
         eval_workers: int = int(getattr(grid_eval_cfg.tenfold, "workers", None) or getattr(train_cfg, "workers", 1) or 1)
         eval_parallel: bool = bool(getattr(grid_eval_cfg.tenfold, "parallel", True))
     else:
         csv_dir_str = getattr(train_cfg, "csv_dir")
-        weight_dir_str = getattr(train_cfg, "weight_dir", None)
+        tenfold_root_eval = getattr(train_cfg, "tenfold_root", None)
         eval_workers = auto_workers
         eval_parallel = True
-    if not weight_dir_str:
-        raise ValueError("'weight_dir' is required in integ.grid.eval.tenfold or integ.grid.train.")
+    if not tenfold_root_eval:
+        raise ValueError("'tenfold_root' is required in integ.grid.")
 
     for overrides, tag in combos:
         print("=" * 50)
@@ -120,8 +120,8 @@ def run_grid(cfg) -> None:
             cfg.evaluate.tenfold = grid_eval_cfg.tenfold
             if getattr(cfg.evaluate.tenfold, "csv_dir", None) in (None, ""):
                 cfg.evaluate.tenfold.csv_dir = csv_dir_str
-            if getattr(cfg.evaluate.tenfold, "weight_dir", None) in (None, ""):
-                cfg.evaluate.tenfold.weight_dir = weight_dir_str
+            if getattr(cfg.evaluate.tenfold, "tenfold_root", None) in (None, ""):
+                cfg.evaluate.tenfold.tenfold_root = tenfold_root_eval
             if getattr(cfg.evaluate.tenfold, "workers", None) in (None, 0):
                 cfg.evaluate.tenfold.workers = eval_workers
             if getattr(cfg.evaluate.tenfold, "parallel", None) is None:
@@ -129,7 +129,7 @@ def run_grid(cfg) -> None:
         else:
             cfg.evaluate.tenfold = EvaluateTenfoldCfg(
                 csv_dir=csv_dir_str,
-                weight_dir=weight_dir_str,
+                tenfold_root=tenfold_root_eval,
                 workers=eval_workers,
                 parallel=eval_parallel,
             )
@@ -138,9 +138,9 @@ def run_grid(cfg) -> None:
         one_search = {f"model.{k}": [v] for k, v in (overrides or {}).items()}
         cfg.evaluate.tenfold.search_space = one_search if one_search else None
         print("-" * 50)
-        print(f"[GRID] start evaluation for newly trained weights in: {weight_dir_str}")
+        print(f"[GRID] start evaluation for newly trained weights in root: {tenfold_root_eval}")
         tenfold_evaluate(cfg)
-        print(f"[GRID] evaluation finished for: {weight_dir_str}")
+        print(f"[GRID] evaluation finished for root: {tenfold_root_eval}")
 
     print("=" * 50)
     print("[INFO] Grid training & per-set evaluation finished. Running summary...")
@@ -155,8 +155,8 @@ def run_grid(cfg) -> None:
         # ユーザ指定を尊重しつつ、不足項目（特に weight_dir）を補完。
         cfg.evaluate.summary = grid_eval_cfg.summary
         try:
-            if getattr(cfg.evaluate.summary, "weight_dir", None) in (None, ""):
-                cfg.evaluate.summary.weight_dir = weight_dir_str
+            if getattr(cfg.evaluate.summary, "tenfold_root", None) in (None, ""):
+                cfg.evaluate.summary.tenfold_root = tenfold_root_eval
         except Exception:
             pass
         try:
@@ -191,7 +191,7 @@ def run_grid(cfg) -> None:
         except Exception:
             pass
         cfg.evaluate.summary = EvaluateSummaryCfg(
-            weight_dir=weight_dir_str,
+            tenfold_root=tenfold_root_eval,
             vary_param=vary_param,
         )
 

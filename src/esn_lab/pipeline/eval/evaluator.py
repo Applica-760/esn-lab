@@ -203,14 +203,17 @@ class Evaluator:
         if sum_cfg is None:
             raise ValueError("Config 'cfg.evaluate.summary' not found.")
 
-        weight_dir = Path(sum_cfg.weight_dir or ".").expanduser().resolve()
-        # Place all evaluation artifacts under the common tenfold_integ root
+        # Resolve tenfold_root / output directories for summary
+        tenfold_root = getattr(sum_cfg, "tenfold_root", None)
+        if not tenfold_root:
+            raise ValueError("Config requires 'evaluate.summary.tenfold_root'.")
+        out_root = (Path(tenfold_root).expanduser() / "eval").resolve()
+        # Place all evaluation artifacts under the common root
         # Expected structure:
-        #  <tenfold_integ>/eval/
+        #  <tenfold_root>/eval/
         #    - evaluation_results.csv (input)
         #    - images/ (plots)
         #    - csv/    (summary CSVs)
-        out_root = (weight_dir.parent / "eval").resolve()
         out_root.mkdir(parents=True, exist_ok=True)
 
         csv_path = (out_root / (sum_cfg.csv_name or "evaluation_results.csv")).resolve()
