@@ -24,14 +24,16 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Resolve weight_dir from required tenfold_root only (no legacy fallbacks)
-    tenfold_root_local = getattr(tenfold_cfg, "tenfold_root", None)
-    if not tenfold_root_local:
-        raise ValueError("Config requires 'train.tenfold.tenfold_root'.")
-    weight_dir_str = str(Path(tenfold_root_local).expanduser() / "weights")
-    wd_in = Path(weight_dir_str).expanduser()
-    weight_dir = (wd_in if wd_in.is_absolute() else (Path.cwd() / wd_in)).resolve()
+    # experiment_name は必須
+    experiment_name = getattr(tenfold_cfg, "experiment_name", None)
+    if not experiment_name:
+        raise ValueError("Config requires 'train.tenfold.experiment_name'.")
+    
+    # experiments/{experiment_name}/weights/ に配置
+    weight_dir = Path("artifacts/experiments") / experiment_name / "weights"
+    weight_dir = weight_dir.expanduser().resolve()
     weight_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Using experiment: {experiment_name}")
 
     csv_map = load_10fold_csv_mapping(csv_dir)
     letters = sorted(csv_map.keys())
@@ -43,14 +45,20 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     }
 
 
-def _determine_tasks_to_run(cfg, hp_overrides, letters, weight_dir):
+def _determine_tasks_to_run(cfg, hp_overrides, letters, weight_dir, tenfold_cfg=None):
     """
     特定のハイパーパラメータに対し、未実行のfold（タスク）を特定する。
-    重みファイルが既に存在する場合はスキップ対象とする。
+    skip_existing/force_retrainフラグに基づいて動作を制御する。
 
     戻り値:
         list[str]: 実行すべき 'leave-out-letter' のリスト
     """
+    tenfold_cfg = tenfold_cfg or getattr(getattr(cfg, "train", None), "tenfold", None)
+    
+    # スキップ制御フラグの取得（デフォルト: skip_existing=True, force_retrain=False）
+    skip_existing = getattr(tenfold_cfg, "skip_existing", True)
+    force_retrain = getattr(tenfold_cfg, "force_retrain", False)
+    
     tasks_to_run = []
     for leave in letters:
         train_letters = [x for x in letters if x != leave]
@@ -58,6 +66,19 @@ def _determine_tasks_to_run(cfg, hp_overrides, letters, weight_dir):
         weight_filename = make_weight_filename(cfg=cfg, overrides=hp_overrides, train_tag=tag)
         expected_path = weight_dir / weight_filename
 
+        # force_retrain=Trueなら既存ファイルを無視して全て実行
+        if force_retrain:
+            tasks_to_run.append(leave)
+            if expected_path.exists():
+                print(f"[FORCE] Retraining fold '{leave}' (existing weight will be overwritten): {expected_path.name}")
+            continue
+        
+        # skip_existing=Falseなら既存ファイルを無視して全て実行
+        if not skip_existing:
+            tasks_to_run.append(leave)
+            continue
+        
+        # skip_existing=True（デフォルト）の場合、既存ファイルがあればスキップ
         if expected_path.exists():
             print(f"[SKIP] Weight file found, skipping fold '{leave}': {expected_path.name}")
         else:
@@ -79,7 +100,7 @@ def run_tenfold(cfg, *, overrides: dict | None = None, tenfold_cfg=None, paralle
     # 2. 実行すべきタスク（fold）を決定（本ランナーは単一パラメタセットのみ扱う）
     hp_overrides = overrides or {}
     tasks_to_run = _determine_tasks_to_run(
-        cfg, hp_overrides, env["letters"], env["weight_dir"]
+        cfg, hp_overrides, env["letters"], env["weight_dir"], tenfold_cfg=tenfold_cfg
     )
 
     if not tasks_to_run:

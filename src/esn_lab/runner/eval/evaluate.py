@@ -49,12 +49,17 @@ def tenfold_evaluate(cfg: Config):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Resolve tenfold_root and output dirs (required)
-    tenfold_root = getattr(ten_cfg, "tenfold_root", None)
-    if not tenfold_root:
-        raise FileNotFoundError("Config requires 'evaluate.tenfold.tenfold_root'.")
-    weight_dir = (Path(tenfold_root).expanduser() / "weights").resolve()
-    out_dir = (Path(tenfold_root).expanduser() / "eval").resolve()
+    # experiment_name は必須
+    experiment_name = getattr(ten_cfg, "experiment_name", None)
+    if not experiment_name:
+        raise ValueError("Config requires 'evaluate.tenfold.experiment_name'.")
+    
+    # experiments/{experiment_name}/ の固定構成を使用
+    exp_base = Path("artifacts/experiments") / experiment_name
+    weight_dir = (exp_base / "weights").expanduser().resolve()
+    out_dir = (exp_base / "eval").expanduser().resolve()
+    print(f"[INFO] Using experiment: {experiment_name}")
+    
     if not weight_dir.exists():
         raise FileNotFoundError(f"weight_dir not found: {weight_dir}")
 

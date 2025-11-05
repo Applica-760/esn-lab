@@ -1,8 +1,7 @@
 # Evaluate summary/plot configuration
-csv_name: "evaluation_results.csv"
 
-# 10-fold 用の成果物ルート（eval/ 配下にサマリ成果物が出力されます）
-tenfold_root: "artifacts/tenfold_integ"
+# 実験名を指定（必須、train/eval tenfoldと同じ名前）
+experiment_name: "tenfold_integ"
 
 metric: "majority_acc"
 

@@ -1,9 +1,13 @@
 csv_dir: "dataset/10fold_csvs/" 
 
+# 実験名を指定（必須）
+experiment_name: "tenfold_integ"
+
 workers: 10
 
-# 10-fold 用の成果物ルート（weights/, eval/ などの固定構成に展開されます）
-tenfold_root: "artifacts/tenfold_integ"
+# スキップ制御フラグ
+skip_existing: true
+force_retrain: false
 
 search_space:
   model.Nx: [200, 300, 400, 500, 600]

@@ -1,8 +1,11 @@
+# 実験名を指定（必須）
+experiment_name: "grid_search_v1"
+
 base:
   csv_dir: "dataset/10fold_csvs/"
   workers: 10
-  # 10-fold artifacts root (can be inherited by train/eval)
-  tenfold_root: "artifacts/tenfold_integ"
+  skip_existing: true   # 既存の重みファイルをスキップ
+  force_retrain: false  # trueの場合、既存ファイルを無視して全て再学習
 
 # 単一ファイルで探索範囲を一度だけ定義
 param_grid:
@@ -17,7 +20,6 @@ eval:
   tenfold:
     parallel: true
   summary:
-    csv_name: "evaluation_results.csv"
     metric: "majority_acc"
     vary_param: "Nx"
     vary_values: [200, 300]

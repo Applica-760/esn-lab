@@ -48,11 +48,12 @@ class TrainBatchCfg:
 @dataclass
 class TrainTenfoldCfg:
     csv_dir: Optional[str] = None
+    # 実験名を指定（artifacts/experiments/{experiment_name}/ に配置）
+    experiment_name: Optional[str] = None
     workers: Optional[int] = None
-    # 統一名: weight_dir のみを使用
-    weight_dir: Optional[str] = None
-    # 推奨: tenfold_root を指定すると配下の固定構成 (weights/, eval/) を自動利用
-    tenfold_root: Optional[str] = None
+    # スキップ制御フラグ
+    skip_existing: Optional[bool] = True
+    force_retrain: Optional[bool] = False
     search_space: Optional[dict[str, list]] | None = None
 
 @dataclass
@@ -88,8 +89,7 @@ class Predict:
 @dataclass
 class EvaluateTenfoldCfg:
     csv_dir: Optional[str] = None
-    weight_dir: Optional[str] = None
-    tenfold_root: Optional[str] = None
+    experiment_name: Optional[str] = None
     workers: Optional[int] = None 
     parallel: Optional[bool] = True
     # Optional: limit evaluation to specific parameter combinations.
@@ -102,9 +102,10 @@ class EvaluateRunCfg:
 
 @dataclass
 class EvaluateSummaryCfg:
-    weight_dir: Optional[str] = None
-    tenfold_root: Optional[str] = None
-    csv_name: Optional[str] = "evaluation_results.csv"
+    experiment_name: Optional[str] = None
+    # 明示的なCSVパス指定（experiment_nameより優先）
+    results_csv: Optional[str] = None
+    predictions_csv: Optional[str] = None
     metric: Optional[str] = "majority_acc"
     vary_param: Optional[str] = "Nx"
     vary_values: Optional[list] = None  
@@ -117,9 +118,9 @@ class EvaluateSummaryCfg:
 
 @dataclass
 class EvaluateAnalysisCfg:
-    weight_dir: Optional[str] = None
-    tenfold_root: Optional[str] = None
-    csv_name: Optional[str] = "evaluation_predictions.csv"
+    experiment_name: Optional[str] = None
+    # 明示的なCSVパス指定（experiment_nameより優先）
+    predictions_csv: Optional[str] = None
     filters: Optional[dict] = None
     output_dir: Optional[str] = None
     # Optional dataset CSV directory (10-fold) to enable locating and exporting images
@@ -144,6 +145,7 @@ class IntegGridCfg:
     # 新スキーマ: grid.yaml を単一ファイルで受け、
     # - base: csv_dir/weight_dir/workers などの共通デフォルト
     # - param_grid: {"model.<field>": [values, ...]} の探索範囲（flatten_search_space が解釈）
+    experiment_name: Optional[str] = None
     base: Optional[dict] = None
     param_grid: Optional[dict[str, list]] = None
     train: Optional[TrainTenfoldCfg] = None

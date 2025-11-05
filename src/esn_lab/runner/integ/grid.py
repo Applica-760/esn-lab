@@ -56,14 +56,31 @@ def run_grid(cfg) -> None:
         ss = param_grid
         combos: List[Tuple[Dict, str]] = flatten_search_space(ss)
 
+        # experiment_name は必須
+        experiment_name = _g(grid_cfg, "experiment_name") or _g(train_template, "experiment_name") or _g(base, "experiment_name")
+        if not experiment_name:
+            raise ValueError("integ.grid requires 'experiment_name'.")
+        
+        print(f"[INFO] Using experiment: {experiment_name}")
+
         # tenfold 設定を base + train_template から作る
         csv_dir = _g(train_template, "csv_dir") or _g(base, "csv_dir")
-        tenfold_root = _g(train_template, "tenfold_root") or _g(base, "tenfold_root")
-        if not tenfold_root:
-            raise ValueError("integ.grid.base.tenfold_root or integ.grid.train.tenfold_root is required.")
         workers = _g(train_template, "workers") or _g(base, "workers") or 1
+        skip_existing = _g(train_template, "skip_existing")
+        if skip_existing is None:
+            skip_existing = _g(base, "skip_existing")
+        if skip_existing is None:
+            skip_existing = True
+        force_retrain = _g(train_template, "force_retrain") or _g(base, "force_retrain") or False
 
-        train_cfg = TrainTenfoldCfg(csv_dir=csv_dir, tenfold_root=tenfold_root, workers=workers, search_space=None)
+        train_cfg = TrainTenfoldCfg(
+            csv_dir=csv_dir,
+            experiment_name=experiment_name,
+            workers=workers,
+            skip_existing=skip_existing,
+            force_retrain=force_retrain,
+            search_space=None
+        )
 
     else:
         # 既存単純形: integ.grid.train をそのまま利用
@@ -85,18 +102,18 @@ def run_grid(cfg) -> None:
     # なければ学習設定から補完
     if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
         csv_dir_str: str = getattr(grid_eval_cfg.tenfold, "csv_dir", None) or getattr(train_cfg, "csv_dir")
-        tenfold_root_eval: str | None = getattr(grid_eval_cfg.tenfold, "tenfold_root", None) or getattr(train_cfg, "tenfold_root", None)
-        if not tenfold_root_eval:
-            raise ValueError("integ.grid.eval.tenfold.tenfold_root or integ.grid.train.tenfold_root is required.")
+        experiment_name_eval: str | None = getattr(grid_eval_cfg.tenfold, "experiment_name", None) or getattr(train_cfg, "experiment_name", None)
+        if not experiment_name_eval:
+            raise ValueError("integ.grid.eval requires 'experiment_name'.")
         eval_workers: int = int(getattr(grid_eval_cfg.tenfold, "workers", None) or getattr(train_cfg, "workers", 1) or 1)
         eval_parallel: bool = bool(getattr(grid_eval_cfg.tenfold, "parallel", True))
     else:
         csv_dir_str = getattr(train_cfg, "csv_dir")
-        tenfold_root_eval = getattr(train_cfg, "tenfold_root", None)
+        experiment_name_eval = getattr(train_cfg, "experiment_name", None)
         eval_workers = auto_workers
         eval_parallel = True
-    if not tenfold_root_eval:
-        raise ValueError("'tenfold_root' is required in integ.grid.")
+    if not experiment_name_eval:
+        raise ValueError("integ.grid requires 'experiment_name'.")
 
     for overrides, tag in combos:
         print("=" * 50)
@@ -120,6 +137,8 @@ def run_grid(cfg) -> None:
             cfg.evaluate.tenfold = grid_eval_cfg.tenfold
             if getattr(cfg.evaluate.tenfold, "csv_dir", None) in (None, ""):
                 cfg.evaluate.tenfold.csv_dir = csv_dir_str
+            if getattr(cfg.evaluate.tenfold, "experiment_name", None) in (None, ""):
+                cfg.evaluate.tenfold.experiment_name = experiment_name_eval
             if getattr(cfg.evaluate.tenfold, "tenfold_root", None) in (None, ""):
                 cfg.evaluate.tenfold.tenfold_root = tenfold_root_eval
             if getattr(cfg.evaluate.tenfold, "workers", None) in (None, 0):
@@ -129,7 +148,7 @@ def run_grid(cfg) -> None:
         else:
             cfg.evaluate.tenfold = EvaluateTenfoldCfg(
                 csv_dir=csv_dir_str,
-                tenfold_root=tenfold_root_eval,
+                experiment_name=experiment_name_eval,
                 workers=eval_workers,
                 parallel=eval_parallel,
             )
@@ -138,9 +157,9 @@ def run_grid(cfg) -> None:
         one_search = {f"model.{k}": [v] for k, v in (overrides or {}).items()}
         cfg.evaluate.tenfold.search_space = one_search if one_search else None
         print("-" * 50)
-        print(f"[GRID] start evaluation for newly trained weights in root: {tenfold_root_eval}")
+        print(f"[GRID] start evaluation for newly trained weights in experiment: {experiment_name_eval}")
         tenfold_evaluate(cfg)
-        print(f"[GRID] evaluation finished for root: {tenfold_root_eval}")
+        print(f"[GRID] evaluation finished for experiment: {experiment_name_eval}")
 
     print("=" * 50)
     print("[INFO] Grid training & per-set evaluation finished. Running summary...")
@@ -152,11 +171,11 @@ def run_grid(cfg) -> None:
         cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
 
     if grid_eval_cfg and getattr(grid_eval_cfg, "summary", None):
-        # ユーザ指定を尊重しつつ、不足項目（特に weight_dir）を補完。
+        # ユーザ指定を尊重しつつ、不足項目を補完
         cfg.evaluate.summary = grid_eval_cfg.summary
         try:
-            if getattr(cfg.evaluate.summary, "tenfold_root", None) in (None, ""):
-                cfg.evaluate.summary.tenfold_root = tenfold_root_eval
+            if getattr(cfg.evaluate.summary, "experiment_name", None) in (None, ""):
+                cfg.evaluate.summary.experiment_name = experiment_name_eval
         except Exception:
             pass
         try:
@@ -191,7 +210,7 @@ def run_grid(cfg) -> None:
         except Exception:
             pass
         cfg.evaluate.summary = EvaluateSummaryCfg(
-            tenfold_root=tenfold_root_eval,
+            experiment_name=experiment_name_eval,
             vary_param=vary_param,
         )
 

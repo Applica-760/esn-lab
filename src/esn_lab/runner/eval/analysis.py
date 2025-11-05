@@ -155,15 +155,27 @@ def analysis_evaluate(cfg: Config):
     if ana_cfg is None:
         raise ValueError("Config 'cfg.evaluate.analysis' not found.")
 
-    # Resolve tenfold_root (required) and evaluation root
-    tenfold_root = getattr(ana_cfg, "tenfold_root", None)
-    if not tenfold_root:
-        raise ValueError("Config requires 'evaluate.analysis.tenfold_root'.")
-    out_root = (Path(tenfold_root).expanduser() / "eval").resolve()
+    # パス解決の優先順位:
+    # 1. predictions_csv が明示的に指定されている
+    # 2. experiment_name から自動補完（推奨）
+    
+    predictions_csv_explicit = getattr(ana_cfg, "predictions_csv", None)
+    experiment_name = getattr(ana_cfg, "experiment_name", None)
+    
+    # predictions_csv の決定
+    if predictions_csv_explicit:
+        preds_csv = Path(predictions_csv_explicit).expanduser().resolve()
+        out_root = preds_csv.parent
+    elif experiment_name:
+        exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+        preds_csv = (exp_base / "evaluation_predictions.csv").resolve()
+        out_root = exp_base.resolve()
+        print(f"[INFO] Using experiment: {experiment_name}")
+    else:
+        raise ValueError("Config requires either 'predictions_csv' or 'experiment_name'.")
+    
     out_root.mkdir(parents=True, exist_ok=True)
-
-    preds_name = ana_cfg.csv_name or "evaluation_predictions.csv"
-    preds_csv = (out_root / preds_name).resolve()
+    
     if not preds_csv.exists():
         raise FileNotFoundError(f"Predictions CSV not found: {preds_csv}")
 
