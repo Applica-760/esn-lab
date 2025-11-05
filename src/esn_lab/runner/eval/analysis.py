@@ -3,10 +3,113 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import cv2
 
 from esn_lab.setup.config import Config
 from esn_lab.utils.eval_utils import apply_filters
 from esn_lab.model.model_builder import get_model_param_str
+from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, read_data_from_csvs
+
+
+def _extract_image_features(img_path: str) -> dict:
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return {
+            "mean_intensity": None,
+            "std_intensity": None,
+            "edge_magnitude": None,
+            "variance": None,
+        }
+    
+    # Basic statistics
+    mean_val = float(np.mean(img))
+    std_val = float(np.std(img))
+    var_val = float(np.var(img))
+    
+    # Edge detection (Sobel)
+    sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=3)
+    edge_mag = float(np.mean(np.sqrt(sobelx**2 + sobely**2)))
+    
+    return {
+        "mean_intensity": mean_val,
+        "std_intensity": std_val,
+        "edge_magnitude": edge_mag,
+        "variance": var_val,
+    }
+
+
+def _create_image_grid(
+    sample_ids: list[str],
+    sample_id_to_path: dict[str, str],
+    grid_rows: int,
+    grid_cols: int,
+    title: str,
+    output_path: Path,
+    dpi: int = 150,
+    sample_metadata: dict[str, dict] | None = None,
+):
+    """Create a grid of images from sample IDs.
+    
+    Args:
+        sample_ids: List of sample IDs to display
+        sample_id_to_path: Mapping from sample_id to image file path
+        grid_rows: Number of rows in grid
+        grid_cols: Number of columns in grid
+        title: Title for the plot
+        output_path: Where to save the figure
+        dpi: DPI for saving
+        sample_metadata: Optional dict mapping sample_id to metadata dict with keys like
+                        'success_count', 'fail_count', 'included_count', 'success_rate'
+    """
+    n_samples = min(len(sample_ids), grid_rows * grid_cols)
+    if n_samples == 0:
+        print(f"[WARN] No samples to display for grid: {title}")
+        return
+    
+    # 各セルを256×512の横長に (縦横比2:1)
+    cell_width = 4  # インチ
+    cell_height = 2  # インチ
+    fig, axes = plt.subplots(grid_rows, grid_cols, figsize=(grid_cols * cell_width, grid_rows * cell_height))
+    if grid_rows == 1 and grid_cols == 1:
+        axes = np.array([[axes]])
+    elif grid_rows == 1 or grid_cols == 1:
+        axes = axes.reshape(grid_rows, grid_cols)
+    
+    for idx in range(grid_rows * grid_cols):
+        row = idx // grid_cols
+        col = idx % grid_cols
+        ax = axes[row, col]
+        
+        if idx < n_samples:
+            sid = sample_ids[idx]
+            img_path = sample_id_to_path.get(sid)
+            if img_path and Path(img_path).exists():
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    ax.imshow(img, cmap='gray', aspect='auto')
+                    # タイトルにサンプルIDとメタ情報を表示
+                    title_parts = [f"{sid[:8]}..."]
+                    if sample_metadata and sid in sample_metadata:
+                        meta = sample_metadata[sid]
+                        succ = meta.get('success_count', 0)
+                        inc = meta.get('included_count', 0)
+                        if inc > 0:
+                            title_parts.append(f"({succ}/{inc})")
+                    ax.set_title(" ".join(title_parts), fontsize=8)
+                else:
+                    ax.text(0.5, 0.5, "Read Error", ha='center', va='center', transform=ax.transAxes)
+            else:
+                ax.text(0.5, 0.5, "Not Found", ha='center', va='center', transform=ax.transAxes)
+        
+        ax.axis('off')
+    
+    fig.suptitle(title, fontsize=14, fontweight='bold')
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig(output_path, dpi=dpi, bbox_inches='tight')
+    plt.close(fig)
+    print(f"[ARTIFACT] Saved image grid: {output_path}")
 
 
 def _make_param_tag(cfg: Config, filters: dict | None, df_cols: list[str]) -> str:
@@ -206,5 +309,312 @@ def analysis_evaluate(cfg: Config):
         print(f"[WARN] Plotting step failed: {e}")
 
     print(f"[INFO] Wrote analysis outputs: {images_csv}, {always_fail_csv}, {always_success_csv}")
+
+    # ==============================
+    # 新機能1: 成功率スペクトラム画像グリッド表示
+    # ==============================
+    if ana_cfg.csv_dir and ana_cfg.export_images:
+        try:
+            csv_dir = Path(ana_cfg.csv_dir).expanduser().resolve()
+            csv_map = load_10fold_csv_mapping(csv_dir)
+            all_fold_paths = list(csv_map.values())
+            _, img_paths, _ = read_data_from_csvs(all_fold_paths)
+            
+            # sample_id -> image_path のマッピングを作成
+            sample_id_to_path = {}
+            for p in img_paths:
+                sid = Path(p).stem
+                sample_id_to_path[sid] = p
+            
+            # sample_id -> metadata のマッピングを作成
+            sample_metadata = {}
+            for _, row in images_df.iterrows():
+                sid = row["sample_id"]
+                inc = row["included_count"]
+                sample_metadata[sid] = {
+                    "success_count": row["success_count"],
+                    "fail_count": row["fail_count"],
+                    "included_count": inc,
+                    "success_rate": row["success_count"] / inc if inc > 0 else 0.0,
+                }
+            
+            # 成功率でソート済みのimages_dfから各カテゴリを抽出
+            fail_samples = always_fail["sample_id"].tolist()
+            success_samples = always_success["sample_id"].tolist()
+            
+            # 混在データ (0 < success_count < included_count)
+            mixed = images_df[
+                (images_df["included_count"] > 0) &
+                (images_df["success_count"] > 0) &
+                (images_df["success_count"] < images_df["included_count"])
+            ].copy()
+            # 成功率が低い順にソート
+            mixed["success_rate"] = mixed["success_count"] / mixed["included_count"]
+            mixed = mixed.sort_values("success_rate")
+            mixed_samples = mixed["sample_id"].tolist()
+            
+            # グリッドサイズ (各カテゴリから27枚ずつ表示: 3x3を3ページ)
+            grid_size = 3  # 3x3
+            n_per_grid = grid_size * grid_size  # 9
+            n_total = n_per_grid * 3  # 27
+            
+            def _sample_diverse_by_trial_count(sample_ids: list[str], metadata: dict, n_target: int) -> list[str]:
+                """試行回数が偏らないようにサンプリング。
+                
+                異なる試行回数のグループから均等に選択し、合計n_target件を返す。
+                """
+                if len(sample_ids) <= n_target:
+                    return sample_ids
+                
+                # 試行回数ごとにグループ化
+                by_count = {}
+                for sid in sample_ids:
+                    cnt = metadata.get(sid, {}).get("included_count", 0)
+                    if cnt not in by_count:
+                        by_count[cnt] = []
+                    by_count[cnt].append(sid)
+                
+                # 試行回数の多い順にソート (信頼度の高いものを優先)
+                sorted_counts = sorted(by_count.keys(), reverse=True)
+                
+                # ラウンドロビンで選択
+                selected = []
+                idx_map = {cnt: 0 for cnt in sorted_counts}
+                
+                while len(selected) < n_target:
+                    added = False
+                    for cnt in sorted_counts:
+                        if idx_map[cnt] < len(by_count[cnt]):
+                            selected.append(by_count[cnt][idx_map[cnt]])
+                            idx_map[cnt] += 1
+                            added = True
+                            if len(selected) >= n_target:
+                                break
+                    if not added:  # すべてのグループを使い切った
+                        break
+                
+                return selected
+            
+            # 全失敗データのグリッド (3ページ分)
+            if fail_samples:
+                fail_diverse = _sample_diverse_by_trial_count(fail_samples, sample_metadata, n_total)
+                for page in range(3):
+                    start_idx = page * n_per_grid
+                    end_idx = start_idx + n_per_grid
+                    page_samples = fail_diverse[start_idx:end_idx]
+                    if page_samples:
+                        _create_image_grid(
+                            sample_ids=page_samples,
+                            sample_id_to_path=sample_id_to_path,
+                            grid_rows=grid_size,
+                            grid_cols=grid_size,
+                            title=f"Always-Fail Samples (Page {page+1}/3)",
+                            output_path=images_dir / f"grid_always_fail_{param_tag}_p{page+1}.png",
+                            dpi=dpi,
+                            sample_metadata=sample_metadata,
+                        )
+            
+            # 混在データのグリッド (低成功率側)
+            if mixed_samples:
+                mixed_diverse = _sample_diverse_by_trial_count(mixed_samples, sample_metadata, n_total)
+                for page in range(3):
+                    start_idx = page * n_per_grid
+                    end_idx = start_idx + n_per_grid
+                    page_samples = mixed_diverse[start_idx:end_idx]
+                    if page_samples:
+                        _create_image_grid(
+                            sample_ids=page_samples,
+                            sample_id_to_path=sample_id_to_path,
+                            grid_rows=grid_size,
+                            grid_cols=grid_size,
+                            title=f"Mixed Samples (Low Success Rate, Page {page+1}/3)",
+                            output_path=images_dir / f"grid_mixed_{param_tag}_p{page+1}.png",
+                            dpi=dpi,
+                            sample_metadata=sample_metadata,
+                        )
+            
+            # 全成功データのグリッド (3ページ分)
+            if success_samples:
+                success_diverse = _sample_diverse_by_trial_count(success_samples, sample_metadata, n_total)
+                for page in range(3):
+                    start_idx = page * n_per_grid
+                    end_idx = start_idx + n_per_grid
+                    page_samples = success_diverse[start_idx:end_idx]
+                    if page_samples:
+                        _create_image_grid(
+                            sample_ids=page_samples,
+                            sample_id_to_path=sample_id_to_path,
+                            grid_rows=grid_size,
+                            grid_cols=grid_size,
+                            title=f"Always-Success Samples (Page {page+1}/3)",
+                            output_path=images_dir / f"grid_always_success_{param_tag}_p{page+1}.png",
+                            dpi=dpi,
+                            sample_metadata=sample_metadata,
+                        )
+            
+            # スペクトラム表示: 成功率順に並べた総合グリッド (横長)
+            spectrum_samples = images_df[images_df["included_count"] > 0].copy()
+            spectrum_samples["success_rate"] = spectrum_samples["success_count"] / spectrum_samples["included_count"]
+            spectrum_samples = spectrum_samples.sort_values("success_rate")
+            spectrum_ids = spectrum_samples["sample_id"].tolist()
+            
+            # 等間隔でサンプリング (最大24枚: 3行x8列)
+            spectrum_rows, spectrum_cols = 3, 8
+            n_spectrum = spectrum_rows * spectrum_cols
+            if len(spectrum_ids) > n_spectrum:
+                indices = np.linspace(0, len(spectrum_ids) - 1, n_spectrum, dtype=int)
+                spectrum_ids_sampled = [spectrum_ids[i] for i in indices]
+            else:
+                spectrum_ids_sampled = spectrum_ids
+            
+            if spectrum_ids_sampled:
+                _create_image_grid(
+                    sample_ids=spectrum_ids_sampled,
+                    sample_id_to_path=sample_id_to_path,
+                    grid_rows=spectrum_rows,
+                    grid_cols=spectrum_cols,
+                    title="Success Rate Spectrum (Low → High)",
+                    output_path=images_dir / f"grid_spectrum_{param_tag}.png",
+                    dpi=dpi,
+                    sample_metadata=sample_metadata,
+                )
+            
+        except Exception as e:
+            print(f"[WARN] Image grid generation failed: {e}")
+    
+    # ==============================
+    # 新機能2: 特徴量分析プロット
+    # ==============================
+    if ana_cfg.csv_dir:
+        try:
+            csv_dir = Path(ana_cfg.csv_dir).expanduser().resolve()
+            csv_map = load_10fold_csv_mapping(csv_dir)
+            all_fold_paths = list(csv_map.values())
+            _, img_paths, _ = read_data_from_csvs(all_fold_paths)
+            
+            # sample_id -> image_path のマッピング
+            sample_id_to_path = {}
+            for p in img_paths:
+                sid = Path(p).stem
+                sample_id_to_path[sid] = p
+            
+            # 各サンプルの特徴量を抽出
+            print("[INFO] Extracting image features for analysis...")
+            feature_rows = []
+            for _, row in images_df.iterrows():
+                sid = row["sample_id"]
+                img_path = sample_id_to_path.get(sid)
+                if not img_path:
+                    continue
+                
+                features = _extract_image_features(img_path)
+                inc_count = row["included_count"]
+                success_rate = row["success_count"] / inc_count if inc_count > 0 else None
+                
+                feature_rows.append({
+                    "sample_id": sid,
+                    "success_rate": success_rate,
+                    "success_count": row["success_count"],
+                    "fail_count": row["fail_count"],
+                    "included_count": inc_count,
+                    "expected_label": row.get("expected_label"),
+                    **features,
+                })
+            
+            features_df = pd.DataFrame(feature_rows)
+            features_csv = csv_dir / f"analysis_features_{param_tag}.csv"
+            features_df.to_csv(features_csv, index=False)
+            print(f"[ARTIFACT] Saved features CSV: {features_csv}")
+            
+            # 特徴量の散布図プロット
+            valid_features = features_df.dropna(subset=["mean_intensity", "std_intensity", "edge_magnitude", "success_rate"])
+            
+            if not valid_features.empty:
+                # 2x2 サブプロット: 各特徴量 vs 成功率
+                fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+                
+                # クラス別に色分け (expected_labelがある場合)
+                has_labels = "expected_label" in valid_features.columns and not valid_features["expected_label"].isna().all()
+                if has_labels:
+                    num_classes = int(valid_features["expected_label"].max() + 1) if valid_features["expected_label"].max() >= 0 else 3
+                    colors = plt.cm.tab10(np.linspace(0, 1, num_classes))
+                    color_map = {i: colors[i] for i in range(num_classes)}
+                else:
+                    color_map = None
+                
+                feature_pairs = [
+                    ("mean_intensity", "Mean Intensity"),
+                    ("std_intensity", "Contrast (Std Dev)"),
+                    ("edge_magnitude", "Edge Magnitude"),
+                    ("variance", "Variance"),
+                ]
+                
+                for idx, (feat_col, feat_label) in enumerate(feature_pairs):
+                    ax = axes[idx // 2, idx % 2]
+                    
+                    if has_labels and color_map:
+                        for cls_id in sorted(valid_features["expected_label"].dropna().unique()):
+                            cls_data = valid_features[valid_features["expected_label"] == cls_id]
+                            ax.scatter(
+                                cls_data[feat_col],
+                                cls_data["success_rate"],
+                                c=[color_map[int(cls_id)]],
+                                label=f"Class {int(cls_id)}",
+                                alpha=0.6,
+                                s=30,
+                            )
+                        ax.legend(fontsize=8)
+                    else:
+                        ax.scatter(
+                            valid_features[feat_col],
+                            valid_features["success_rate"],
+                            c=valid_features["success_rate"],
+                            cmap="RdYlGn",
+                            alpha=0.6,
+                            s=30,
+                        )
+                    
+                    ax.set_xlabel(feat_label, fontsize=10)
+                    ax.set_ylabel("Success Rate", fontsize=10)
+                    ax.set_ylim(-0.05, 1.05)
+                    ax.grid(True, linestyle='--', alpha=0.3)
+                
+                fig.suptitle("Image Features vs Success Rate", fontsize=14, fontweight='bold')
+                fig.tight_layout(rect=[0, 0, 1, 0.96])
+                features_plot = images_dir / f"analysis_features_scatter_{param_tag}.png"
+                fig.savefig(features_plot, dpi=dpi, bbox_inches='tight')
+                plt.close(fig)
+                print(f"[ARTIFACT] Saved feature scatter plot: {features_plot}")
+                
+                # ヒートマップ: 特徴量の相関
+                feature_cols = ["mean_intensity", "std_intensity", "edge_magnitude", "variance", "success_rate"]
+                corr_data = valid_features[feature_cols].dropna()
+                if len(corr_data) > 1:
+                    corr_matrix = corr_data.corr()
+                    
+                    fig, ax = plt.subplots(figsize=(7, 6))
+                    im = ax.imshow(corr_matrix, cmap="coolwarm", aspect="auto", vmin=-1, vmax=1)
+                    ax.set_xticks(range(len(feature_cols)))
+                    ax.set_yticks(range(len(feature_cols)))
+                    ax.set_xticklabels([c.replace("_", " ").title() for c in feature_cols], rotation=45, ha="right", fontsize=9)
+                    ax.set_yticklabels([c.replace("_", " ").title() for c in feature_cols], fontsize=9)
+                    
+                    # 相関係数を表示
+                    for i in range(len(feature_cols)):
+                        for j in range(len(feature_cols)):
+                            text = ax.text(j, i, f"{corr_matrix.iloc[i, j]:.2f}",
+                                         ha="center", va="center", color="black", fontsize=9)
+                    
+                    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                    cbar.set_label("Correlation", fontsize=10)
+                    ax.set_title("Feature Correlation Matrix", fontsize=12, fontweight='bold')
+                    fig.tight_layout()
+                    corr_plot = images_dir / f"analysis_features_correlation_{param_tag}.png"
+                    fig.savefig(corr_plot, dpi=dpi, bbox_inches='tight')
+                    plt.close(fig)
+                    print(f"[ARTIFACT] Saved correlation heatmap: {corr_plot}")
+            
+        except Exception as e:
+            print(f"[WARN] Feature analysis failed: {e}")
 
     return
