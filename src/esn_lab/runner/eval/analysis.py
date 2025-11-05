@@ -61,12 +61,15 @@ def _create_image_grid(
         output_path: Where to save the figure
         dpi: DPI for saving
         sample_metadata: Optional dict mapping sample_id to metadata dict with keys like
-                        'success_count', 'fail_count', 'included_count', 'success_rate'
+                        'success_count', 'fail_count', 'included_count', 'success_rate', 'expected_label'
     """
     n_samples = min(len(sample_ids), grid_rows * grid_cols)
     if n_samples == 0:
         print(f"[WARN] No samples to display for grid: {title}")
         return
+    
+    # ラベル名のマッピング
+    label_names = {0: "other", 1: "foraging", 2: "rumination"}
     
     # 各セルを256×512の横長に (縦横比2:1)
     cell_width = 4  # インチ
@@ -97,6 +100,15 @@ def _create_image_grid(
                         inc = meta.get('included_count', 0)
                         if inc > 0:
                             title_parts.append(f"({succ}/{inc})")
+                        # 正解ラベルの情報を追加
+                        expected_label = meta.get('expected_label')
+                        if expected_label is not None and not pd.isna(expected_label):
+                            try:
+                                label_id = int(expected_label)
+                                label_name = label_names.get(label_id, f"label{label_id}")
+                                title_parts.append(f"[{label_name}]")
+                            except (ValueError, TypeError):
+                                pass
                     ax.set_title(" ".join(title_parts), fontsize=8)
                 else:
                     ax.text(0.5, 0.5, "Read Error", ha='center', va='center', transform=ax.transAxes)
@@ -211,7 +223,11 @@ def analysis_evaluate(cfg: Config):
 
         if has_true:
             true_vals = sdf["true_label"].dropna().astype(int)
+            rec["true_label"] = int(true_vals.iloc[0]) if len(true_vals) else None
             rec["true_label_consistent"] = bool(true_vals.nunique() <= 1)
+            # expected_labelがない場合、true_labelを使用
+            if not has_expected:
+                rec["expected_label"] = rec["true_label"]
 
         if has_pred:
             # 参考情報: 各foldでの予測ラベルを a:2,c:0 のように格納
@@ -328,15 +344,21 @@ def analysis_evaluate(cfg: Config):
             
             # sample_id -> metadata のマッピングを作成
             sample_metadata = {}
-            for _, row in images_df.iterrows():
+            for idx, row in images_df.iterrows():
                 sid = row["sample_id"]
                 inc = row["included_count"]
+                # expected_labelの取得（存在しない場合はNone）
+                exp_label = row.get("expected_label") if "expected_label" in images_df.columns else None
                 sample_metadata[sid] = {
                     "success_count": row["success_count"],
                     "fail_count": row["fail_count"],
                     "included_count": inc,
                     "success_rate": row["success_count"] / inc if inc > 0 else 0.0,
+                    "expected_label": exp_label,
                 }
+                # デバッグ用（最初の3件のみ）
+                if idx < 3:
+                    print(f"[DEBUG] sample_id={sid}, expected_label={exp_label}")
             
             # 成功率でソート済みのimages_dfから各カテゴリを抽出
             fail_samples = always_fail["sample_id"].tolist()
