@@ -456,7 +456,7 @@ def create_pattern_table(pattern_summary_df, output_path):
     ax.axis('off')
     
     table = ax.table(cellText=table_data, cellLoc='left', loc='center',
-                     colWidths=[0.08, 0.62, 0.15, 0.15])
+                     colWidths=[0.06, 0.228, 0.106, 0.126])
     table.auto_set_font_size(False)
     table.set_fontsize(11)
     table.scale(1, 2.5)
@@ -493,7 +493,7 @@ def create_length_ranges():
 
 def categorize_pattern(pattern):
     """
-    パターンを分類（4回以上切り替わる場合はまとめる）
+    パターンを分類（3回以上切り替わる場合はまとめる）
     
     Args:
         pattern: 遷移パターン文字列
@@ -502,20 +502,60 @@ def categorize_pattern(pattern):
         str: 分類後のパターン名
     """
     shift_count = pattern.count('→')
-    return "More than 4 shifts" if shift_count >= 4 else pattern
+    return "More than 3 shifts" if shift_count >= 3 else pattern
 
 
-def create_pattern_by_length_table(filtered_df, output_path):
+def check_min_label_duration(series_str, min_duration):
+    """
+    系列内の各ラベルの連続時系列長が最低min_duration以上かチェック
+    
+    Args:
+        series_str: 状態系列の文字列
+        min_duration: 各ラベルの最低持続時間
+    
+    Returns:
+        bool: 全てのラベルがmin_duration以上ならTrue
+    """
+    if not series_str:
+        return False
+    
+    current_state = series_str[0]
+    current_duration = 1
+    
+    for char in series_str[1:]:
+        if char == current_state:
+            current_duration += 1
+        else:
+            # 遷移が発生 - 前の状態の持続時間をチェック
+            if current_duration < min_duration:
+                return False
+            current_state = char
+            current_duration = 1
+    
+    # 最後のラベルの持続時間もチェック
+    if current_duration < min_duration:
+        return False
+    
+    return True
+
+
+def create_pattern_by_length_table(filtered_df, output_path, min_label_duration=None):
     """
     行動切り替わりパターン × データ総長さ範囲のクロス集計テーブルを作成
     
     Args:
         filtered_df: filtered_series列とseries_length列を持つDataFrame
         output_path: 出力ファイルパス
+        min_label_duration: 各ラベルの最低持続時間（Noneの場合は条件なし）
     """
     # 各データのパターンを抽出
     data_with_patterns = []
     for _, row in filtered_df.iterrows():
+        # 最低持続時間の条件チェック
+        if min_label_duration is not None:
+            if not check_min_label_duration(row['filtered_series'], min_label_duration):
+                continue  # 条件を満たさないデータはスキップ
+        
         _, pattern = extract_transitions(row['filtered_series'])
         data_with_patterns.append({
             'pattern': categorize_pattern(pattern),
@@ -525,11 +565,11 @@ def create_pattern_by_length_table(filtered_df, output_path):
     pattern_df = pd.DataFrame(data_with_patterns)
     length_ranges = create_length_ranges()
     
-    # 実際に存在するパターンをソート（"More than 4 shifts"は最後）
+    # 実際に存在するパターンをソート（"More than 3 shifts"は最後）
     unique_patterns = pattern_df['pattern'].unique().tolist()
-    patterns_sorted = sorted([p for p in unique_patterns if p != "More than 4 shifts"])
-    if "More than 4 shifts" in unique_patterns:
-        patterns_sorted.append("More than 4 shifts")
+    patterns_sorted = sorted([p for p in unique_patterns if p != "More than 3 shifts"])
+    if "More than 3 shifts" in unique_patterns:
+        patterns_sorted.append("More than 3 shifts")
     
     # クロス集計表を作成
     cross_table = []
@@ -573,7 +613,7 @@ def create_pattern_by_length_table(filtered_df, output_path):
     ax.axis('off')
     
     # 列幅の設定
-    pattern_col_width = 0.25 * (5/6)  # 6分の5に縮小
+    pattern_col_width = 0.25 * (4/6)  # 6分の5に縮小
     length_col_width = (0.75 / len(length_ranges)) * (3/4)  # 4分の3に縮小
     col_widths = [pattern_col_width] + [length_col_width] * len(length_ranges)
     
@@ -598,7 +638,7 @@ def create_pattern_by_length_table(filtered_df, output_path):
         pattern = table_data[i][0]
         
         # 行の背景色を決定
-        if pattern == "More than 4 shifts":
+        if pattern == "More than 3 shifts":
             row_color = '#F0F0F0'  # グレー
         else:
             start_label = pattern.split('→')[0]
@@ -619,12 +659,23 @@ def create_pattern_by_length_table(filtered_df, output_path):
                 if table_data[i][j] == '0':
                     cell.set_text_props(color='#AAAAAA', weight='normal', fontsize=10)
     
-    plt.title('Behavior Transition Pattern × Data Length Range', 
-              fontsize=16, fontweight='bold', pad=20)
+    # タイトルに条件を追加
+    title = 'Behavior Transition Pattern × Data Length Range'
+    if min_label_duration is not None:
+        title += f'\n(Min label duration: {min_label_duration} timesteps)'
+    
+    plt.title(title, fontsize=16, fontweight='bold', pad=20)
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"パターン×長さ範囲テーブルを保存: {output_path}")
+    
+    # 出力メッセージ
+    message = f"パターン×長さ範囲テーブルを保存: {output_path}"
+    if min_label_duration is not None:
+        message += f" (最低ラベル持続時間: {min_label_duration}, データ数: {len(pattern_df)})"
+    else:
+        message += f" (条件なし, データ数: {len(pattern_df)})"
+    print(message)
 
 
 def add_heatmap_annotations(ax, matrix, state_labels, is_duration=False):
@@ -761,7 +812,12 @@ def create_visualizations(filtered_df, output_dir):
     create_pattern_table(pattern_summary, output_dir / "transition_patterns_table.png")
     create_sankey_diagram(transition_stats, output_dir / "sankey_diagram.png")
     create_transition_heatmap(transition_stats, output_dir / "transition_heatmap.png")
+    
+    # パターン×長さ範囲のテーブルを複数条件で作成
+    print("\nパターン×長さ範囲のテーブルを作成中...")
     create_pattern_by_length_table(filtered_df, output_dir / "pattern_by_length_table.png")
+    create_pattern_by_length_table(filtered_df, output_dir / "pattern_by_length_table_min1000.png", min_label_duration=1000)
+    create_pattern_by_length_table(filtered_df, output_dir / "pattern_by_length_table_min3000.png", min_label_duration=3000)
 
 
 def parse_arguments():
@@ -771,14 +827,16 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 出力ファイル:
-  filtered_series.csv            - フィルタリング後の系列データ
-  transition_patterns.csv        - 遷移パターンの要約（頻度、割合）
-  transition_patterns_table.png  - 遷移パターンTop10のテーブル画像
-  transition_durations.csv       - 各遷移の持続時間統計
-  transition_details.csv         - 全遷移の詳細データ
-  sankey_diagram.png             - 状態遷移のサンキーダイアグラム
-  transition_heatmap.png         - 遷移頻度と平均持続時間のヒートマップ
-  pattern_by_length_table.png    - 行動切り替わりパターン×データ総長さ範囲のクロス集計テーブル
+  filtered_series.csv                  - フィルタリング後の系列データ
+  transition_patterns.csv              - 遷移パターンの要約（頻度、割合）
+  transition_patterns_table.png        - 遷移パターンTop10のテーブル画像
+  transition_durations.csv             - 各遷移の持続時間統計
+  transition_details.csv               - 全遷移の詳細データ
+  sankey_diagram.png                   - 状態遷移のサンキーダイアグラム
+  transition_heatmap.png               - 遷移頻度と平均持続時間のヒートマップ
+  pattern_by_length_table.png          - 行動切り替わりパターン×データ総長さ範囲（条件なし）
+  pattern_by_length_table_min1000.png  - 同上（各ラベル最低1000timesteps以上）
+  pattern_by_length_table_min3000.png  - 同上（各ラベル最低3000timesteps以上）
         """
     )
     parser.add_argument("directory", type=str, 
