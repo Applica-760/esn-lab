@@ -4,8 +4,9 @@
 /dataset/
 /dist/
 
-commands.md
-memo.md
+# development memos (now in docs/)
+docs/commands.md
+docs/memo.md
 
 # mac
 .DS_Store

@@ -1,4 +1,12 @@
+# 旧形式（後方互換性のため残す）: CSV + 画像ファイル
 csv_dir: "dataset/10fold_csvs/" 
+
+# または、新形式で明示的に指定:
+# data_source:
+#   type: "csv"
+#   csv_dir: "dataset/10fold_csvs/"
+
+# NPY形式を使用する場合は tenfold_npy.yaml を参照
 
 # 実験名を指定（必須）
 experiment_name: "tenfold_integ"

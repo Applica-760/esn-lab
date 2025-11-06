@@ -3,7 +3,7 @@ import numpy as np
 
 from esn_lab.pipeline.eval.evaluator import Evaluator
 from esn_lab.pipeline.pred.predictor import Predictor
-from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, read_data_from_csvs
+from esn_lab.pipeline.data import CSVDataLoader
 from esn_lab.model.model_builder import get_model
 
 
@@ -32,17 +32,24 @@ class TenfoldEvaluator:
         weight = np.load(weight_path, allow_pickle=True)
         model.Output.setweight(weight)
 
-        # Load holdout data
-        csv_map = load_10fold_csv_mapping(Path(csv_dir))
-        ids, paths, class_ids = read_data_from_csvs([csv_map[holdout]])
-        assert len(ids) == len(paths) == len(class_ids), "length mismatch"
+        # Load holdout data using CSVDataLoader
+        data_loader = CSVDataLoader(csv_dir)
+        
+        # データをリストに収集
+        ids = []
+        sequences = []
+        class_ids = []
+        for sample_id, U, class_id in data_loader.load_fold_data([holdout]):
+            ids.append(sample_id)
+            sequences.append(U)
+            class_ids.append(class_id)
 
         row, pred_rows = self._evaluator.evaluate_dataset_majority(
             cfg=cfg,
             model=model,
             predictor=self._predictor,
             ids=ids,
-            paths=paths,
+            sequences=sequences,
             class_ids=class_ids,
             wf_name=Path(weight_path).name,
             train_tag=train_tag,

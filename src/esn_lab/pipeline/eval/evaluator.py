@@ -61,20 +61,23 @@ class Evaluator:
         model: ESN,
         predictor: Predictor,
         ids: list[str],
-        paths: list[str],
+        sequences: list[np.ndarray],
         class_ids: list[int],
         wf_name: str,
         train_tag: str,
         holdout: str,
         overrides: dict,
     ) -> tuple[dict, list[dict]]:
-        """Evaluate a dataset (list of image paths) and return summary row and per-sample majority rows.
+        """Evaluate a dataset (list of sequences) and return summary row and per-sample majority rows.
 
+        Args:
+            sequences: リスト of (T, D) numpy arrays - 時系列データ
+        
         Returns:
           - row: dict for one line in evaluation_results.csv
           - pred_rows: list of dicts for evaluation_predictions.csv (per-sample true/pred majority)
         """
-        num_samples = len(paths)
+        num_samples = len(sequences)
         majority_success_count = 0
         total_correct = 0
         total_frames = 0
@@ -86,10 +89,7 @@ class Evaluator:
         class_wise_total = {cls: 0 for cls in range(num_classes)}
 
         for i in range(num_samples):
-            img = cv2.imread(paths[i], cv2.IMREAD_UNCHANGED)
-            if img is None:
-                raise FileNotFoundError(f"Failed to read image: {paths[i]}")
-            U = img.T
+            U = sequences[i]
             T = len(U)
             expected_label = int(class_ids[i])
             D = make_onehot(expected_label, T, cfg.model.Ny)

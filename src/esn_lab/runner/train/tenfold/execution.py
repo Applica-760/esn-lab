@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .setup import init_global_worker_env, setup_worker_seed
 from esn_lab.pipeline.train.tenfold_trainer import TenfoldTrainer
+from esn_lab.pipeline.data import create_data_loader_from_config
 
 def _append_result_to_csv(result: dict, weight_dir: Path):
     """
@@ -39,7 +40,7 @@ def _execute_sequentially(cfg, env, hp_overrides, hp_tag, tasks_to_run):
         try:
             execution_time, timestamp = _run_one_fold_search(
                 cfg,
-                csv_map=env["csv_map"],
+                data_dir=env["data_dir"],
                 all_letters=env["letters"],
                 leave_out_letter=leave,
                 hp_overrides=hp_overrides,
@@ -69,7 +70,7 @@ def _execute_in_parallel(cfg, env, hp_overrides, hp_tag, tasks_to_run, max_worke
             ex.submit(
                 _run_one_fold_search,
                 cfg,
-                csv_map=env["csv_map"],
+                data_dir=env["data_dir"],
                 all_letters=env["letters"],
                 leave_out_letter=leave,
                 hp_overrides=hp_overrides,
@@ -96,19 +97,34 @@ def _execute_in_parallel(cfg, env, hp_overrides, hp_tag, tasks_to_run, max_worke
 
 def _run_one_fold_search(
     cfg,
-    csv_map: dict[str, Path],
+    data_dir: Path,
     all_letters: list[str],
     leave_out_letter: str,
     hp_overrides: dict,
     weight_dir: Path,
     seed: int,
 ) -> tuple[float, str]:
-    """Thin wrapper: set seed (runner responsibility) and delegate to pipeline TenfoldTrainer."""
+    """Thin wrapper: set seed (runner responsibility) and delegate to pipeline TenfoldTrainer.
+    
+    Args:
+        cfg: 設定オブジェクト
+        data_dir: データディレクトリ（CSV or NPY）
+        all_letters: 全fold ID一覧
+        leave_out_letter: テストfold ID
+        hp_overrides: ハイパーパラメータ上書き
+        weight_dir: 重み保存先
+        seed: 乱数シード
+    """
     setup_worker_seed(seed)
+    
+    # 設定からデータローダーを生成
+    data_loader, _ = create_data_loader_from_config(cfg)
+    
+    # トレーナーに委譲
     trainer = TenfoldTrainer(cfg.run_dir)
     return trainer.run_one_fold_search(
         cfg=cfg,
-        csv_map=csv_map,
+        data_loader=data_loader,
         all_letters=all_letters,
         leave_out_letter=leave_out_letter,
         hp_overrides=hp_overrides,

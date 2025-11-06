@@ -2,7 +2,8 @@ from pathlib import Path
 
 from . import execution
 from esn_lab.model.model_builder import get_model_param_str
-from esn_lab.pipeline.tenfold_util import make_weight_filename, load_10fold_csv_mapping
+from esn_lab.pipeline.tenfold_util import make_weight_filename
+from esn_lab.pipeline.data import create_data_loader_from_config
 
 
 def _prepare_run_environment(cfg, tenfold_cfg=None):
@@ -10,19 +11,18 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     実行に必要な設定を検証し、パスやファイルマッピングを準備する。
 
     引数:
-    tenfold_cfg: TrainTenfoldCfg または同等のオブジェクト（csv_dir, weight_dir を持つ）。
+    tenfold_cfg: TrainTenfoldCfg または同等のオブジェクト（csv_dir を持つ）。
                      None の場合は cfg.train.tenfold を参照。
 
     戻り値:
-        dict: 実行に必要な情報（weight_dir, csv_map, letters）を含む辞書
+        dict: 実行に必要な情報（weight_dir, csv_dir, letters）を含む辞書
     """
     tenfold_cfg = tenfold_cfg or getattr(getattr(cfg, "train", None), "tenfold", None)
     if tenfold_cfg is None:
         raise ValueError("Config 'cfg.train.tenfold' not found.")
 
-    csv_dir = Path(getattr(tenfold_cfg, "csv_dir")).expanduser().resolve()
-    if not csv_dir.exists():
-        raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
+    # データローダーとデータディレクトリを取得
+    data_loader, data_dir = create_data_loader_from_config(cfg, tenfold_cfg)
 
     # experiment_name は必須
     experiment_name = getattr(tenfold_cfg, "experiment_name", None)
@@ -35,12 +35,12 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     weight_dir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Using experiment: {experiment_name}")
 
-    csv_map = load_10fold_csv_mapping(csv_dir)
-    letters = sorted(csv_map.keys())
+    # データローダーから利用可能なfoldを取得
+    letters = data_loader.get_available_folds()
 
     return {
         "weight_dir": weight_dir,
-        "csv_map": csv_map,
+        "data_dir": data_dir,
         "letters": letters,
     }
 

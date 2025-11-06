@@ -7,7 +7,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from esn_lab.setup.config import Config
 from esn_lab.utils.io import load_jsonl, target_output_from_dict
 from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, make_weight_filename
+from esn_lab.pipeline.tenfold_util import make_weight_filename
+from esn_lab.pipeline.data import CSVDataLoader
 from esn_lab.pipeline.eval.evaluator import Evaluator
 from esn_lab.runner.train.tenfold.setup import init_global_worker_env
 from esn_lab.utils.param_grid import flatten_search_space
@@ -66,9 +67,9 @@ def tenfold_evaluate(cfg: Config):
     # Ensure output dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load CSV mapping and letters
-    csv_map = load_10fold_csv_mapping(csv_dir)
-    letters = sorted(csv_map.keys())
+    # Load fold letters using CSVDataLoader
+    data_loader = CSVDataLoader(csv_dir)
+    letters = data_loader.get_available_folds()
 
     results_csv = out_dir / "evaluation_results.csv"
     processed_weights: set[str] = set()

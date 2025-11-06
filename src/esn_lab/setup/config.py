@@ -17,6 +17,21 @@ class TargetOutput:
     id: Optional[str] = None
     data: Optional[TargetOutputData] = None
 
+# data ==============================================================
+@dataclass
+class DataSourceCfg:
+    """データソース設定
+    
+    type: "csv" | "npy"
+        - "csv": CSV + 画像ファイル形式（既存）
+        - "npy": 前処理済みNPY/NPZ形式
+    csv_dir: CSVディレクトリ（type="csv"の場合）
+    npy_dir: NPYディレクトリ（type="npy"の場合）
+    """
+    type: str = "csv"  # "csv" or "npy"
+    csv_dir: Optional[str] = None
+    npy_dir: Optional[str] = None
+
 # model ==============================================================
 @dataclass
 class ModelCfg:
@@ -47,6 +62,9 @@ class TrainBatchCfg:
 
 @dataclass
 class TrainTenfoldCfg:
+    # データソース設定（新方式: 推奨）
+    data_source: Optional[DataSourceCfg] = None
+    # 後方互換性のため csv_dir も残す（data_source より優先度低）
     csv_dir: Optional[str] = None
     # 実験名を指定（artifacts/experiments/{experiment_name}/ に配置）
     experiment_name: Optional[str] = None

@@ -9,7 +9,7 @@ import cv2
 from esn_lab.setup.config import Config
 from esn_lab.utils.eval_utils import apply_filters
 from esn_lab.model.model_builder import get_model_param_str
-from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, read_data_from_csvs
+from esn_lab.pipeline.data import CSVDataLoader
 
 
 def _extract_image_features(img_path: str) -> dict:
@@ -344,15 +344,20 @@ def analysis_evaluate(cfg: Config):
     if ana_cfg.csv_dir and ana_cfg.export_images:
         try:
             csv_dir = Path(ana_cfg.csv_dir).expanduser().resolve()
-            csv_map = load_10fold_csv_mapping(csv_dir)
-            all_fold_paths = list(csv_map.values())
-            _, img_paths, _ = read_data_from_csvs(all_fold_paths)
+            data_loader = CSVDataLoader(csv_dir)
+            all_fold_ids = data_loader.get_available_folds()
             
-            # sample_id -> image_path のマッピングを作成
+            # sample_id -> image_path のマッピングを作成（注: 画像パス情報を取得する必要がある）
             sample_id_to_path = {}
-            for p in img_paths:
-                sid = Path(p).stem
-                sample_id_to_path[sid] = p
+            
+            # CSVから画像パス情報を取得
+            import pandas as pd
+            for fold_id in all_fold_ids:
+                csv_path = csv_dir / f"10fold_{fold_id}.csv"
+                df = pd.read_csv(csv_path, usecols=["file_path"])
+                for file_path in df["file_path"]:
+                    sid = Path(file_path).stem
+                    sample_id_to_path[sid] = file_path
             
             # sample_id -> metadata のマッピングを作成
             sample_metadata = {}
@@ -522,15 +527,18 @@ def analysis_evaluate(cfg: Config):
     if ana_cfg.csv_dir:
         try:
             csv_dir = Path(ana_cfg.csv_dir).expanduser().resolve()
-            csv_map = load_10fold_csv_mapping(csv_dir)
-            all_fold_paths = list(csv_map.values())
-            _, img_paths, _ = read_data_from_csvs(all_fold_paths)
+            data_loader = CSVDataLoader(csv_dir)
+            all_fold_ids = data_loader.get_available_folds()
             
             # sample_id -> image_path のマッピング
             sample_id_to_path = {}
-            for p in img_paths:
-                sid = Path(p).stem
-                sample_id_to_path[sid] = p
+            import pandas as pd
+            for fold_id in all_fold_ids:
+                csv_path = csv_dir / f"10fold_{fold_id}.csv"
+                df = pd.read_csv(csv_path, usecols=["file_path"])
+                for file_path in df["file_path"]:
+                    sid = Path(file_path).stem
+                    sample_id_to_path[sid] = file_path
             
             # 各サンプルの特徴量を抽出
             print("[INFO] Extracting image features for analysis...")

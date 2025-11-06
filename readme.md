@@ -1,6 +1,6 @@
 # esn-lab: Echo State Network 実験用Pythonパッケージ
 
-[日本語](./readme.md) | [English](./readme-en.md)
+[日本語](./readme.md) | [English](./docs/readme-en.md)
 
 
 ## 概要
@@ -104,6 +104,14 @@ esnlab train single
 |            | `summary`          | 10-fold交差検証の評価結果を混同行列にプロットします。|
 |            | `tenfold`          | 10-fold交差検証の訓練結果を用いてテストデータを推論させます。|
 
+
+## 📚 ドキュメント
+
+より詳細な情報は、以下のドキュメントを参照してください:
+
+- **[パッケージ構造の説明](./docs/PACKAGE_STRUCTURE.md)** - 各モジュールの役割とアーキテクチャ
+- **[設定ファイルリファレンス](./docs/CONFIGURATION.md)** - 全設定項目の詳細説明
+- **[データローダー実装](./docs/DATALOADER_IMPLEMENTATION.md)** - NPY形式サポートと高速化の詳細
 
 ## 今後の展望 (ロードマップ)
 
