@@ -7,7 +7,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from esn_lab.setup.config import Config
 from esn_lab.utils.io import load_jsonl, target_output_from_dict
 from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from esn_lab.pipeline.tenfold_util import make_weight_filename
+from esn_lab.utils.weight_management import make_weight_filename
 from esn_lab.pipeline.data import CSVDataLoader
 from esn_lab.pipeline.eval.evaluator import Evaluator
 from esn_lab.runner.train.tenfold.setup import init_global_worker_env
