@@ -1,8 +1,11 @@
 # Evaluate summary/plot configuration
-csv_name: "evaluation_results.csv"
 
-# 10-fold artifacts root (summary will use <root>/eval/)
-tenfold_root: "artifacts/tenfold_integ"
+# 実験名を指定（必須、train/eval tenfoldと同じ名前）
+experiment_name: "hp_search_v1"
+
+# または、明示的にCSVパスを指定（experiment_nameより優先）
+# results_csv: "artifacts/experiments/hp_search_v1/eval/evaluation_results.csv"
+# predictions_csv: "artifacts/experiments/hp_search_v1/eval/evaluation_predictions.csv"
 
 metric: "majority_acc"
 

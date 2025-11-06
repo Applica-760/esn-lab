@@ -24,6 +24,7 @@ dependencies = [
     "PyYAML",
     "omegaconf",
     "networkx",
+    "tqdm",
 ]
 
 [project.optional-dependencies]

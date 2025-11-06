@@ -61,20 +61,23 @@ class Evaluator:
         model: ESN,
         predictor: Predictor,
         ids: list[str],
-        paths: list[str],
+        sequences: list[np.ndarray],
         class_ids: list[int],
         wf_name: str,
         train_tag: str,
         holdout: str,
         overrides: dict,
     ) -> tuple[dict, list[dict]]:
-        """Evaluate a dataset (list of image paths) and return summary row and per-sample majority rows.
+        """Evaluate a dataset (list of sequences) and return summary row and per-sample majority rows.
 
+        Args:
+            sequences: リスト of (T, D) numpy arrays - 時系列データ
+        
         Returns:
           - row: dict for one line in evaluation_results.csv
           - pred_rows: list of dicts for evaluation_predictions.csv (per-sample true/pred majority)
         """
-        num_samples = len(paths)
+        num_samples = len(sequences)
         majority_success_count = 0
         total_correct = 0
         total_frames = 0
@@ -86,10 +89,7 @@ class Evaluator:
         class_wise_total = {cls: 0 for cls in range(num_classes)}
 
         for i in range(num_samples):
-            img = cv2.imread(paths[i], cv2.IMREAD_UNCHANGED)
-            if img is None:
-                raise FileNotFoundError(f"Failed to read image: {paths[i]}")
-            U = img.T
+            U = sequences[i]
             T = len(U)
             expected_label = int(class_ids[i])
             D = make_onehot(expected_label, T, cfg.model.Ny)
@@ -203,22 +203,47 @@ class Evaluator:
         if sum_cfg is None:
             raise ValueError("Config 'cfg.evaluate.summary' not found.")
 
-        # Resolve tenfold_root / output directories for summary
-        tenfold_root = getattr(sum_cfg, "tenfold_root", None)
-        if not tenfold_root:
-            raise ValueError("Config requires 'evaluate.summary.tenfold_root'.")
-        out_root = (Path(tenfold_root).expanduser() / "eval").resolve()
-        # Place all evaluation artifacts under the common root
-        # Expected structure:
-        #  <tenfold_root>/eval/
-        #    - evaluation_results.csv (input)
-        #    - images/ (plots)
-        #    - csv/    (summary CSVs)
-        out_root.mkdir(parents=True, exist_ok=True)
-
-        csv_path = (out_root / (sum_cfg.csv_name or "evaluation_results.csv")).resolve()
+        # パス解決の優先順位:
+        # 1. results_csv が明示的に指定されている
+        # 2. experiment_name から自動補完（推奨）
+        
+        results_csv_explicit = getattr(sum_cfg, "results_csv", None)
+        predictions_csv_explicit = getattr(sum_cfg, "predictions_csv", None)
+        experiment_name = getattr(sum_cfg, "experiment_name", None)
+        
+        # results_csv の決定
+        if results_csv_explicit:
+            csv_path = Path(results_csv_explicit).expanduser().resolve()
+        elif experiment_name:
+            exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+            csv_path = (exp_base / "evaluation_results.csv").resolve()
+            print(f"[INFO] Using experiment: {experiment_name}")
+        else:
+            raise ValueError("Config requires either 'results_csv' or 'experiment_name'.")
+        
         if not csv_path.exists():
             raise FileNotFoundError(f"results CSV not found: {csv_path}")
+        
+        # predictions_csv の決定（confusion matrix用）
+        if predictions_csv_explicit:
+            preds_csv = Path(predictions_csv_explicit).expanduser().resolve()
+        elif experiment_name:
+            exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+            preds_csv = (exp_base / "evaluation_predictions.csv").resolve()
+        else:
+            preds_csv = csv_path.parent / "evaluation_predictions.csv"
+        
+        # 出力ディレクトリの決定
+        if hasattr(sum_cfg, "output_dir") and sum_cfg.output_dir:
+            images_dir = Path(sum_cfg.output_dir).expanduser().resolve()
+        elif experiment_name:
+            images_dir = (Path("artifacts/experiments") / experiment_name / "eval" / "images").resolve()
+        else:
+            images_dir = csv_path.parent / "images"
+        
+        images_dir.mkdir(parents=True, exist_ok=True)
+        csv_dir = csv_path.parent / "csv"
+        csv_dir.mkdir(parents=True, exist_ok=True)
 
         df = pd.read_csv(csv_path)
 
@@ -267,12 +292,6 @@ class Evaluator:
         if not xs:
             raise ValueError("No data points to plot after filtering and varying parameter selection.")
 
-        # Prepare output directories (separate images and CSVs)
-        images_dir = (Path(sum_cfg.output_dir).expanduser().resolve() if getattr(sum_cfg, "output_dir", None) else (out_root / "images")).resolve()
-        csv_dir = (out_root / "csv").resolve()
-        images_dir.mkdir(parents=True, exist_ok=True)
-        csv_dir.mkdir(parents=True, exist_ok=True)
-
         # Plot error bars via utility
         fname_base = f"errorbar_{metric}_by_{vary_param}"
         _png, _csv = plot_errorbar_and_save(
@@ -297,7 +316,6 @@ class Evaluator:
             print(f"[WARN] Failed to move summary CSV to csv_dir: {e}")
 
         # Confusion matrices (optional)
-        preds_csv = (out_root / "evaluation_predictions.csv").resolve()
         if not preds_csv.exists():
             print(f"[WARN] Predictions CSV not found; skipping confusion matrices: {preds_csv}")
             return

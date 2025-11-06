@@ -7,7 +7,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from esn_lab.setup.config import Config
 from esn_lab.utils.io import load_jsonl, target_output_from_dict
 from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
-from esn_lab.pipeline.tenfold_util import load_10fold_csv_mapping, make_weight_filename
+from esn_lab.utils.weight_management import make_weight_filename
+from esn_lab.pipeline.data import CSVDataLoader
 from esn_lab.pipeline.eval.evaluator import Evaluator
 from esn_lab.runner.train.tenfold.setup import init_global_worker_env
 from esn_lab.utils.param_grid import flatten_search_space
@@ -49,21 +50,26 @@ def tenfold_evaluate(cfg: Config):
     if not csv_dir.exists():
         raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
-    # Resolve tenfold_root and output dirs (required)
-    tenfold_root = getattr(ten_cfg, "tenfold_root", None)
-    if not tenfold_root:
-        raise FileNotFoundError("Config requires 'evaluate.tenfold.tenfold_root'.")
-    weight_dir = (Path(tenfold_root).expanduser() / "weights").resolve()
-    out_dir = (Path(tenfold_root).expanduser() / "eval").resolve()
+    # experiment_name は必須
+    experiment_name = getattr(ten_cfg, "experiment_name", None)
+    if not experiment_name:
+        raise ValueError("Config requires 'evaluate.tenfold.experiment_name'.")
+    
+    # experiments/{experiment_name}/ の固定構成を使用
+    exp_base = Path("artifacts/experiments") / experiment_name
+    weight_dir = (exp_base / "weights").expanduser().resolve()
+    out_dir = (exp_base / "eval").expanduser().resolve()
+    print(f"[INFO] Using experiment: {experiment_name}")
+    
     if not weight_dir.exists():
         raise FileNotFoundError(f"weight_dir not found: {weight_dir}")
 
     # Ensure output dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load CSV mapping and letters
-    csv_map = load_10fold_csv_mapping(csv_dir)
-    letters = sorted(csv_map.keys())
+    # Load fold letters using CSVDataLoader
+    data_loader = CSVDataLoader(csv_dir)
+    letters = data_loader.get_available_folds()
 
     results_csv = out_dir / "evaluation_results.csv"
     processed_weights: set[str] = set()
