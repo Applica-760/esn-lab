@@ -90,20 +90,25 @@ class NPYDataLoader(BaseDataLoader):
                 - sample_id: サンプルの識別子
                 - sequence: 時系列データ (T, D) の2次元配列
                 - class_id: クラスラベル（整数）
+        
+        Notes:
+            - mmap_modeを使用せず、明示的にcopy=Trueでコピーを作成します
+            - これによりメモリマップの寿命問題を回避し、安全性を確保します
         """
         for fold_id in fold_ids:
             npz_path = self.npy_dir / f"fold_{fold_id}.npz"
             if not npz_path.exists():
                 raise FileNotFoundError(f"NPZ file not found: {npz_path}")
             
-            # NPZファイルを読み込み（mmap_mode='r'で遅延読み込み）
-            with np.load(npz_path, allow_pickle=True, mmap_mode='r') as data:
+            # NPZファイルを読み込み（mmap_modeは使用しない）
+            with np.load(npz_path, allow_pickle=True) as data:
                 num_samples = int(data["num_samples"])
                 
-                # 各サンプルを順に yield
+                # 各サンプルを順に yield（明示的にコピーを作成）
                 for i in range(num_samples):
                     sample_id = str(data[f"sample_{i}_id"])
-                    sequence = np.array(data[f"sample_{i}_data"])  # コピーして返す
+                    # copy=True を明示して、withブロック外でも安全に使える配列を作成
+                    sequence = np.array(data[f"sample_{i}_data"], copy=True)
                     class_id = int(data[f"sample_{i}_class"])
                     
                     yield sample_id, sequence, class_id
