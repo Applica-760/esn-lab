@@ -8,7 +8,7 @@ from esn_lab.setup.config import Config
 from esn_lab.utils.io import load_jsonl, target_output_from_dict
 from esn_lab.pipeline.eval.tenfold_evaluator import eval_one_weight_worker
 from esn_lab.utils.weight_management import make_weight_filename
-from esn_lab.pipeline.data import CSVDataLoader
+from esn_lab.pipeline.data import create_data_loader_from_config
 from esn_lab.pipeline.eval.evaluator import Evaluator
 from esn_lab.runner.train.tenfold.setup import init_global_worker_env
 from esn_lab.utils.param_grid import flatten_search_space
@@ -35,7 +35,7 @@ def tenfold_evaluate(cfg: Config):
 
     - Determines the held-out fold from the weight filename (train letters a-j).
     - Rebuilds the ESN with hyperparameters parsed from the filename.
-    - Loads the corresponding CSV for the held-out fold and runs inference.
+    - Loads the corresponding data for the held-out fold and runs inference.
     - Appends a summary row per weight to evaluation_results.csv immediately after each weight.
     - If evaluation_results.csv already exists, skip weights that are already recorded.
     """
@@ -44,11 +44,6 @@ def tenfold_evaluate(cfg: Config):
     ten_cfg = cfg.evaluate.tenfold
     if ten_cfg is None:
         raise ValueError("Config 'cfg.evaluate.tenfold' not found.")
-
-    # Prepare paths
-    csv_dir = Path(ten_cfg.csv_dir).expanduser().resolve()
-    if not csv_dir.exists():
-        raise FileNotFoundError(f"csv_dir not found: {csv_dir}")
 
     # experiment_name は必須
     experiment_name = getattr(ten_cfg, "experiment_name", None)
@@ -67,8 +62,8 @@ def tenfold_evaluate(cfg: Config):
     # Ensure output dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load fold letters using CSVDataLoader
-    data_loader = CSVDataLoader(csv_dir)
+    # Create data loader using factory (supports both CSV and NPY)
+    data_loader, data_dir = create_data_loader_from_config(cfg, ten_cfg)
     letters = data_loader.get_available_folds()
 
     results_csv = out_dir / "evaluation_results.csv"
@@ -126,7 +121,7 @@ def tenfold_evaluate(cfg: Config):
         print(f"[INFO] Running {len(tasks)} evaluation tasks sequentially.")
         for (wf, overrides, train_tag, holdout) in tasks:
             try:
-                row, pred_rows = eval_one_weight_worker(cfg, str(wf), str(csv_dir), overrides, train_tag, holdout)
+                row, pred_rows = eval_one_weight_worker(cfg, str(wf), ten_cfg, overrides, train_tag, holdout)
                 ev_appender.append_results(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
@@ -140,7 +135,7 @@ def tenfold_evaluate(cfg: Config):
 
     with ProcessPoolExecutor(**executor_kwargs, initializer=init_global_worker_env) as ex:
         future_to_wf = {
-            ex.submit(eval_one_weight_worker, cfg, str(wf), str(csv_dir), overrides, train_tag, holdout): wf
+            ex.submit(eval_one_weight_worker, cfg, str(wf), ten_cfg, overrides, train_tag, holdout): wf
             for (wf, overrides, train_tag, holdout) in tasks
         }
         for fut in as_completed(future_to_wf):

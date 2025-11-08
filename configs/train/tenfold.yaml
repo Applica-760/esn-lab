@@ -1,15 +1,17 @@
-# 旧形式（後方互換性のため残す）: CSV + 画像ファイル
-csv_dir: "dataset/10fold_csvs/" 
+# 10-fold交差検証による学習設定
+# NPY形式（前処理済みバイナリ）をデフォルトで使用
+# 事前に convert_10fold_to_npy.py でデータを変換しておく必要があります
 
-# または、新形式で明示的に指定:
-# data_source:
-#   type: "csv"
-#   csv_dir: "dataset/10fold_csvs/"
-
-# NPY形式を使用する場合は tenfold_npy.yaml を参照
+# データソース設定（推奨: NPY形式）
+data_source:
+  type: "npy"  # "csv" または "npy"
+  npy_dir: "dataset/10fold_npy/"
+  # CSV形式を使用する場合は以下のように変更:
+  # type: "csv"
+  # csv_dir: "dataset/10fold_csvs/"
 
 # 実験名を指定（必須）
-experiment_name: "tenfold_integ"
+experiment_name: "tenfold_experiment"
 
 workers: 10
 

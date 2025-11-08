@@ -88,6 +88,8 @@ class PredictSingleCfg:
     path: Optional[str] = None
     class_id: Optional[int] = None
     weight: Optional[str] = None
+    # データソース設定（新方式: 推奨）
+    data_source: Optional[DataSourceCfg] = None
 
 @dataclass
 class PredictBatchCfg:
@@ -95,6 +97,8 @@ class PredictBatchCfg:
     paths: Optional[list[str]] = None
     class_ids: Optional[list[int]] = None
     weight: Optional[str] = None
+    # データソース設定（新方式: 推奨）
+    data_source: Optional[DataSourceCfg] = None
 
 @dataclass
 class Predict:
@@ -106,6 +110,9 @@ class Predict:
 # evaluate ==============================================================
 @dataclass
 class EvaluateTenfoldCfg:
+    # データソース設定（新方式: 推奨）
+    data_source: Optional[DataSourceCfg] = None
+    # 後方互換性のため csv_dir も残す（data_source より優先度低）
     csv_dir: Optional[str] = None
     experiment_name: Optional[str] = None
     workers: Optional[int] = None 
