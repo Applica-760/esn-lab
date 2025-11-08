@@ -120,6 +120,7 @@ def run_tenfold(cfg, *, overrides: dict | None = None, tenfold_cfg=None, paralle
     print("=" * 50)
     execution.execute_tasks(
         cfg=cfg,
+        tenfold_cfg=ten_cfg_effective,
         data_loader=env["data_loader"],
         weight_manager=env["weight_manager"],
         execution_logger=env["execution_logger"],

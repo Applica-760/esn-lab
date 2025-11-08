@@ -1,14 +1,25 @@
+# グリッドサーチ設定
+# NPY形式（前処理済みバイナリ）をデフォルトで使用
+# 事前に convert_10fold_to_npy.py でデータを変換しておく必要があります
+
+# 実験名（必須）
+experiment_name: "tenfold_integ_minimum"
+
 base:
-  csv_dir: "dataset/10fold_csvs/"
+  # NPY形式のデータソース設定
+  data_source:
+    type: "npy"
+    npy_dir: "dataset/10fold_npy/"
+    # CSV形式を使用する場合は以下のように変更:
+    # type: "csv"
+    # csv_dir: "dataset/10fold_csvs/"
   workers: 10
-  # 10-fold 用の成果物ルート（未指定なら下位 train/eval セクションで指定）
-  tenfold_root: "artifacts/tenfold_integ"
 
 param_grid:
   "model.Nx": &nx_list [200, 300, 400]
   "model.density": &density_list [0.5]
   "model.rho": &rho_list [0.9]
-  "model.input_scale": &input_scale_list [0.01, 0.005, 0.001]
+  "model.input_scale": &input_scale_list [0.001]
 
 train: {}
 
@@ -16,7 +27,6 @@ eval:
   tenfold:
     parallel: true
   summary:
-    csv_name: "evaluation_results.csv"
     metric: "majority_acc"
     vary_param: "Nx"
     vary_values: *nx_list

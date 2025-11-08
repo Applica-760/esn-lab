@@ -7,6 +7,7 @@ from esn_lab.runner.train.tenfold.main import run_tenfold
 from esn_lab.utils.param_grid import flatten_search_space
 from esn_lab.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
 from esn_lab.setup.config import (
+    DataSourceCfg,
     Evaluate,
     EvaluateTenfoldCfg,
     EvaluateSummaryCfg,
@@ -18,8 +19,9 @@ def run_grid(cfg) -> None:
     """ハイパーパラメタグリッドを総当たりし、各組み合わせでシンプルな tenfold 学習を実行する。
 
         期待する設定（cfg.integ.grid.train）:
-            - csv_dir: 10-fold分割済みCSVのディレクトリ
-            - tenfold_root: 成果物ルート（weights/, eval/ が固定配置）
+            - data_source: データソース設定（type: "csv" または "npy"、新方式・推奨）
+            - csv_dir: 10-fold分割済みCSVのディレクトリ（後方互換、data_sourceがない場合）
+            - experiment_name: 実験名（必須）
             - workers: 並列ワーカ数（1で逐次、2以上で並列）
             - search_space: {"model.<field>": [values, ...], ...}
     """
@@ -65,6 +67,16 @@ def run_grid(cfg) -> None:
 
         # tenfold 設定を base + train_template から作る
         csv_dir = _g(train_template, "csv_dir") or _g(base, "csv_dir")
+        data_source = _g(train_template, "data_source") or _g(base, "data_source")
+        
+        # data_source が辞書の場合は DataSourceCfg オブジェクトに変換
+        if data_source is not None and isinstance(data_source, dict):
+            data_source = DataSourceCfg(
+                type=data_source.get("type", "csv"),
+                csv_dir=data_source.get("csv_dir"),
+                npy_dir=data_source.get("npy_dir")
+            )
+        
         workers = _g(train_template, "workers") or _g(base, "workers") or 1
         skip_existing = _g(train_template, "skip_existing")
         if skip_existing is None:
@@ -75,6 +87,7 @@ def run_grid(cfg) -> None:
 
         train_cfg = TrainTenfoldCfg(
             csv_dir=csv_dir,
+            data_source=data_source,
             experiment_name=experiment_name,
             workers=workers,
             skip_existing=skip_existing,
@@ -102,6 +115,7 @@ def run_grid(cfg) -> None:
     # なければ学習設定から補完
     if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
         csv_dir_str: str = getattr(grid_eval_cfg.tenfold, "csv_dir", None) or getattr(train_cfg, "csv_dir")
+        data_source_eval = getattr(grid_eval_cfg.tenfold, "data_source", None) or getattr(train_cfg, "data_source", None)
         experiment_name_eval: str | None = getattr(grid_eval_cfg.tenfold, "experiment_name", None) or getattr(train_cfg, "experiment_name", None)
         if not experiment_name_eval:
             raise ValueError("integ.grid.eval requires 'experiment_name'.")
@@ -109,9 +123,19 @@ def run_grid(cfg) -> None:
         eval_parallel: bool = bool(getattr(grid_eval_cfg.tenfold, "parallel", True))
     else:
         csv_dir_str = getattr(train_cfg, "csv_dir")
+        data_source_eval = getattr(train_cfg, "data_source", None)
         experiment_name_eval = getattr(train_cfg, "experiment_name", None)
         eval_workers = auto_workers
         eval_parallel = True
+    
+    # data_source_eval が辞書の場合は DataSourceCfg オブジェクトに変換
+    if data_source_eval is not None and isinstance(data_source_eval, dict):
+        data_source_eval = DataSourceCfg(
+            type=data_source_eval.get("type", "csv"),
+            csv_dir=data_source_eval.get("csv_dir"),
+            npy_dir=data_source_eval.get("npy_dir")
+        )
+    
     if not experiment_name_eval:
         raise ValueError("integ.grid requires 'experiment_name'.")
 
@@ -137,10 +161,10 @@ def run_grid(cfg) -> None:
             cfg.evaluate.tenfold = grid_eval_cfg.tenfold
             if getattr(cfg.evaluate.tenfold, "csv_dir", None) in (None, ""):
                 cfg.evaluate.tenfold.csv_dir = csv_dir_str
+            if getattr(cfg.evaluate.tenfold, "data_source", None) is None:
+                cfg.evaluate.tenfold.data_source = data_source_eval
             if getattr(cfg.evaluate.tenfold, "experiment_name", None) in (None, ""):
                 cfg.evaluate.tenfold.experiment_name = experiment_name_eval
-            if getattr(cfg.evaluate.tenfold, "tenfold_root", None) in (None, ""):
-                cfg.evaluate.tenfold.tenfold_root = tenfold_root_eval
             if getattr(cfg.evaluate.tenfold, "workers", None) in (None, 0):
                 cfg.evaluate.tenfold.workers = eval_workers
             if getattr(cfg.evaluate.tenfold, "parallel", None) is None:
@@ -148,6 +172,7 @@ def run_grid(cfg) -> None:
         else:
             cfg.evaluate.tenfold = EvaluateTenfoldCfg(
                 csv_dir=csv_dir_str,
+                data_source=data_source_eval,
                 experiment_name=experiment_name_eval,
                 workers=eval_workers,
                 parallel=eval_parallel,

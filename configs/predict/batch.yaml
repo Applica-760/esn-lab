@@ -1,5 +1,26 @@
+# バッチ予測設定
+# NPY形式（前処理済みバイナリ）をデフォルトで使用
+# 事前に convert_10fold_to_npy.py でデータを変換しておく必要があります
+
+# サンプルIDリスト（必須）
 ids: ["20210508_00000", "20210508_11111"]
-paths: ["/home/takumi/share/research-prj/data/complement/20210508/064648S1_ffmpeg.jpg", 
-        "/home/takumi/share/research-prj/data/complement/20210508/064936S2_ffmpeg.jpg"]
+
+# 期待されるクラスIDリスト（検証用、ids と同じ長さ）
 class_ids: [2, 2]
-weight: "artifacts/runs/20250827-220840_train-batch/output_weight"
+
+# 重みファイルのディレクトリ
+weight: "artifacts/experiments/tenfold_experiment/weights"
+
+# データソース設定（推奨: NPY形式）
+data_source:
+  type: "npy"
+  npy_dir: "dataset/10fold_npy/"
+
+# 注意:
+# - data_source を指定した場合、paths は無視されます
+# - 後方互換性のため、paths を指定すれば従来通り画像ファイルから直接読み込みます
+#   例: 
+#   paths: 
+#     - "/home/takumi/share/research-prj/data/complement/20210508/064648S1_ffmpeg.jpg"
+#     - "/home/takumi/share/research-prj/data/complement/20210508/064936S2_ffmpeg.jpg"
+# - その場合は data_source をコメントアウトしてください
