@@ -35,10 +35,23 @@ class Evaluator:
     def majority_success(self, record: TargetOutput):
         Y = np.array(record.data.output_series)
         D = np.array(record.data.target_series)
-        pred_idx = Y.argmax(axis=1)    
-        true_idx = D.argmax(axis=1)     
+        pred_idx = Y.argmax(axis=1)
+        true_idx = D.argmax(axis=1)
 
         C = D.shape[1]
+
+        # Validate indices are within valid range
+        if len(pred_idx) > 0 and (pred_idx.min() < 0 or pred_idx.max() >= C):
+            raise ValueError(
+                f"pred_idx contains out-of-range values: min={pred_idx.min()}, max={pred_idx.max()}, "
+                f"expected range [0, {C-1}]"
+            )
+        if len(true_idx) > 0 and (true_idx.min() < 0 or true_idx.max() >= C):
+            raise ValueError(
+                f"true_idx contains out-of-range values: min={true_idx.min()}, max={true_idx.max()}, "
+                f"expected range [0, {C-1}]"
+            )
+
         pred_counts = np.bincount(pred_idx, minlength=C)
         true_counts = np.bincount(true_idx, minlength=C)
 
@@ -108,10 +121,15 @@ class Evaluator:
                 )
             
             # Track class-wise accuracy
-            if expected_label in class_wise_total:
-                class_wise_total[expected_label] += 1
-                if success:
-                    class_wise_correct[expected_label] += 1
+            if expected_label not in class_wise_total:
+                raise ValueError(
+                    f"Unexpected label {expected_label} for sample {ids[i]}: "
+                    f"valid range is 0 to {num_classes-1}. "
+                    f"This indicates data corruption or incorrect class_id."
+                )
+            class_wise_total[expected_label] += 1
+            if success:
+                class_wise_correct[expected_label] += 1
             
             majority_success_count += int(success)
 
