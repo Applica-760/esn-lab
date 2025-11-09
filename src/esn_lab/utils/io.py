@@ -58,7 +58,19 @@ def save_numpy_npy_atomic(arr: np.ndarray, save_dir: str | Path, file_name: str)
     dst = out_dir / file_name
     tmp = dst.with_suffix(dst.suffix + f".{uuid.uuid4().hex}.tmp")
 
-    np.save(tmp, arr)
-    os.replace(tmp, dst)
+    # Write to a temp file handle to avoid numpy adding extensions implicitly
+    try:
+        with open(tmp, "wb") as f:
+            np.save(f, arr)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, dst)
+    finally:
+        # If something went wrong and tmp still exists, attempt cleanup
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
     return dst

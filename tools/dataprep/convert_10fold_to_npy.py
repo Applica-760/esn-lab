@@ -3,9 +3,9 @@
 10-fold CSV + 画像データを NPY 形式に変換する前処理スクリプト
 
 Usage:
-    python tools/dataprep/convert_10fold_to_npy.py \\
-        --csv-dir dataset/10fold_csvs/ \\
-        --output-dir dataset/10fold_npy/
+    python tools/dataprep/convert_10fold_to_npy.py \
+        --csv-dir dataset/10fold_csvs/ \
+        --output-dir dataset/10fold_npy
 """
 import argparse
 import json
