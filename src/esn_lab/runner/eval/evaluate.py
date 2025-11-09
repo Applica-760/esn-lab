@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from pathlib import Path
 import multiprocessing as mp
+import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from esn_lab.setup.config import Config
@@ -125,6 +126,7 @@ def tenfold_evaluate(cfg: Config):
                 ev_appender.append_results(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
+                traceback.print_exc()
         return
 
     print(f"[INFO] Running {len(tasks)} evaluation tasks in parallel (workers={workers}).")
@@ -145,6 +147,7 @@ def tenfold_evaluate(cfg: Config):
                 ev_appender.append_results(out_dir=out_dir, row=row, pred_rows=pred_rows)
             except Exception as e:
                 print(f"[ERROR] Evaluation failed for {wf.name}: {e}")
+                traceback.print_exc()
 
     return
 
