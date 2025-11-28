@@ -5,7 +5,7 @@
 python tools/data_analysis/analyze_behavior_shift.py \
     /home/takumi/share/esn-lab/dataset/complements-binary \
     --csv data/get_300seqs.csv \
-    --output-dir data/transition_analysis
+    --output-dir data/transition_analysis2
 
 出力:
     - filtered_series.csv: フィルタリング後の系列データ
@@ -297,7 +297,7 @@ def build_transition_matrix(transition_stats_df):
             - duration_matrix: 平均持続時間の行列 (3x3)
             - state_labels: 状態ラベルのリスト
     """
-    state_keys = ['0', '1', '2']
+    state_keys = ['1', '2', '0']  # foraging, rumination, other の順序
     state_labels = [get_state_label(s) for s in state_keys]
     transition_matrix = np.zeros((3, 3))
     duration_matrix = np.zeros((3, 3))

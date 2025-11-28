@@ -321,7 +321,7 @@ class Evaluator:
             title=sum_cfg.title,
             out_dir=images_dir,
             dpi=int(sum_cfg.dpi or 150),
-            ylim=(0.78, 0.96),
+            ylim=(0.70, 0.90),
             counts=counts,
             fname_base=fname_base,
         )

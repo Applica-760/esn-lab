@@ -100,13 +100,24 @@ def _create_image_grid(
                         inc = meta.get('included_count', 0)
                         if inc > 0:
                             title_parts.append(f"({succ}/{inc})")
+                        
                         # 正解ラベルの情報を追加
                         expected_label = meta.get('expected_label')
                         if expected_label is not None and not pd.isna(expected_label):
                             try:
                                 label_id = int(expected_label)
                                 label_name = label_names.get(label_id, f"label{label_id}")
-                                title_parts.append(f"[{label_name}]")
+                                
+                                # Always-failサンプルの場合、誤分類パターンを表示
+                                if succ == 0 and inc > 0 and "misclassification_pattern" in meta:
+                                    mis_pattern = meta["misclassification_pattern"]
+                                    # 予測ラベルを出現回数の多い順にソート
+                                    sorted_preds = sorted(mis_pattern.items(), key=lambda x: x[1], reverse=True)
+                                    pred_strs = [f"{label_names.get(pred_id, f'label{pred_id}')}:{count}" 
+                                                for pred_id, count in sorted_preds]
+                                    title_parts.append(f"[true:{label_name}, pred:{','.join(pred_strs)}]")
+                                else:
+                                    title_parts.append(f"[{label_name}]")
                             except (ValueError, TypeError):
                                 pass
                     ax.set_title(" ".join(title_parts), fontsize=8)
@@ -339,6 +350,147 @@ def analysis_evaluate(cfg: Config):
     print(f"[INFO] Wrote analysis outputs: {images_csv}, {always_fail_csv}, {always_success_csv}")
 
     # ==============================
+    # 新機能: 誤判別の一貫性分析（Always-failサンプル限定）
+    # ==============================
+    try:
+        from collections import Counter
+        
+        # ラベルID -> 名前のマッピング（0:other, 1:foraging, 2:rumination）
+        label_names_map = {0: "other", 1: "foraging", 2: "rumination"}
+        
+        # Always-failサンプルについて誤判別パターンを集計
+        misclass_rows = []
+        for idx, row in always_fail.iterrows():
+            sid = row["sample_id"]
+            expected = row.get("expected_label")
+            pred_by_fold_str = row.get("pred_by_fold", "")
+            used_count = int(row["included_count"])
+            
+            if pd.isna(expected) or not pred_by_fold_str:
+                continue
+            
+            expected = int(expected)
+            
+            # "a:1,b:2,c:0" -> [1, 2, 0]
+            try:
+                predictions = [int(p.split(":")[1]) for p in pred_by_fold_str.split(",") if ":" in p]
+            except (ValueError, IndexError):
+                continue
+            
+            # Always-failなので全て誤判別（念のため expected と異なるもののみカウント）
+            misclassifications = [p for p in predictions if p != expected]
+            
+            # クラス別カウント
+            mis_counts = Counter(misclassifications)
+            
+            # 一貫性スコア: 最も多い誤判別 ÷ 総誤判別回数
+            total_misclass = len(misclassifications)
+            max_misclass = max(mis_counts.values()) if mis_counts else 0
+            consistency_score = max_misclass / total_misclass if total_misclass > 0 else 0.0
+            
+            misclass_rows.append({
+                "sample_id": sid,
+                "used_count": used_count,
+                "true_label": label_names_map.get(expected, f"label{expected}"),
+                "foraging": mis_counts.get(1, 0),
+                "rumination": mis_counts.get(2, 0),
+                "other": mis_counts.get(0, 0),
+                "consistency_score": consistency_score,
+            })
+        
+        if misclass_rows:
+            # DataFrameに変換
+            misclass_df = pd.DataFrame(misclass_rows)
+            
+            # ソート: 使用回数降順 → 一貫性スコア降順
+            misclass_df = misclass_df.sort_values(
+                ["used_count", "consistency_score"],
+                ascending=[False, False]
+            ).reset_index(drop=True)
+            
+            # インデックスを1始まりに
+            misclass_df.index = misclass_df.index + 1
+            
+            # CSV出力
+            misclass_csv = csv_dir / f"analysis_misclassification_consistency_{param_tag}.csv"
+            misclass_df.to_csv(misclass_csv, index=True, index_label="index")
+            print(f"[ARTIFACT] Saved misclassification consistency CSV: {misclass_csv}")
+            
+            # テーブル画像の作成
+            fig, ax = plt.subplots(figsize=(12, max(6, len(misclass_df) * 0.3)))
+            ax.axis('tight')
+            ax.axis('off')
+            
+            # 表示用にconsistency_scoreを除外して整形
+            table_data = misclass_df[["sample_id", "used_count", "true_label", "foraging", "rumination", "other"]].copy()
+            
+            # sample_idを短縮表示（最初8文字）
+            table_data["sample_id"] = table_data["sample_id"].apply(lambda x: f"{x[:12]}..." if len(x) > 12 else x)
+            
+            # ヘッダー
+            col_labels = ["Index", "Sample ID", "Used", "True Label", "Foraging", "Rumination", "Other"]
+            
+            # データを2次元リストに変換（インデックス付き）
+            table_values = []
+            for idx, row in table_data.iterrows():
+                table_values.append([
+                    str(idx),
+                    row["sample_id"],
+                    str(row["used_count"]),
+                    row["true_label"],
+                    str(row["foraging"]),
+                    str(row["rumination"]),
+                    str(row["other"]),
+                ])
+            
+            # 表示件数を制限（大きすぎる場合）
+            max_display = 50
+            if len(table_values) > max_display:
+                table_values = table_values[:max_display]
+                table_note = f"(Showing top {max_display} of {len(misclass_df)} samples)"
+            else:
+                table_note = f"(Total: {len(misclass_df)} samples)"
+            
+            table = ax.table(
+                cellText=table_values,
+                colLabels=col_labels,
+                cellLoc='center',
+                loc='center',
+                colWidths=[0.0512, 0.128, 0.0512, 0.096, 0.0832, 0.0832, 0.0832],
+            )
+            
+            table.auto_set_font_size(False)
+            table.set_fontsize(8)
+            table.scale(1, 1.5)
+            
+            # ヘッダー行のスタイル
+            for i in range(len(col_labels)):
+                cell = table[(0, i)]
+                cell.set_facecolor('#4472C4')
+                cell.set_text_props(weight='bold', color='white')
+            
+            # データ行の交互背景色
+            for i in range(1, len(table_values) + 1):
+                for j in range(len(col_labels)):
+                    cell = table[(i, j)]
+                    if i % 2 == 0:
+                        cell.set_facecolor('#F2F2F2')
+            
+            fig.suptitle(f"Misclassification Consistency Analysis (Always-Fail Samples)\n{table_note}", 
+                        fontsize=12, fontweight='bold', y=0.98)
+            fig.tight_layout(rect=[0, 0, 1, 0.96])
+            
+            misclass_table_png = images_dir / f"analysis_misclassification_table_{param_tag}.png"
+            fig.savefig(misclass_table_png, dpi=dpi, bbox_inches='tight')
+            plt.close(fig)
+            print(f"[ARTIFACT] Saved misclassification table image: {misclass_table_png}")
+        else:
+            print("[INFO] No always-fail samples found for misclassification consistency analysis")
+    
+    except Exception as e:
+        print(f"[WARN] Misclassification consistency analysis failed: {e}")
+
+    # ==============================
     # 新機能1: 成功率スペクトラム画像グリッド表示
     # ==============================
     if ana_cfg.csv_dir and ana_cfg.export_images:
@@ -351,7 +503,6 @@ def analysis_evaluate(cfg: Config):
             sample_id_to_path = {}
             
             # CSVから画像パス情報を取得
-            import pandas as pd
             for fold_id in all_fold_ids:
                 csv_path = csv_dir / f"10fold_{fold_id}.csv"
                 df = pd.read_csv(csv_path, usecols=["file_path"])
@@ -366,13 +517,31 @@ def analysis_evaluate(cfg: Config):
                 inc = row["included_count"]
                 # expected_labelの取得（存在しない場合はNone）
                 exp_label = row.get("expected_label") if "expected_label" in images_df.columns else None
-                sample_metadata[sid] = {
+                
+                meta = {
                     "success_count": row["success_count"],
                     "fail_count": row["fail_count"],
                     "included_count": inc,
                     "success_rate": row["success_count"] / inc if inc > 0 else 0.0,
                     "expected_label": exp_label,
                 }
+                
+                # Always-failサンプルの場合、誤分類パターンを解析
+                if row["fail_count"] == inc and inc > 0 and "pred_by_fold" in row:
+                    pred_by_fold_str = row.get("pred_by_fold", "")
+                    if pred_by_fold_str and isinstance(pred_by_fold_str, str):
+                        # "a:1,b:2,c:0" -> [1, 2, 0]
+                        try:
+                            predictions = [int(p.split(":")[1]) for p in pred_by_fold_str.split(",") if ":" in p]
+                            if predictions:
+                                from collections import Counter
+                                pred_counts = Counter(predictions)
+                                meta["misclassification_pattern"] = dict(pred_counts)
+                                meta["dominant_misprediction"] = pred_counts.most_common(1)[0][0]
+                        except (ValueError, IndexError) as e:
+                            pass  # パース失敗時はスキップ
+                
+                sample_metadata[sid] = meta
                 # デバッグ用（最初の3件のみ）
                 if idx < 3:
                     print(f"[DEBUG] sample_id={sid}, expected_label={exp_label}")
@@ -392,10 +561,10 @@ def analysis_evaluate(cfg: Config):
             mixed = mixed.sort_values("success_rate")
             mixed_samples = mixed["sample_id"].tolist()
             
-            # グリッドサイズ (各カテゴリから27枚ずつ表示: 3x3を3ページ)
+            # グリッドサイズ (各カテゴリから45枚ずつ表示: 3x3を5ページ)
             grid_size = 3  # 3x3
             n_per_grid = grid_size * grid_size  # 9
-            n_total = n_per_grid * 3  # 27
+            n_total = n_per_grid * 5  # 45
             
             def _sample_diverse_by_trial_count(sample_ids: list[str], metadata: dict, n_target: int) -> list[str]:
                 """試行回数が偏らないようにサンプリング。
@@ -434,10 +603,10 @@ def analysis_evaluate(cfg: Config):
                 
                 return selected
             
-            # 全失敗データのグリッド (3ページ分)
+            # 全失敗データのグリッド (5ページ分)
             if fail_samples:
                 fail_diverse = _sample_diverse_by_trial_count(fail_samples, sample_metadata, n_total)
-                for page in range(3):
+                for page in range(5):
                     start_idx = page * n_per_grid
                     end_idx = start_idx + n_per_grid
                     page_samples = fail_diverse[start_idx:end_idx]
@@ -447,7 +616,7 @@ def analysis_evaluate(cfg: Config):
                             sample_id_to_path=sample_id_to_path,
                             grid_rows=grid_size,
                             grid_cols=grid_size,
-                            title=f"Always-Fail Samples (Page {page+1}/3)",
+                            title=f"Always-Fail Samples (Page {page+1}/5)",
                             output_path=images_dir / f"grid_always_fail_{param_tag}_p{page+1}.png",
                             dpi=dpi,
                             sample_metadata=sample_metadata,
@@ -456,7 +625,7 @@ def analysis_evaluate(cfg: Config):
             # 混在データのグリッド (低成功率側)
             if mixed_samples:
                 mixed_diverse = _sample_diverse_by_trial_count(mixed_samples, sample_metadata, n_total)
-                for page in range(3):
+                for page in range(5):
                     start_idx = page * n_per_grid
                     end_idx = start_idx + n_per_grid
                     page_samples = mixed_diverse[start_idx:end_idx]
@@ -466,16 +635,16 @@ def analysis_evaluate(cfg: Config):
                             sample_id_to_path=sample_id_to_path,
                             grid_rows=grid_size,
                             grid_cols=grid_size,
-                            title=f"Mixed Samples (Low Success Rate, Page {page+1}/3)",
+                            title=f"Mixed Samples (Low Success Rate, Page {page+1}/5)",
                             output_path=images_dir / f"grid_mixed_{param_tag}_p{page+1}.png",
                             dpi=dpi,
                             sample_metadata=sample_metadata,
                         )
             
-            # 全成功データのグリッド (3ページ分)
+            # 全成功データのグリッド (5ページ分)
             if success_samples:
                 success_diverse = _sample_diverse_by_trial_count(success_samples, sample_metadata, n_total)
-                for page in range(3):
+                for page in range(5):
                     start_idx = page * n_per_grid
                     end_idx = start_idx + n_per_grid
                     page_samples = success_diverse[start_idx:end_idx]
@@ -485,7 +654,7 @@ def analysis_evaluate(cfg: Config):
                             sample_id_to_path=sample_id_to_path,
                             grid_rows=grid_size,
                             grid_cols=grid_size,
-                            title=f"Always-Success Samples (Page {page+1}/3)",
+                            title=f"Always-Success Samples (Page {page+1}/5)",
                             output_path=images_dir / f"grid_always_success_{param_tag}_p{page+1}.png",
                             dpi=dpi,
                             sample_metadata=sample_metadata,
@@ -532,7 +701,6 @@ def analysis_evaluate(cfg: Config):
             
             # sample_id -> image_path のマッピング
             sample_id_to_path = {}
-            import pandas as pd
             for fold_id in all_fold_ids:
                 csv_path = csv_dir / f"10fold_{fold_id}.csv"
                 df = pd.read_csv(csv_path, usecols=["file_path"])

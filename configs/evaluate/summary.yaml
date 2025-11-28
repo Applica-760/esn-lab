@@ -6,7 +6,7 @@ experiment_name: "tenfold_integ"
 metric: "majority_acc"
 
 vary_param: "Nx"
-vary_values: [200, 300, 400, 500, 600, 700, 800]
+vary_values: [200, 300, 400, 500, 600, 700]
 
 filters:
   density: 0.5
