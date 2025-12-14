@@ -178,7 +178,7 @@ def analysis_evaluate(cfg: Config):
         preds_csv = Path(predictions_csv_explicit).expanduser().resolve()
         out_root = preds_csv.parent
     elif experiment_name:
-        exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+        exp_base = Path("outputs/experiments") / experiment_name / "eval"
         preds_csv = (exp_base / "evaluation_predictions.csv").resolve()
         out_root = exp_base.resolve()
         print(f"[INFO] Using experiment: {experiment_name}")

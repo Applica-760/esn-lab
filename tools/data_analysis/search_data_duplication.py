@@ -2,7 +2,7 @@
 dataset/10fold_npy_div内のデータ重複度を分析するスクリプト
 
 10分割されたデータ群(fold_a~fold_j)間でのサンプルID重複の程度を定量的に分析し、
-Cross-sourceのペアワイズ共通ID数ヒートマップのみをartifacts配下に書き出す。
+Cross-sourceのペアワイズ共通ID数ヒートマップのみをoutputs配下に書き出す。
 """
 import numpy as np
 from pathlib import Path
@@ -171,9 +171,9 @@ def print_overall_summary(all_analyses: dict, output_dir: Path):
 
 def main():
     base_dir = Path(__file__).parent.parent.parent / "dataset" / "10fold_npy_div"
-    artifacts_dir = Path(__file__).parent.parent.parent / "artifacts" / "duplication_analysis"
+    outputs_dir = Path(__file__).parent.parent.parent / "outputs" / "duplication_analysis"
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = artifacts_dir / timestamp
+    output_dir = outputs_dir / timestamp
     
     if not base_dir.exists():
         print(f"エラー: {base_dir} が見つかりません")
@@ -181,7 +181,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print("="*80)
-    print("Cross-source pairwise overlap (upper triangle) -> artifacts")
+    print("Cross-source pairwise overlap (upper triangle) -> outputs")
     print("="*80)
     
     all_analyses = {}

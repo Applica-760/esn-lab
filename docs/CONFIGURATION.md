@@ -161,7 +161,7 @@ path: "/path/to/test_001.jpg"
 class_id: 0  # 正解ラベル（評価用、オプション）
 
 # 使用する学習済み重み
-weight_file: "artifacts/runs/2024-01-01_12-00-00_train-single/Wout.npy"
+weight_file: "outputs/runs/2024-01-01_12-00-00_train-single/Wout.npy"
 ```
 
 ### predict/batch.yaml
@@ -171,7 +171,7 @@ weight_file: "artifacts/runs/2024-01-01_12-00-00_train-single/Wout.npy"
 csv_path: "/path/to/test_data.csv"
 
 # 使用する学習済み重み
-weight_file: "artifacts/runs/2024-01-01_12-00-00_train-batch/Wout.npy"
+weight_file: "outputs/runs/2024-01-01_12-00-00_train-batch/Wout.npy"
 ```
 
 ## 📊 evaluate/ - 評価設定
@@ -180,14 +180,14 @@ weight_file: "artifacts/runs/2024-01-01_12-00-00_train-batch/Wout.npy"
 
 ```yaml
 # 評価対象の実行ディレクトリ
-run_dir: "artifacts/runs/2024-01-01_12-00-00_predict-batch/"
+run_dir: "outputs/runs/2024-01-01_12-00-00_predict-batch/"
 ```
 
 ### evaluate/summary.yaml
 
 ```yaml
 # 10-fold結果ディレクトリ
-tenfold_dir: "artifacts/10fold_results/"
+tenfold_dir: "outputs/10fold_results/"
 
 # 可視化オプション
 plot_confusion_matrix: true
@@ -198,7 +198,7 @@ save_report: true
 
 ```yaml
 # 学習済み重みディレクトリ
-weights_dir: "artifacts/10fold_results/"
+weights_dir: "outputs/10fold_results/"
 
 # テストデータ
 data_source:
@@ -219,7 +219,7 @@ generate_plots: true
 integration_test:
   train_config: "configs/train/tenfold.yaml"
   eval_config: "configs/evaluate/tenfold.yaml"
-  output_dir: "artifacts/integration_results/"
+  output_dir: "outputs/integration_results/"
 ```
 
 ## 💡 設定のベストプラクティス
@@ -282,7 +282,7 @@ project: "esn-classification-2024"
 data_source:
   npy_dir: "${DATA_ROOT}/10fold_npy/"
 
-output_dir: "${OUTPUT_ROOT}/artifacts/"
+output_dir: "${OUTPUT_ROOT}/outputs/"
 ```
 
 ### 設定の継承（OmegaConf）

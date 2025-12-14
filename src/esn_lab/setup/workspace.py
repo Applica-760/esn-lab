@@ -28,12 +28,12 @@ def setup_rundir(mode: str, variant: str, debug: bool, merged_cfg: dict) -> Path
     experiment_name = _extract_experiment_name(mode, variant, merged_cfg)
     
     if experiment_name:
-        run_dir = Path("artifacts") / "experiments" / experiment_name
+        run_dir = Path("outputs") / "experiments" / experiment_name
         print(f"[INFO] Using experiment: {experiment_name}")
     else:
         # 通常の単発実験は runs/ 配下にタイムスタンプ付きで配置
         run_name = f"{datetime.now():%Y%m%d-%H%M%S}_{mode}-{variant}"
-        run_dir = Path("artifacts") / "runs" / run_name
+        run_dir = Path("outputs") / "runs" / run_name
     
     run_dir.mkdir(parents=True, exist_ok=True)
     

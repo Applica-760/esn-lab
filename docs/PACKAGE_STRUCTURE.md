@@ -188,7 +188,7 @@ ESN Model (model/esn.py) ←───────────────┘
   ↓
 Optimizer (optim/*.py)
   ↓
-Save Weights (artifacts/)
+Save Weights (outputs/)
 ```
 
 ### 推論時のデータフロー
@@ -204,7 +204,7 @@ Load Weights + DataLoader → ESN Model (model/esn.py)
   ↓
 Predictions
   ↓
-Save Results (artifacts/)
+Save Results (outputs/)
 ```
 
 ## 🎯 設計の特徴

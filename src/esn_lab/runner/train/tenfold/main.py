@@ -35,7 +35,7 @@ def _prepare_run_environment(cfg, tenfold_cfg=None):
     print(f"[INFO] Using experiment: {experiment_name}")
 
     # 出力ディレクトリを設定
-    experiment_dir = Path("artifacts/experiments") / experiment_name
+    experiment_dir = Path("outputs/experiments") / experiment_name
     experiment_dir = experiment_dir.expanduser().resolve()
     experiment_dir.mkdir(parents=True, exist_ok=True)
 

@@ -66,7 +66,7 @@ class TrainTenfoldCfg:
     data_source: Optional[DataSourceCfg] = None
     # 後方互換性のため csv_dir も残す（data_source より優先度低）
     csv_dir: Optional[str] = None
-    # 実験名を指定（artifacts/experiments/{experiment_name}/ に配置）
+    # 実験名を指定（outputs/experiments/{experiment_name}/ に配置）
     experiment_name: Optional[str] = None
     workers: Optional[int] = None
     # スキップ制御フラグ

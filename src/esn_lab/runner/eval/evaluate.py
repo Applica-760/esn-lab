@@ -52,7 +52,7 @@ def tenfold_evaluate(cfg: Config):
         raise ValueError("Config requires 'evaluate.tenfold.experiment_name'.")
     
     # experiments/{experiment_name}/ の固定構成を使用
-    exp_base = Path("artifacts/experiments") / experiment_name
+    exp_base = Path("outputs/experiments") / experiment_name
     weight_dir = (exp_base / "weights").expanduser().resolve()
     out_dir = (exp_base / "eval").expanduser().resolve()
     print(f"[INFO] Using experiment: {experiment_name}")

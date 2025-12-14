@@ -9,7 +9,7 @@ ids: ["20210508_00000", "20210508_11111"]
 class_ids: [2, 2]
 
 # 重みファイルのディレクトリ
-weight: "artifacts/experiments/tenfold_experiment/weights"
+weight: "outputs/experiments/tenfold_experiment/weights"
 
 # データソース設定（推奨: NPY形式）
 data_source:

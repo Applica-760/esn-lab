@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 from pathlib import Path
+from copy import deepcopy
 
 from esn_lab.runner.train.tenfold.main import run_tenfold
 from esn_lab.utils.param_grid import flatten_search_space
 from esn_lab.runner.eval.evaluate import tenfold_evaluate, summary_evaluate
 from esn_lab.setup.config import (
-    DataSourceCfg,
     Evaluate,
-    EvaluateTenfoldCfg,
-    EvaluateSummaryCfg,
     TrainTenfoldCfg,
+)
+from esn_lab.setup.config_loader import (
+    safe_get_attr,
+    normalize_data_source,
+    create_eval_tenfold_config,
+    create_eval_summary_config,
 )
 
 
@@ -31,59 +35,42 @@ def run_grid(cfg) -> None:
 
     grid_cfg = getattr(integ, "grid")
 
-    # helper to read attribute or dict key
-    def _g(obj, key, default=None):
-        if obj is None:
-            return default
-        try:
-            return getattr(obj, key)
-        except Exception:
-            try:
-                return obj.get(key, default)  # type: ignore[attr-defined]
-            except Exception:
-                return default
-
     # 新形式: integ.grid が単一の grid.yaml 形式を持つ
     # structure: base, param_grid (or search_space), train, eval, summary
-    is_new_grid_schema = (_g(grid_cfg, "param_grid") is not None) or (_g(grid_cfg, "base") is not None)
+    is_new_grid_schema = (safe_get_attr(grid_cfg, "param_grid") is not None) or (safe_get_attr(grid_cfg, "base") is not None)
 
     if is_new_grid_schema:
-        base = _g(grid_cfg, "base") or {}
-        param_grid = _g(grid_cfg, "param_grid") or _g(grid_cfg, "search_space")
-        train_template = _g(grid_cfg, "train") or {}
-        grid_eval_cfg = _g(grid_cfg, "eval") or {}
-        summary_template = _g(grid_cfg, "summary") or {}
+        base = safe_get_attr(grid_cfg, "base") or {}
+        param_grid = safe_get_attr(grid_cfg, "param_grid") or safe_get_attr(grid_cfg, "search_space")
+        train_template = safe_get_attr(grid_cfg, "train") or {}
+        grid_eval_cfg = safe_get_attr(grid_cfg, "eval") or {}
+        summary_template = safe_get_attr(grid_cfg, "summary") or {}
 
         # 組み合わせ展開
         ss = param_grid
         combos: List[Tuple[Dict, str]] = flatten_search_space(ss)
 
         # experiment_name は必須
-        experiment_name = _g(grid_cfg, "experiment_name") or _g(train_template, "experiment_name") or _g(base, "experiment_name")
+        experiment_name = safe_get_attr(grid_cfg, "experiment_name") or safe_get_attr(train_template, "experiment_name") or safe_get_attr(base, "experiment_name")
         if not experiment_name:
             raise ValueError("integ.grid requires 'experiment_name'.")
         
         print(f"[INFO] Using experiment: {experiment_name}")
 
         # tenfold 設定を base + train_template から作る
-        csv_dir = _g(train_template, "csv_dir") or _g(base, "csv_dir")
-        data_source = _g(train_template, "data_source") or _g(base, "data_source")
+        csv_dir = safe_get_attr(train_template, "csv_dir") or safe_get_attr(base, "csv_dir")
+        data_source = safe_get_attr(train_template, "data_source") or safe_get_attr(base, "data_source")
         
-        # data_source が辞書の場合は DataSourceCfg オブジェクトに変換
-        if data_source is not None and isinstance(data_source, dict):
-            data_source = DataSourceCfg(
-                type=data_source.get("type", "csv"),
-                csv_dir=data_source.get("csv_dir"),
-                npy_dir=data_source.get("npy_dir")
-            )
+        # data_source を正規化
+        data_source = normalize_data_source(data_source)
         
-        workers = _g(train_template, "workers") or _g(base, "workers") or 1
-        skip_existing = _g(train_template, "skip_existing")
+        workers = safe_get_attr(train_template, "workers") or safe_get_attr(base, "workers") or 1
+        skip_existing = safe_get_attr(train_template, "skip_existing")
         if skip_existing is None:
-            skip_existing = _g(base, "skip_existing")
+            skip_existing = safe_get_attr(base, "skip_existing")
         if skip_existing is None:
             skip_existing = True
-        force_retrain = _g(train_template, "force_retrain") or _g(base, "force_retrain") or False
+        force_retrain = safe_get_attr(train_template, "force_retrain") or safe_get_attr(base, "force_retrain") or False
 
         train_cfg = TrainTenfoldCfg(
             csv_dir=csv_dir,
@@ -128,13 +115,8 @@ def run_grid(cfg) -> None:
         eval_workers = auto_workers
         eval_parallel = True
     
-    # data_source_eval が辞書の場合は DataSourceCfg オブジェクトに変換
-    if data_source_eval is not None and isinstance(data_source_eval, dict):
-        data_source_eval = DataSourceCfg(
-            type=data_source_eval.get("type", "csv"),
-            csv_dir=data_source_eval.get("csv_dir"),
-            npy_dir=data_source_eval.get("npy_dir")
-        )
+    # data_source を正規化
+    data_source_eval = normalize_data_source(data_source_eval)
     
     if not experiment_name_eval:
         raise ValueError("integ.grid requires 'experiment_name'.")
@@ -152,38 +134,32 @@ def run_grid(cfg) -> None:
         )
 
     # 学習直後に、対応パラメタ集合のみ tenfold 評価を実行する（ディレクトリ全走査を回避）
-        # tenfold 評価の設定を優先順位で決定
-        if getattr(cfg, "evaluate", None) is None:
-            cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
-        # integ.grid.eval.tenfold があればそれを使用、なければ補完値
-        if grid_eval_cfg and getattr(grid_eval_cfg, "tenfold", None):
-            # ユーザ指定の tenfold をベースに、不足項目を補完
-            cfg.evaluate.tenfold = grid_eval_cfg.tenfold
-            if getattr(cfg.evaluate.tenfold, "csv_dir", None) in (None, ""):
-                cfg.evaluate.tenfold.csv_dir = csv_dir_str
-            if getattr(cfg.evaluate.tenfold, "data_source", None) is None:
-                cfg.evaluate.tenfold.data_source = data_source_eval
-            if getattr(cfg.evaluate.tenfold, "experiment_name", None) in (None, ""):
-                cfg.evaluate.tenfold.experiment_name = experiment_name_eval
-            if getattr(cfg.evaluate.tenfold, "workers", None) in (None, 0):
-                cfg.evaluate.tenfold.workers = eval_workers
-            if getattr(cfg.evaluate.tenfold, "parallel", None) is None:
-                cfg.evaluate.tenfold.parallel = eval_parallel
-        else:
-            cfg.evaluate.tenfold = EvaluateTenfoldCfg(
-                csv_dir=csv_dir_str,
-                data_source=data_source_eval,
-                experiment_name=experiment_name_eval,
-                workers=eval_workers,
-                parallel=eval_parallel,
-            )
+        # 元のcfgを変更せず、評価用の新しいcfgを作成
+        eval_cfg = deepcopy(cfg)
+        
+        if getattr(eval_cfg, "evaluate", None) is None:
+            eval_cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
+        
+        # tenfold 評価の設定を作成（元のcfgは変更しない）
+        grid_eval_tenfold = getattr(grid_eval_cfg, "tenfold", None) if grid_eval_cfg else None
+        eval_cfg.evaluate.tenfold = create_eval_tenfold_config(
+            base_tenfold_cfg=train_cfg,
+            grid_eval_tenfold_cfg=grid_eval_tenfold,
+            csv_dir_str=csv_dir_str,
+            data_source_eval=data_source_eval,
+            experiment_name_eval=experiment_name_eval,
+            eval_workers=eval_workers,
+            eval_parallel=eval_parallel,
+        )
+        
         # このセットだけを評価対象にするため search_space を1要素で付与
         # overrides は {"Nx":..,"density":..} 形式。search_space は "model." 接頭を要求。
         one_search = {f"model.{k}": [v] for k, v in (overrides or {}).items()}
-        cfg.evaluate.tenfold.search_space = one_search if one_search else None
+        eval_cfg.evaluate.tenfold.search_space = one_search if one_search else None
+        
         print("-" * 50)
         print(f"[GRID] start evaluation for newly trained weights in experiment: {experiment_name_eval}")
-        tenfold_evaluate(cfg)
+        tenfold_evaluate(eval_cfg)
         print(f"[GRID] evaluation finished for experiment: {experiment_name_eval}")
 
     print("=" * 50)
@@ -191,56 +167,22 @@ def run_grid(cfg) -> None:
     print("=" * 50)
 
     # すべてのセットの学習・評価が終わった後に、サマリを一度だけ作成
-    # integ.grid.eval.summary があればそれを使用、なければ簡易設定で補完
-    if getattr(cfg, "evaluate", None) is None:
-        cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
+    # 元のcfgを変更せず、サマリ用の新しいcfgを作成
+    summary_cfg = deepcopy(cfg)
+    
+    if getattr(summary_cfg, "evaluate", None) is None:
+        summary_cfg.evaluate = Evaluate(run=None, tenfold=None, summary=None)
 
-    if grid_eval_cfg and getattr(grid_eval_cfg, "summary", None):
-        # ユーザ指定を尊重しつつ、不足項目を補完
-        cfg.evaluate.summary = grid_eval_cfg.summary
-        try:
-            if getattr(cfg.evaluate.summary, "experiment_name", None) in (None, ""):
-                cfg.evaluate.summary.experiment_name = experiment_name_eval
-        except Exception:
-            pass
-        try:
-            if getattr(cfg.evaluate.summary, "vary_values", None) in (None, []) and ss:
-                vary_param = getattr(cfg.evaluate.summary, "vary_param", None) or "Nx"
-                # search_space は 'model.X' か 'X' で指定されうる
-                candidates = []
-                if isinstance(ss, dict):
-                    if f"model.{vary_param}" in ss:
-                        candidates = list(ss[f"model.{vary_param}"])
-                    elif vary_param in ss:
-                        candidates = list(ss[vary_param])
-                if candidates:
-                    cfg.evaluate.summary.vary_values = candidates
-        except Exception as e:
-            print(f"[WARN] Failed to auto-fill summary.vary_values: {e}")
-    else:
-        # vary_param は search_space が単一項目ならそれを用いる
-        vary_param = "Nx"
-        try:
-            if isinstance(ss, dict) and len(ss) >= 1:
-                fields = []
-                for k in ss.keys():
-                    if isinstance(k, str) and k.startswith("model."):
-                        fields.append(k.split(".", 1)[1])
-                if len(fields) == 1:
-                    vary_param = fields[0]
-                elif "Nx" in fields:
-                    vary_param = "Nx"
-                elif len(fields) > 1:
-                    vary_param = fields[0]
-        except Exception:
-            pass
-        cfg.evaluate.summary = EvaluateSummaryCfg(
-            experiment_name=experiment_name_eval,
-            vary_param=vary_param,
-        )
+    # summary 評価の設定を作成（元のcfgは変更しない）
+    grid_eval_summary = getattr(grid_eval_cfg, "summary", None) if grid_eval_cfg else None
+    summary_cfg.evaluate.summary = create_eval_summary_config(
+        grid_eval_summary_cfg=grid_eval_summary,
+        experiment_name_eval=experiment_name_eval,
+        search_space=ss,
+    )
 
     try:
-        summary_evaluate(cfg)
+        summary_evaluate(summary_cfg)
     except Exception as e:
         print(f"[WARN] Summary evaluation failed: {e}")
 

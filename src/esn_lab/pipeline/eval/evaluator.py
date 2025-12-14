@@ -233,7 +233,7 @@ class Evaluator:
         if results_csv_explicit:
             csv_path = Path(results_csv_explicit).expanduser().resolve()
         elif experiment_name:
-            exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+            exp_base = Path("outputs/experiments") / experiment_name / "eval"
             csv_path = (exp_base / "evaluation_results.csv").resolve()
             print(f"[INFO] Using experiment: {experiment_name}")
         else:
@@ -246,7 +246,7 @@ class Evaluator:
         if predictions_csv_explicit:
             preds_csv = Path(predictions_csv_explicit).expanduser().resolve()
         elif experiment_name:
-            exp_base = Path("artifacts/experiments") / experiment_name / "eval"
+            exp_base = Path("outputs/experiments") / experiment_name / "eval"
             preds_csv = (exp_base / "evaluation_predictions.csv").resolve()
         else:
             preds_csv = csv_path.parent / "evaluation_predictions.csv"
@@ -255,7 +255,7 @@ class Evaluator:
         if hasattr(sum_cfg, "output_dir") and sum_cfg.output_dir:
             images_dir = Path(sum_cfg.output_dir).expanduser().resolve()
         elif experiment_name:
-            images_dir = (Path("artifacts/experiments") / experiment_name / "eval" / "images").resolve()
+            images_dir = (Path("outputs/experiments") / experiment_name / "eval" / "images").resolve()
         else:
             images_dir = csv_path.parent / "images"
         

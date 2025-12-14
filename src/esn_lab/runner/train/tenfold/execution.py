@@ -187,7 +187,7 @@ def _run_one_fold_search_parallel(
     if not experiment_name:
         raise ValueError("Config requires 'train.tenfold.experiment_name'.")
     
-    experiment_dir = Path("artifacts/experiments") / experiment_name
+    experiment_dir = Path("outputs/experiments") / experiment_name
     experiment_dir = experiment_dir.expanduser().resolve()
     
     weight_dir = experiment_dir / "weights"

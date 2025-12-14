@@ -5,7 +5,7 @@
 experiment_name: "hp_search_v1"
 
 # または、明示的にCSVパスを指定（experiment_nameより優先）
-# predictions_csv: "artifacts/experiments/hp_search_v1/eval/evaluation_predictions.csv"
+# predictions_csv: "outputs/experiments/hp_search_v1/eval/evaluation_predictions.csv"
 
 # 分析対象のパラメータセットを指定（filtersで絞り込み）
 filters:

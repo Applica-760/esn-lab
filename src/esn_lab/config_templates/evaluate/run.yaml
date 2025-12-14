@@ -1,1 +1,1 @@
-run_dir: "artifacts/runs/your_prediction_run_id_to_evaluate"
+run_dir: "outputs/runs/your_prediction_run_id_to_evaluate"

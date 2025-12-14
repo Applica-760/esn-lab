@@ -80,7 +80,7 @@ To train on a single piece of data, run the following command.
 esnlab train single
 ```
 
-When training is complete, the results (weight files and logs) will be saved in the `artifacts/runs/{execution_datetime}_{mode}-{variant}/` directory.
+When training is complete, the results (weight files and logs) will be saved in the `outputs/runs/{execution_datetime}_{mode}-{variant}/` directory.
 
 ## 🛠️ Command Line Interface
 

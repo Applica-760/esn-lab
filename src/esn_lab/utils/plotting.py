@@ -74,7 +74,7 @@ def plot_confusion_matrices_and_save(
     - dfp: predictions DataFrame containing columns ["true_label", "pred_label", vary_param]
     - xs: values of vary_param to iterate over
     - n_classes: number of classes to expect
-    - Saves three artifacts per value: PNG, counts CSV, normalized CSV
+    - Saves three outputs per value: PNG, counts CSV, normalized CSV
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
