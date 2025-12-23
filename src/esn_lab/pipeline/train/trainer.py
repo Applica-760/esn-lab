@@ -10,8 +10,6 @@ class Trainer:
         self.output_weight_dir = Path(run_dir + "/output_weight")
         self.output_weight_dir.mkdir(parents=True, exist_ok=True)
 
-
-    
     def train(self, model: ESN, optimizer, sample_id, U, D, trans_len = None):
         if trans_len is None:
             trans_len = 0

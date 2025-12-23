@@ -42,6 +42,13 @@ python tools/data_analysis/run_prediction.py \
     --weight_path outputs/experiments/tenfold_integ/weights/seed-nonseed_nx-700_density-05_input_scale-0001_rho-09_acdefghij_Wout.npy \
     --output_dir outputs/prediction_outputs
 
+11051
+python tools/data_analysis/run_prediction.py \
+    --npz_path dataset/10fold_npy_div/a/fold_a.npz \
+    --sample_index 13 \
+    --weight_path outputs/experiments/tenfold_integ/weights/seed-nonseed_nx-700_density-05_input_scale-0001_rho-09_acdefghij_Wout.npy \
+    --output_dir outputs/analysis/prediction_outputs
+
 """
 import numpy as np
 import pandas as pd

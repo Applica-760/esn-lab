@@ -22,13 +22,13 @@ REGISTRY = {
             "tenfold": {"schema": TrainTenfoldCfg, "runner": run_tenfold},
         }
     },
-    "pred": {
+    "predict": {
         "variants": {
             "single": {"schema": PredictSingleCfg, "runner": single_predict},
             "batch":  {"schema": PredictBatchCfg, "runner": batch_predict}
         }
     },
-    "eval": {
+    "evaluate": {
         "variants": {
             "run": {"schema": EvaluateRunCfg, "runner": single_evaluate},
             "cv" : {},

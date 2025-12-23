@@ -51,16 +51,13 @@ def _extract_experiment_name(mode: str, variant: str, merged_cfg: dict) -> str |
     tenfold, grid などの長時間実験用モードでは experiment_name の使用を推奨。
     single, batch などの単発実験では None を返す。
     """
-    # モードとバリアントに応じた設定パスを確認
-    canonical_mode = {"pred": "predict", "eval": "evaluate"}.get(mode, mode)
-    
     # train.tenfold, evaluate.tenfold, integ.grid などから experiment_name を探す
-    if canonical_mode == "train" and variant == "tenfold":
+    if mode == "train" and variant == "tenfold":
         return merged_cfg.get("train", {}).get("tenfold", {}).get("experiment_name")
-    elif canonical_mode == "evaluate" and variant in ["tenfold", "summary", "analysis"]:
+    elif mode == "evaluate" and variant in ["tenfold", "summary", "analysis"]:
         eval_cfg = merged_cfg.get("evaluate", {})
         return eval_cfg.get(variant, {}).get("experiment_name")
-    elif canonical_mode == "integ" and variant == "grid":
+    elif mode == "integ" and variant == "grid":
         return merged_cfg.get("integ", {}).get("grid", {}).get("experiment_name")
     
     return None
