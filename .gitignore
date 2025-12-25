@@ -4,6 +4,7 @@
 /data/
 /dataset/
 /dist/
+/legacy/
 
 # development memos (now in docs/)
 docs/commands.md

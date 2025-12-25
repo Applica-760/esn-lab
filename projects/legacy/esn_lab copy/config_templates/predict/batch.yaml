@@ -1,7 +1,0 @@
-ids: ["test_001", "test_002"]
-paths: [
-  "/path/to/your/test_data/test_001.jpg",
-  "/path/to/your/test_data/test_002.png"
-]
-class_ids: [0, 1]
-weight: "outputs/runs/your_training_run_id/output_weight"

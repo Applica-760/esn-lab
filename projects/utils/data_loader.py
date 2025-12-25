@@ -8,7 +8,7 @@ def tenfold_data_loader(dataset_dir: str | Path):
     
     # 全foldのデータを格納する3つのリスト
     data_folds = []
-    class_folds = []
+    label_folds = []
     id_folds = []
     
     # 各NPZファイルを処理
@@ -19,17 +19,19 @@ def tenfold_data_loader(dataset_dir: str | Path):
             
             # 各サンプルのデータをリストに格納
             data_list = []
-            class_list = []
+            label_list = []
             id_list = []
             
             for i in range(num_samples):
-                data_list.append(npz_data[f"sample_{i}_data"])
-                class_list.append(int(npz_data[f"sample_{i}_class"]))
-                id_list.append(str(npz_data[f"sample_{i}_id"]))
+                data_list.append(npz_data[f"{i}_data"])
+                label_list.append(npz_data[f"{i}_label"])
+                id_list.append(str(npz_data[f"{i}_id"]))
             
             # 各リストに追加
             data_folds.append(data_list)
-            class_folds.append(class_list)
+            label_folds.append(label_list)
             id_folds.append(id_list)
     
-    return data_folds, class_folds, id_folds
+    print("dataset loaded")
+    
+    return data_folds, label_folds, id_folds

@@ -1,7 +1,7 @@
 experiment_name: "test"
-output_dir: "outputs/experiments"
+output_dir: "outputs/experiments/renew/a"
 
-data_source: "dataset/10fold_npy_div/a"
+data_source: "dataset/10fold_npy/a"
 workers: 10
 
 Nu: 256

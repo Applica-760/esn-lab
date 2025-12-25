@@ -16,5 +16,7 @@ def run_tenfold(model: ESN, optimizer, tenfold_U_list, tenfold_D_list):
         # trainer pipelineに投入
         output_weight = train(model, optimizer, U_list, D_list)
         weights_list.append(output_weight)
+
+        print(f"fold {i} id finished")
     
     return weights_list

@@ -7,6 +7,8 @@ def build_param_grid(cfg):
     
     # 全組み合わせを生成
     combinations = product(*param_values)
+
+    print("grid params built")
     
     # 辞書のリストに変換
     return [dict(zip(param_names, combo)) for combo in combinations]

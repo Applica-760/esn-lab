@@ -10,5 +10,5 @@ def load_config() -> SimpleNamespace:
     
     with open(args.config, 'r') as f:
         data = yaml.safe_load(f)
-    
+    print("config loaded")
     return SimpleNamespace(**data)

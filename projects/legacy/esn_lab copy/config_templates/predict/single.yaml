@@ -1,5 +1,0 @@
-id: "test_sample_001"
-path: "/path/to/your/test_data/sample_001.jpg"
-class_id: 0 
-# Specify a trained weight file path (absolute or relative)
-weight: "/path/to/your/weights/your_weight.npy"

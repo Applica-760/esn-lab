@@ -1,6 +1,0 @@
-ids: ["sample_001", "sample_002"]
-paths: [
-  "/path/to/your/data/sample_001.jpg",
-  "/path/to/your/data/sample_002.png"
-]
-class_ids: [0, 1]

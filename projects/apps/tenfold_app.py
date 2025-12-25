@@ -15,7 +15,7 @@ def main():
     cfg = load_config()
 
     # data loader データセットをロードするための主体
-    data_folds, class_folds, id_folds = tenfold_data_loader(cfg.data_source)
+    data_folds, label_folds, id_folds = tenfold_data_loader(cfg.data_source)
 
     # grid builder パラメタサーチのデータを定義
     param_grid = build_param_grid(cfg)
@@ -25,9 +25,11 @@ def main():
                     params["Nx"], params["density"], params["input_scale"], params["rho"])
         optimizer = Tikhonov(params["Nx"], cfg.Ny, 0.0)
 
-        weights_list = run_tenfold(model, optimizer, data_folds, class_folds)
+        weights_list = run_tenfold(model, optimizer, data_folds, label_folds)
 
         save_tenfold_weights(params, weights_list, cfg.output_dir)
+
+        print(f"{params} is trained")
 
     return
 
