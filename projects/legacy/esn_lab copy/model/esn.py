@@ -85,5 +85,6 @@ class ESN:
         self.input_scale = input_scale
         self.rho = rho
 
+        self.y_prev = np.zeros(N_y)
         self.output_func = output_func
         self.inv_output_func = inv_output_func
