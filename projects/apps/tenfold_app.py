@@ -4,13 +4,16 @@ from projects.utils.data_loader import tenfold_data_loader
 from projects.utils.config_loader import load_config
 from projects.utils.grid_builder import build_param_grid
 from projects.utils.weight_saver import save_tenfold_weights
-from esn_lab.runner.train.tenfold import run_tenfold
+from esn_lab.runner.train.tenfold_parallel import run_tenfold_parallel
+# from esn_lab.runner.train.tenfold import run_tenfold
 
+import time
 """
 python -m projects.apps.tenfold_app --config projects/configs/tenfold_train.yaml
 """
 
 def main():
+    time1 = time.time()
     # configファイルの読み込み
     cfg = load_config()
 
@@ -25,12 +28,13 @@ def main():
                     params["Nx"], params["density"], params["input_scale"], params["rho"])
         optimizer = Tikhonov(params["Nx"], cfg.Ny, 0.0)
 
-        weights_list = run_tenfold(model, optimizer, data_folds, label_folds)
+        weights_list = run_tenfold_parallel(model, optimizer, data_folds, label_folds)
 
         save_tenfold_weights(params, weights_list, cfg.output_dir)
 
         print(f"{params} is trained")
 
+    print(time.time() - time1)
     return
 
 if __name__ == "__main__":
