@@ -13,28 +13,28 @@ python -m projects.apps.tenfold_app --config projects/configs/tenfold_train.yaml
 """
 
 def main():
-    time1 = time.time()
     # configファイルの読み込み
     cfg = load_config()
 
-    # data loader データセットをロードするための主体
-    data_folds, label_folds, id_folds = tenfold_data_loader(cfg.data_source)
+    for i in range(10):
 
-    # grid builder パラメタサーチのデータを定義
-    param_grid = build_param_grid(cfg)
+        # data loader データセットをロードするための主体
+        data_folds, label_folds, id_folds = tenfold_data_loader(cfg.data_source[i])
 
-    for params in param_grid:
-        model = ESN(cfg.Nu, cfg.Ny, 
-                    params["Nx"], params["density"], params["input_scale"], params["rho"])
-        optimizer = Tikhonov(params["Nx"], cfg.Ny, 0.0)
+        # grid builder パラメタサーチのデータを定義
+        param_grid = build_param_grid(cfg)
 
-        weights_list = run_tenfold_parallel(model, optimizer, data_folds, label_folds)
+        for params in param_grid:
+            model = ESN(cfg.Nu, cfg.Ny, 
+                        params["Nx"], params["density"], params["input_scale"], params["rho"])
+            optimizer = Tikhonov(params["Nx"], cfg.Ny, 0.0)
 
-        save_tenfold_weights(params, weights_list, cfg.output_dir)
+            weights_list = run_tenfold_parallel(model, optimizer, data_folds, label_folds, cfg.workers)
 
-        print(f"{params} is trained")
+            save_tenfold_weights(params, weights_list, cfg.output_dir[i])
 
-    print(time.time() - time1)
+            print(f"{params} is trained")
+
     return
 
 if __name__ == "__main__":
