@@ -1,8 +1,8 @@
 [project]
 name = "esn-lab"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Python package for Echo State Network experiments." 
-readme = "readme-en.md" 
+readme = "./docs/readme-en.md" 
 
 license = { text = "MIT License" }
 
@@ -34,8 +34,6 @@ test = [
     "pytest-cov>=4.0.0",
 ]
 
-[project.scripts]
-esnlab = "esn_lab.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/Applica-760/esn-lab"
@@ -46,8 +44,6 @@ esnlab = "esn_lab.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"] 
 
-[tool.setuptools.package-data]
-esn_lab = ["config_templates/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

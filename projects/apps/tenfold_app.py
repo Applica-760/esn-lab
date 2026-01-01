@@ -7,7 +7,6 @@ from projects.utils.weight_saver import save_tenfold_weights
 from esn_lab.runner.train.tenfold_parallel import run_tenfold_parallel
 # from esn_lab.runner.train.tenfold import run_tenfold
 
-import time
 """
 python -m projects.apps.tenfold_app --config projects/configs/tenfold_train.yaml
 """
@@ -16,7 +15,7 @@ def main():
     # configファイルの読み込み
     cfg = load_config()
 
-    for i in range(10):
+    for i in range(len(cfg.data_source)):
 
         # data loader データセットをロードするための主体
         data_folds, label_folds, id_folds = tenfold_data_loader(cfg.data_source[i])
