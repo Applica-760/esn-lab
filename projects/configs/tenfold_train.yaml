@@ -1,25 +1,7 @@
 experiment_name: "test"
-output_dir: ["outputs/experiments/renew/a",
-             "outputs/experiments/renew/b",
-             "outputs/experiments/renew/c",
-             "outputs/experiments/renew/d",
-             "outputs/experiments/renew/e",
-             "outputs/experiments/renew/f",
-             "outputs/experiments/renew/g",
-             "outputs/experiments/renew/h",
-             "outputs/experiments/renew/i",
-             "outputs/experiments/renew/j"]
-
-data_source: ["dataset/10fold_npy/a",
-              "dataset/10fold_npy/b",
-              "dataset/10fold_npy/c",
-              "dataset/10fold_npy/d",
-              "dataset/10fold_npy/e",
-              "dataset/10fold_npy/f",
-              "dataset/10fold_npy/g",
-              "dataset/10fold_npy/h",
-              "dataset/10fold_npy/i",
-              "dataset/10fold_npy/j"]
+output_base_dir: "outputs/experiments/renew"
+data_source_base_dir: "dataset/10fold_npy"
+folds: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 workers: 10
 
 Nu: 256
