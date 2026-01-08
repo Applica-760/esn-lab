@@ -3,8 +3,6 @@
 from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
 from esn_lab.pipeline.train.trainer import train
-from esn_lab.runner.train.tenfold import run_tenfold
-from esn_lab.runner.train.tenfold_parallel import run_tenfold_parallel
 
 
 __all__ = [

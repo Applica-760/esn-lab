@@ -1,0 +1,16 @@
+# 評価対象の訓練結果ディレクトリ (config.lock.yamlが存在する場所)
+experiment_dir: "outputs/experiments/renew"
+
+# 評価モード: "test" (i番目のデータで評価), "train" (i番目以外で評価)
+# リスト形式で複数指定可能
+mode:
+  - test
+  # - train
+workers: 15
+
+# 評価結果の保存先
+output_dir: "outputs/experiments/eval_results"
+
+# 評価対象のパラメータディレクトリ (nullの場合は全パラメータを評価)
+# 例: "Nx70_dens0.5_inscl0.001_rho0.9"
+target_params: null

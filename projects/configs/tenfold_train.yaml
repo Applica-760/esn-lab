@@ -6,7 +6,7 @@ workers: 10
 
 Nu: 256
 Ny: 3
-Nx: [70]
+Nx: [7]
 input_scale: [0.001]
 density: [0.5]
 rho: [0.9]
