@@ -54,15 +54,6 @@ def load_npz_and_extract(npz_path: Path) -> pd.DataFrame:
 
 
 def process_fold_directory(input_subdir: Path, output_subdir: Path) -> None:
-    """1つのfoldディレクトリ（a~j）を処理
-    
-    Args:
-        input_subdir: 入力サブディレクトリ（例: dataset/10fold_npy_div/a）
-        output_subdir: 出力サブディレクトリ（例: outputs/divdata_tables/a）
-    
-    Raises:
-        FileNotFoundError: npzファイルが見つからない場合
-    """
     # 出力ディレクトリを作成
     output_subdir.mkdir(parents=True, exist_ok=True)
     
