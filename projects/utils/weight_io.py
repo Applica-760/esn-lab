@@ -4,6 +4,28 @@ import numpy as np
 from pathlib import Path
 
 
+def save_single_weight(params: dict, weight: np.ndarray, fold_idx: int, output_dir: str) -> None:
+    """
+    単一のfoldの重みを保存
+    """
+    # パラメータごとのサブディレクトリを作成
+    param_str = f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+    param_dir = os.path.join(output_dir, param_str)
+    os.makedirs(param_dir, exist_ok=True)
+    
+    # metadata.jsonが存在しない場合のみ保存
+    metadata_path = os.path.join(param_dir, "metadata.json")
+    if not os.path.exists(metadata_path):
+        with open(metadata_path, 'w') as f:
+            json.dump(params, f, indent=2)
+    
+    # 指定されたfoldの重みを保存
+    filename = f"fold{fold_idx}.npz"
+    filepath = os.path.join(param_dir, filename)
+    np.savez(filepath, weight=weight)
+    
+    return
+
 def save_tenfold_weights(params: dict, weights_list: list, output_dir: str) -> None:
     """
     10fold訓練の重みを保存
@@ -23,6 +45,8 @@ def save_tenfold_weights(params: dict, weights_list: list, output_dir: str) -> N
         filename = f"fold{i}.npz"
         filepath = os.path.join(param_dir, filename)
         np.savez(filepath, weight=weight)
+
+    return
 
 
 def load_tenfold_weights(param_dir: str) -> list:
