@@ -4,6 +4,14 @@ import numpy as np
 from pathlib import Path
 
 
+def load_eval_results(path: str) -> list:
+    """
+    評価結果のJSONファイルをロード
+    """
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
 def save_eval_results(results: list, output_path: str) -> None:
     """
     評価結果をJSON形式で保存

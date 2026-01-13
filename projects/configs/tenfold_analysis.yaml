@@ -1,0 +1,23 @@
+# 入力: eval結果のディレクトリ
+eval_result_dir: outputs/experiments/eval_results
+
+# 出力先
+output_dir: outputs/analysis/confusion_matrix
+
+# 対象モード (test / train)
+mode: test
+
+# 対象パラメータ (nullなら全パラメータ)
+target_params: null
+# target_params:
+#   - Nx7_dens0.5_inscl0.001_rho0.9
+
+# サンプル群リスト
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+# クラス名 (混同行列の軸ラベル用、表示したい順序で記載)
+class_names: ["foraging", "rumination", "other"]
+
+# 表示順に対応するJSONのインデックス
+# class_names[0]=foraging はJSONの1, class_names[1]=rumination はJSONの2, class_names[2]=other はJSONの0
+class_order: [1, 2, 0]

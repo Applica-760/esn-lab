@@ -70,19 +70,38 @@ def load_metadata(param_dir: str) -> dict:
         return json.load(f)
 
 
-def list_param_dirs(fold_dir: str, target_params: str = None) -> list:
+def list_param_dirs(fold_dir: str, target_params=None) -> list:
     """
     fold_dir内のパラメータディレクトリ一覧を返す
+
+    Args:
+        fold_dir: パラメータディレクトリを含む親ディレクトリ
+        target_params: None（全パラメータ）、文字列（単一）、またはリスト（複数）
+
+    Returns:
+        パラメータディレクトリのPathリスト
     """
     fold_path = Path(fold_dir)
-    
-    if target_params is not None:
-        # 特定のパラメータのみ
+
+    if target_params is None:
+        # 全パラメータディレクトリ
+        return [d for d in fold_path.iterdir() if d.is_dir()]
+    elif isinstance(target_params, str):
+        # 単一パラメータ
         target_path = fold_path / target_params
         if target_path.is_dir():
             return [target_path]
         else:
             raise FileNotFoundError(f"Parameter directory not found: {target_path}")
+    elif isinstance(target_params, list):
+        # 複数パラメータ
+        result = []
+        for param in target_params:
+            target_path = fold_path / param
+            if target_path.is_dir():
+                result.append(target_path)
+            else:
+                raise FileNotFoundError(f"Parameter directory not found: {target_path}")
+        return result
     else:
-        # 全パラメータディレクトリ
-        return [d for d in fold_path.iterdir() if d.is_dir()]
+        raise ValueError(f"target_params must be None, str, or list, got {type(target_params)}")
