@@ -1,12 +1,13 @@
 experiment_name: "test"
-output_base_dir: "outputs/experiments/renewd"
+output_base_dir: "outputs/experiments/renewd_v3"
 data_source_base_dir: "dataset/10fold_npy"
-folds: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+# folds: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+folds: ["d"]
 workers: 10
 
 Nu: 256
 Ny: 3
-Nx: [4, 5, 6]
-input_scale: [0.001]
+Nx: [600]
+input_scale: [0.0001]
 density: [0.5]
 rho: [0.9]

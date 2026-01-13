@@ -42,6 +42,7 @@ def main():
     shutil.copy(args.config, lock_file)
 
     for fold in cfg.folds:
+        print(f"fold {fold}")
         data_source = Path(cfg.data_source_base_dir) / fold
         output_dir = Path(cfg.output_base_dir) / fold
 
@@ -60,6 +61,7 @@ def main():
             for future in futures:
                 future.result()
 
+    print("train is finished")
     return
 
 if __name__ == "__main__":

@@ -19,12 +19,8 @@ def eval_single_param(train_cfg, param_dir, data_folds, label_folds, id_folds, m
     # メタデータと重みをロード
     metadata = load_metadata(param_dir)
     weights_list = load_tenfold_weights(param_dir)
-
-    # ESNモデルを構築
     model = ESN(train_cfg.Nu, train_cfg.Ny,
         metadata["Nx"], metadata["density"], metadata["input_scale"], metadata["rho"])
-
-    # 評価を実行
     results = eval_tenfold(model, weights_list,
         data_folds, label_folds, id_folds, mode=mode)
 
