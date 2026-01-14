@@ -1,3 +1,8 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 import argparse
 import shutil
 from pathlib import Path
@@ -9,8 +14,7 @@ from esn_lab.pipeline.train.trainer import train
 from projects.utils.data_loader import tenfold_data_loader
 from projects.utils.config_loader import load_config
 from projects.utils.grid_builder import build_param_grid
-from projects.utils.weight_io import save_single_weight
-
+from projects.utils.weight_io import save_single_weight, build_param_str, is_valid_weight_file
 
 """
 python -m projects.apps.tenfold_train_appv3 --config projects/configs/tenfold_train.yaml
@@ -18,6 +22,13 @@ python -m projects.apps.tenfold_train_appv3 --config projects/configs/tenfold_tr
 
 def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir):
     """単一のfold_idx + paramsの組み合わせに対する学習処理"""
+    # スキップ判定: 既に有効な重みファイルが存在する場合はスキップ
+    param_str = build_param_str(params)
+    weight_path = Path(output_dir) / param_str / f"fold{fold_idx}.npz"
+    if is_valid_weight_file(str(weight_path)):
+        print(f"skipped (already exists): {params} fold_idx={fold_idx}")
+        return
+    
     U_list, D_list, _ = get_train_folds(data_folds, label_folds, id_folds, fold_idx)
     model = ESN(Nu, Ny, params["Nx"], params["density"], params["input_scale"], params["rho"])
     optimizer = Tikhonov(params["Nx"], Ny, 0.0)

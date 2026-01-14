@@ -4,12 +4,43 @@ import numpy as np
 from pathlib import Path
 
 
+def build_param_str(params: dict) -> str:
+    """
+    パラメータ辞書からディレクトリ名用の文字列を生成
+    """
+    return f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+
+
+def is_valid_weight_file(filepath: str) -> bool:
+    """
+    重みファイルが存在し、破損していないかを確認
+    
+    Args:
+        filepath: 確認対象の.npzファイルパス
+    
+    Returns:
+        ファイルが存在し、正常に読み込める場合True
+    """
+    if not os.path.exists(filepath):
+        return False
+    
+    try:
+        with np.load(filepath) as data:
+            # 'weight' キーが存在し、配列として読み込めるか確認
+            if 'weight' not in data:
+                return False
+            _ = data['weight']
+        return True
+    except Exception:
+        return False
+
+
 def save_single_weight(params: dict, weight: np.ndarray, fold_idx: int, output_dir: str) -> None:
     """
     単一のfoldの重みを保存
     """
     # パラメータごとのサブディレクトリを作成
-    param_str = f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+    param_str = build_param_str(params)
     param_dir = os.path.join(output_dir, param_str)
     os.makedirs(param_dir, exist_ok=True)
     
@@ -31,7 +62,7 @@ def save_tenfold_weights(params: dict, weights_list: list, output_dir: str) -> N
     10fold訓練の重みを保存
     """
     # パラメータごとのサブディレクトリを作成
-    param_str = f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+    param_str = build_param_str(params)
     param_dir = os.path.join(output_dir, param_str)
     os.makedirs(param_dir, exist_ok=True)
     
