@@ -14,12 +14,6 @@ def build_param_str(params: dict) -> str:
 def is_valid_weight_file(filepath: str) -> bool:
     """
     重みファイルが存在し、破損していないかを確認
-    
-    Args:
-        filepath: 確認対象の.npzファイルパス
-    
-    Returns:
-        ファイルが存在し、正常に読み込める場合True
     """
     if not os.path.exists(filepath):
         return False
@@ -104,13 +98,6 @@ def load_metadata(param_dir: str) -> dict:
 def list_param_dirs(fold_dir: str, target_params=None) -> list:
     """
     fold_dir内のパラメータディレクトリ一覧を返す
-
-    Args:
-        fold_dir: パラメータディレクトリを含む親ディレクトリ
-        target_params: None（全パラメータ）、文字列（単一）、またはリスト（複数）
-
-    Returns:
-        パラメータディレクトリのPathリスト
     """
     fold_path = Path(fold_dir)
 

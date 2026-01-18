@@ -25,9 +25,12 @@ def load_sample_ids_from_npz(npz_path: Path) -> list[dict]:
     num_samples = int(data["num_samples"])
     samples = []
     for i in range(num_samples):
+        # ラベルはone-hot形式 (時系列長, 3) なので、最初の行からクラスを特定
+        label = data[f"{i}_label"]
+        class_idx = int(np.argmax(label[0]))
         samples.append({
-            "id": str(data[f"sample_{i}_id"]),
-            "class": int(data[f"sample_{i}_class"])
+            "id": str(data[f"{i}_id"]),
+            "class": class_idx
         })
     return samples
 
@@ -113,17 +116,19 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     im = ax.imshow(mat_masked, cmap='Blues', vmin=0.0, vmax=1.0)
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
-    ax.set_xticklabels(sources)
-    ax.set_yticklabels(sources)
+    ax.set_xticklabels([s.upper() for s in sources], fontsize=20)
+    ax.set_yticklabels([s.upper() for s in sources], fontsize=20)
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     for i in range(n):
         for j in range(n):
             if j >= i:
-                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='black', fontsize=9)
-    ax.set_title(title)
+                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='black', fontsize=15)
+    # ax.set_title(title)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     plt.tight_layout()
     plt.savefig(output_path, dpi=200)
+    pdf_path = output_path.with_suffix('.pdf')
+    plt.savefig(pdf_path)
     plt.close(fig)
 
 
@@ -170,8 +175,8 @@ def print_overall_summary(all_analyses: dict, output_dir: Path):
 
 
 def main():
-    base_dir = Path(__file__).parent.parent.parent / "dataset" / "10fold_npy_div"
-    outputs_dir = Path(__file__).parent.parent.parent / "outputs" / "duplication_analysis"
+    base_dir = Path("/home/takumi/share/esn-lab/dataset/10fold_npy")
+    outputs_dir = Path("/home/takumi/share/esn-lab/outputs/analysis/duplication_analysis")
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     output_dir = outputs_dir / timestamp
     

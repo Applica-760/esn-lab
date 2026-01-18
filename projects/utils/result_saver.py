@@ -4,6 +4,24 @@ import numpy as np
 from pathlib import Path
 
 
+def is_valid_result_file(filepath: str) -> bool:
+    """
+    結果ファイルが存在し、破損していないかを確認
+    """
+    if not os.path.exists(filepath):
+        return False
+    
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            # リスト形式であることを確認
+            if not isinstance(data, list):
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def load_eval_results(path: str) -> list:
     """
     評価結果のJSONファイルをロード
