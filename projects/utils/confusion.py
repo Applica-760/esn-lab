@@ -1,19 +1,15 @@
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+
+from projects.utils.result_saver import load_eval_results
+from projects.utils.vote import majority_vote_prediction, majority_vote_label
 
 
 def compute_confusion_matrix(y_true: list, y_pred: list, n_classes: int) -> np.ndarray:
     """
     混同行列を計算
-
-    Args:
-        y_true: 正解ラベルのリスト
-        y_pred: 予測ラベルのリスト
-        n_classes: クラス数
-
-    Returns:
-        混同行列 (n_classes x n_classes)
     """
     cm = np.zeros((n_classes, n_classes), dtype=int)
     for true, pred in zip(y_true, y_pred):
@@ -24,77 +20,50 @@ def compute_confusion_matrix(y_true: list, y_pred: list, n_classes: int) -> np.n
 def accumulate_confusion_matrices(cm_list: list) -> np.ndarray:
     """
     複数の混同行列を累積
-
-    Args:
-        cm_list: 混同行列のリスト
-
-    Returns:
-        累積された混同行列
     """
     return np.sum(cm_list, axis=0)
 
 
-def reorder_confusion_matrix(cm: np.ndarray, class_order: list) -> np.ndarray:
+def load_confusion_matrix(csv_path: str) -> np.ndarray:
     """
-    混同行列の行と列を指定した順序で並び替える
-
-    Args:
-        cm: 混同行列 (n_classes x n_classes)
-        class_order: 表示順に対応する元のインデックスリスト
-                     例: [1, 2, 0] → 元の1を0番目、元の2を1番目、元の0を2番目に
-
-    Returns:
-        並び替えられた混同行列
+    CSV形式の混同行列を読み込む
     """
-    cm_reordered = cm[np.ix_(class_order, class_order)]
-    return cm_reordered
+    with open(csv_path, 'r') as f:
+        reader = csv.reader(f)
+        next(reader)  # ヘッダー行をスキップ
+        cm = []
+        for row in reader:
+            cm.append([int(val) for val in row[1:]])  # 最初の列（ラベル）をスキップ
+    return np.array(cm, dtype=int)
 
 
 def save_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_path: str,
                           class_order: list = None) -> None:
     """
     混同行列をPNG, PDF, CSV形式で保存
-
-    Args:
-        cm: 混同行列
-        class_names: クラス名リスト（表示順）
-        title: 図のタイトル
-        output_path: 出力パス（拡張子なし）
-        class_order: 表示順に対応する元のインデックスリスト（Noneなら並び替えなし）
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 並び替え
+    # CMを表示順に並び替え（class_namesは既に表示順なので並び替えない）
     if class_order is not None:
-        cm = reorder_confusion_matrix(cm, class_order)
+        cm = cm[np.ix_(class_order, class_order)]
 
     # CSV保存
-    _save_confusion_matrix_csv(cm, class_names, str(output_path) + ".csv")
-
-    # PNG, PDF保存
-    _plot_confusion_matrix(cm, class_names, title, str(output_path) + ".png")
-    _plot_confusion_matrix(cm, class_names, title, str(output_path) + ".pdf")
-
-
-def _save_confusion_matrix_csv(cm: np.ndarray, class_names: list, output_path: str) -> None:
-    """
-    混同行列をCSV形式で保存
-    """
-    import csv
-    with open(output_path, 'w', newline='') as f:
+    with open(str(output_path) + ".csv", 'w', newline='') as f:
         writer = csv.writer(f)
-        # ヘッダー行（予測ラベル）
         header = [""] + [f"pred_{name}" for name in class_names]
         writer.writerow(header)
-        # データ行（真のラベル）
         for i, row in enumerate(cm):
             writer.writerow([f"true_{class_names[i]}"] + list(row))
+
+    # PNG, PDF保存
+    _plot_confusion_matrix(cm, class_names, title, str(output_path))
 
 
 def _plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_path: str) -> None:
     """
-    混同行列を画像として保存（行ごとに正規化、0〜1の値）
+    混同行列を画像として保存（行ごとに正規化、0〜1の値、PNG/PDF両形式）
     """
     # 行ごとに正規化
     row_sums = cm.sum(axis=1, keepdims=True)
@@ -129,5 +98,56 @@ def _plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output
                     color="white" if cm_normalized[i, j] > thresh else "black")
 
     fig.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(output_path + ".png", dpi=150, bbox_inches='tight')
+    plt.savefig(output_path + ".pdf", dpi=150, bbox_inches='tight')
     plt.close(fig)
+
+
+def compute_cm_from_eval_results(json_path: str, n_classes: int) -> list:
+    """
+    評価結果JSONファイル（10fold分）を処理し、fold単位の混同行列リストを返す
+    """
+    data = load_eval_results(json_path)
+    fold_cms = []
+
+    for fold_data in data:
+        y_true = []
+        y_pred = []
+
+        for sample in fold_data["results"]:
+            pred_label = majority_vote_prediction(sample["predictions"])
+            true_label = majority_vote_label(sample["labels"])
+            y_pred.append(pred_label)
+            y_true.append(true_label)
+
+        cm = compute_confusion_matrix(y_true, y_pred, n_classes)
+        fold_cms.append(cm)
+
+    return fold_cms
+
+
+def save_all_total_cms(param_dirs: list, sample_groups: list, output_dir,
+                       class_names: list, class_order: list = None) -> None:
+    """
+    全パラメータのtotal混同行列を計算・保存
+    """
+    for param_dir in param_dirs:
+        param_name = param_dir.name
+        output_param_dir = output_dir / param_name
+
+        # accumulated CMを読み込んで統合（既に並び替え済み）
+        all_cms = []
+        for group in sample_groups:
+            csv_path = output_param_dir / group / "accumulated.csv"
+            if csv_path.exists():
+                cm = load_confusion_matrix(str(csv_path))
+                all_cms.append(cm)
+
+        if not all_cms:
+            continue
+
+        total_cm = accumulate_confusion_matrices(all_cms)
+
+        output_path = output_param_dir / "total"
+        save_confusion_matrix(total_cm, class_names, f"{param_name} / total", str(output_path), None)
+        print(f"Total CM saved: {param_name}")
