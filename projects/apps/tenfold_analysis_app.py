@@ -14,8 +14,15 @@ from projects.utils.confusion import (
     save_confusion_matrix,
     compute_cm_from_eval_results,
     save_all_total_cms,
+    load_confusion_matrix,
 )
 from projects.utils.weight_io import list_param_dirs
+from projects.utils.performance_analysis import (
+    compute_accuracy_from_cm,
+    compute_macro_f1_from_cm,
+    extract_param_value,
+    plot_metric_by_param,
+)
 
 
 """
@@ -60,6 +67,64 @@ def one_process(param_dir, group, mode, eval_result_dir, output_dir, class_names
     return
 
 
+def plot_performance_summary(param_dirs, output_dir, param_key="Nx"):
+    """
+    全パラメータのtotal.csvを読み込み、
+    指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
+    """
+    param_values = []
+    accuracies = []
+    macro_f1s = []
+
+    for param_dir in param_dirs:
+        param_name = param_dir.name
+        total_csv_path = output_dir / param_name / "total.csv"
+
+        if not total_csv_path.exists():
+            print(f"skipped (total.csv not found): {param_name}")
+            continue
+
+        # 混同行列を読み込み
+        cm = load_confusion_matrix(str(total_csv_path))
+
+        # 性能指標を計算
+        accuracy = compute_accuracy_from_cm(cm)
+        macro_f1 = compute_macro_f1_from_cm(cm)
+
+        # パラメータ値を抽出
+        try:
+            pv = extract_param_value(param_name, param_key)
+        except ValueError as e:
+            print(f"skipped ({e}): {param_name}")
+            continue
+
+        param_values.append(pv)
+        accuracies.append(accuracy)
+        macro_f1s.append(macro_f1)
+
+    if not param_values:
+        print("No data to plot")
+        return
+
+    # Accuracyプロット
+    plot_metric_by_param(
+        param_values, accuracies,
+        xlabel=param_key, ylabel="Accuracy",
+        title=f"Accuracy by {param_key}",
+        output_path=str(output_dir / f"accuracy_by_{param_key}")
+    )
+    print(f"Saved: accuracy_by_{param_key}.png/pdf")
+
+    # Macro F1プロット
+    plot_metric_by_param(
+        param_values, macro_f1s,
+        xlabel=param_key, ylabel="Macro F1",
+        title=f"Macro F1 by {param_key}",
+        output_path=str(output_dir / f"macro_f1_by_{param_key}")
+    )
+    print(f"Saved: macro_f1_by_{param_key}.png/pdf")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to YAML config file")
@@ -101,6 +166,10 @@ def main():
         # 全サンプル群統合の混同行列を計算（並列処理後）
         print(f"Computing total confusion matrices for mode={mode}")
         save_all_total_cms(param_dirs, sample_groups, output_dir, class_names, class_order)
+
+        # 性能指標のサマリープロット
+        print(f"Plotting performance summary for mode={mode}")
+        plot_performance_summary(param_dirs, output_dir, param_key="Nx")
 
     print("Analysis finished")
 
