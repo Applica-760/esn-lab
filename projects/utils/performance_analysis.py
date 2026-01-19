@@ -56,7 +56,8 @@ def plot_metric_by_param(
     xlabel: str,
     ylabel: str,
     title: str,
-    output_path: str
+    output_path: str,
+    ylim: list = None
 ) -> None:
     """
     横軸: パラメータ値（Nx等）
@@ -86,8 +87,10 @@ def plot_metric_by_param(
     ax.set_title(title, fontsize=14)
     ax.grid(True, alpha=0.3)
 
-    # Y軸の範囲を0-1に設定（性能指標なので）
-    ax.set_ylim(0, 1)
+    # Y軸の範囲を設定
+    if ylim is None:
+        ylim = [0, 1]
+    ax.set_ylim(ylim[0], ylim[1])
 
     fig.tight_layout()
     plt.savefig(output_path + ".png", dpi=150, bbox_inches='tight')

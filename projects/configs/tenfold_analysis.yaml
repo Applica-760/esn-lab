@@ -14,3 +14,6 @@ mode:
 # class_names[0]=foraging はJSONの1, class_names[1]=rumination はJSONの2, class_names[2]=other はJSONの0
 class_names: ["foraging", "rumination", "other"]
 class_order: [1, 2, 0]
+
+# プロットのY軸範囲 [min, max]
+plot_ylim: [0, 1]

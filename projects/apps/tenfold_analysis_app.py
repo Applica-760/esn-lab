@@ -67,7 +67,7 @@ def one_process(param_dir, group, mode, eval_result_dir, output_dir, class_names
     return
 
 
-def plot_performance_summary(param_dirs, output_dir, param_key="Nx"):
+def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None):
     """
     全パラメータのtotal.csvを読み込み、
     指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
@@ -111,7 +111,8 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx"):
         param_values, accuracies,
         xlabel=param_key, ylabel="Accuracy",
         title=f"Accuracy by {param_key}",
-        output_path=str(output_dir / f"accuracy_by_{param_key}")
+        output_path=str(output_dir / f"accuracy_by_{param_key}"),
+        ylim=ylim
     )
     print(f"Saved: accuracy_by_{param_key}.png/pdf")
 
@@ -120,7 +121,8 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx"):
         param_values, macro_f1s,
         xlabel=param_key, ylabel="Macro F1",
         title=f"Macro F1 by {param_key}",
-        output_path=str(output_dir / f"macro_f1_by_{param_key}")
+        output_path=str(output_dir / f"macro_f1_by_{param_key}"),
+        ylim=ylim
     )
     print(f"Saved: macro_f1_by_{param_key}.png/pdf")
 
@@ -169,7 +171,8 @@ def main():
 
         # 性能指標のサマリープロット
         print(f"Plotting performance summary for mode={mode}")
-        plot_performance_summary(param_dirs, output_dir, param_key="Nx")
+        ylim = getattr(cfg, 'plot_ylim', [0, 1])
+        plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=ylim)
 
     print("Analysis finished")
 
