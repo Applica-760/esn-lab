@@ -3,7 +3,13 @@ dataset/10fold_npy_div内のデータ重複度を分析するスクリプト
 
 10分割されたデータ群(fold_a~fold_j)間でのサンプルID重複の程度を定量的に分析し、
 Cross-sourceのペアワイズ共通ID数ヒートマップのみをoutputs配下に書き出す。
+
+実行例:
+python -m projects.tools.data_analysis.search_data_duplication \
+    --input /home/takumi/share/esn-lab/dataset/10fold_npy \
+    --output /home/takumi/share/esn-lab/outputs/analysis/duplication_analysis
 """
+import argparse
 import numpy as np
 from pathlib import Path
 from collections import Counter, defaultdict
@@ -175,8 +181,25 @@ def print_overall_summary(all_analyses: dict, output_dir: Path):
 
 
 def main():
-    base_dir = Path("/home/takumi/share/esn-lab/dataset/10fold_npy")
-    outputs_dir = Path("/home/takumi/share/esn-lab/outputs/analysis/duplication_analysis")
+    parser = argparse.ArgumentParser(
+        description="dataset/10fold_npy内のデータ重複度を分析するスクリプト"
+    )
+    parser.add_argument(
+        "-i", "--input",
+        type=str,
+        required=True,
+        help="入力ディレクトリのパス"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        required=True,
+        help="出力ディレクトリのパス"
+    )
+    args = parser.parse_args()
+    
+    base_dir = Path(args.input)
+    outputs_dir = Path(args.output)
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     output_dir = outputs_dir / timestamp
     

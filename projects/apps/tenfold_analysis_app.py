@@ -5,24 +5,27 @@ os.environ["MKL_NUM_THREADS"] = "1"
 
 import argparse
 import shutil
+import numpy as np
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
-from projects.utils.config_loader import load_config
-from projects.utils.confusion import (
-    accumulate_confusion_matrices,
-    save_confusion_matrix,
-    compute_cm_from_eval_results,
+from projects.utils.io.config import load_config
+from projects.utils.compute.confusion import (
+    compute_cm_from_judgment_results,
     save_all_total_cms,
-    load_confusion_matrix,
 )
-from projects.utils.weight_io import list_param_dirs
-from projects.utils.performance_analysis import (
-    compute_accuracy_from_cm,
-    compute_macro_f1_from_cm,
-    extract_param_value,
-    plot_metric_by_param,
+from projects.utils.io.confusion import (
+    save_confusion_matrix_csv,
+    load_confusion_matrix_csv,
 )
+from projects.utils.plot.plot_confusion import plot_confusion_matrix
+from projects.utils.io.results import (
+    load_eval_results,
+    save_judgment_results,
+)
+from projects.utils.compute.judgment import compute_judgment_results
+from projects.utils.io.weights import list_param_dirs
+from projects.utils.plot.plot_performance import plot_metric_by_param, plot_performance_summary
 
 
 """
@@ -33,6 +36,9 @@ python -m projects.apps.tenfold_analysis_app --config projects/configs/tenfold_a
 def one_process(param_dir, group, mode, eval_result_dir, output_dir, class_names, class_order):
     """
     単一パラメータ × 単一サンプル群の解析を実行
+    
+    Returns:
+        判定結果のリスト（スキップ時はNone）
     """
     param_name = param_dir.name
     n_classes = len(class_names)
@@ -43,88 +49,39 @@ def one_process(param_dir, group, mode, eval_result_dir, output_dir, class_names
     accumulated_path = output_param_dir / group / "accumulated.csv"
     if accumulated_path.exists():
         print(f"skipped (already exists): {param_name} group={group} mode={mode}")
-        return
+        return None
 
     if not json_path.exists():
         print(f"skipped (not found): {param_name} group={group} mode={mode}")
-        return
+        return None
 
-    # fold単位の混同行列を取得
-    fold_cms = compute_cm_from_eval_results(str(json_path), n_classes)
+    # 評価結果を読み込み
+    eval_results = load_eval_results(str(json_path))
+
+    # 判定結果を計算
+    judgment_results = compute_judgment_results(eval_results, group=group)
+
+    # 判定結果からfold単位の混同行列を計算
+    fold_indices = sorted(set(r["fold_index"] for r in judgment_results))
+    fold_cms = [
+        compute_cm_from_judgment_results(judgment_results, n_classes, fold_index=i, group=group)
+        for i in fold_indices
+    ]
 
     # fold単位の混同行列を保存
     for i, cm in enumerate(fold_cms):
         output_path = output_param_dir / group / f"fold_{i}"
-        save_confusion_matrix(cm, class_names, f"{param_name} / {group} / fold {i}", str(output_path), class_order)
+        save_confusion_matrix_csv(cm, class_names, str(output_path), class_order)
+        plot_confusion_matrix(cm, class_names, f"{param_name} / {group} / fold {i}", str(output_path), class_order)
 
     # サンプル群累計の混同行列を保存
-    group_accumulated_cm = accumulate_confusion_matrices(fold_cms)
+    group_accumulated_cm = np.sum(fold_cms, axis=0)
     output_path = output_param_dir / group / "accumulated"
-    save_confusion_matrix(group_accumulated_cm, class_names,
-                          f"{param_name} / {group} / accumulated", str(output_path), class_order)
+    save_confusion_matrix_csv(group_accumulated_cm, class_names, str(output_path), class_order)
+    plot_confusion_matrix(group_accumulated_cm, class_names, f"{param_name} / {group} / accumulated", str(output_path), class_order)
 
     print(f"proceed: {param_name} group={group} mode={mode}")
-    return
-
-
-def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None):
-    """
-    全パラメータのtotal.csvを読み込み、
-    指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
-    """
-    param_values = []
-    accuracies = []
-    macro_f1s = []
-
-    for param_dir in param_dirs:
-        param_name = param_dir.name
-        total_csv_path = output_dir / param_name / "total.csv"
-
-        if not total_csv_path.exists():
-            print(f"skipped (total.csv not found): {param_name}")
-            continue
-
-        # 混同行列を読み込み
-        cm = load_confusion_matrix(str(total_csv_path))
-
-        # 性能指標を計算
-        accuracy = compute_accuracy_from_cm(cm)
-        macro_f1 = compute_macro_f1_from_cm(cm)
-
-        # パラメータ値を抽出
-        try:
-            pv = extract_param_value(param_name, param_key)
-        except ValueError as e:
-            print(f"skipped ({e}): {param_name}")
-            continue
-
-        param_values.append(pv)
-        accuracies.append(accuracy)
-        macro_f1s.append(macro_f1)
-
-    if not param_values:
-        print("No data to plot")
-        return
-
-    # Accuracyプロット
-    plot_metric_by_param(
-        param_values, accuracies,
-        xlabel=param_key, ylabel="Accuracy",
-        title=f"Accuracy by {param_key}",
-        output_path=str(output_dir / f"accuracy_by_{param_key}"),
-        ylim=ylim
-    )
-    print(f"Saved: accuracy_by_{param_key}.png/pdf")
-
-    # Macro F1プロット
-    plot_metric_by_param(
-        param_values, macro_f1s,
-        xlabel=param_key, ylabel="Macro F1",
-        title=f"Macro F1 by {param_key}",
-        output_path=str(output_dir / f"macro_f1_by_{param_key}"),
-        ylim=ylim
-    )
-    print(f"Saved: macro_f1_by_{param_key}.png/pdf")
+    return {"param_name": param_name, "judgment_results": judgment_results}
 
 
 def main():
@@ -153,6 +110,9 @@ def main():
 
     # modeループ
     for mode in modes:
+        # パラメータごとの判定結果を蓄積する辞書
+        param_judgment_results = {param_dir.name: [] for param_dir in param_dirs}
+
         for group in sample_groups:
             print(f"mode={mode} group={group}")
 
@@ -163,7 +123,20 @@ def main():
                     for param_dir in param_dirs
                 ]
                 for future in futures:
-                    future.result()
+                    result = future.result()
+                    if result is not None:
+                        param_name = result["param_name"]
+                        param_judgment_results[param_name].extend(result["judgment_results"])
+
+        # 判定結果をパラメータ組ごとに保存
+        print(f"Saving judgment results for mode={mode}")
+        for param_dir in param_dirs:
+            param_name = param_dir.name
+            judgment_results = param_judgment_results[param_name]
+            if judgment_results:
+                output_path = output_dir / param_name / "judgment_results"
+                save_judgment_results(judgment_results, str(output_path))
+                print(f"Judgment results saved: {param_name}")
 
         # 全サンプル群統合の混同行列を計算（並列処理後）
         print(f"Computing total confusion matrices for mode={mode}")

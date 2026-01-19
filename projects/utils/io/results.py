@@ -1,5 +1,6 @@
 import os
 import json
+import csv
 import numpy as np
 from pathlib import Path
 
@@ -58,3 +59,54 @@ def _convert_to_serializable(obj):
         return [_convert_to_serializable(item) for item in obj]
     else:
         return obj
+
+
+def save_judgment_results(judgment_results: list, output_path: str) -> None:
+    """
+    判定結果をCSV形式で保存
+
+    Args:
+        judgment_results: compute_judgment_results()の戻り値
+        output_path: 保存先パス（拡張子なし）
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    csv_path = str(output_path) + ".csv"
+
+    fieldnames = ["group", "fold_index", "id", "pred_label", "true_label", "is_correct"]
+
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(judgment_results)
+
+
+def load_judgment_results(csv_path: str) -> list:
+    """
+    判定結果CSVを読み込み、辞書のリストとして返す
+
+    Args:
+        csv_path: CSVファイルのパス
+
+    Returns:
+        [
+            {"group": "a", "fold_index": 0, "id": "08_013319", "pred_label": 1, "true_label": 1, "is_correct": True},
+            ...
+        ]
+    """
+    results = []
+
+    with open(csv_path, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            results.append({
+                "group": row["group"],
+                "fold_index": int(row["fold_index"]),
+                "id": row["id"],
+                "pred_label": int(row["pred_label"]),
+                "true_label": int(row["true_label"]),
+                "is_correct": row["is_correct"] == "True",
+            })
+
+    return results

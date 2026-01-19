@@ -1,6 +1,6 @@
 # 入力: eval結果のディレクトリ
 eval_result_dir: outputs/experiments/eval_results
-output_dir: outputs/analysis/confusion_matrix3
+output_dir: outputs/analysis/confusion_matrix
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 workers: 10
 

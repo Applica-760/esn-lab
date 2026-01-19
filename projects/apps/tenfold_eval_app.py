@@ -9,10 +9,10 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from esn_lab.model.esn import ESN
 from esn_lab.runner.eval.tenfold import eval_tenfold
-from projects.utils.config_loader import load_config
-from projects.utils.data_loader import tenfold_data_loader
-from projects.utils.weight_io import load_tenfold_weights, load_metadata, list_param_dirs
-from projects.utils.result_saver import save_eval_results, is_valid_result_file
+from projects.utils.io.config import load_config
+from projects.utils.io.dataset import tenfold_data_loader
+from projects.utils.io.weights import load_tenfold_weights, load_metadata, list_param_dirs
+from projects.utils.io.results import save_eval_results, is_valid_result_file
 
 """
 python -m projects.apps.tenfold_eval_app --config projects/configs/tenfold_eval.yaml

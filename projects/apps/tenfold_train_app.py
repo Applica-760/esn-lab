@@ -11,10 +11,10 @@ from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
 from esn_lab.utils.fold_splitter import get_train_folds
 from esn_lab.pipeline.train.trainer import train
-from projects.utils.data_loader import tenfold_data_loader
-from projects.utils.config_loader import load_config
-from projects.utils.grid_builder import build_param_grid
-from projects.utils.weight_io import save_single_weight, build_param_str, is_valid_weight_file
+from projects.utils.io.dataset import tenfold_data_loader
+from projects.utils.io.config import load_config
+from projects.utils.compute.param_grid import build_param_grid
+from projects.utils.io.weights import save_single_weight, build_param_str, is_valid_weight_file
 
 """
 python -m projects.apps.tenfold_train_app --config projects/configs/tenfold_train.yaml
