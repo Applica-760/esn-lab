@@ -64,10 +64,6 @@ def _convert_to_serializable(obj):
 def save_judgment_results(judgment_results: list, output_path: str) -> None:
     """
     判定結果をCSV形式で保存
-
-    Args:
-        judgment_results: compute_judgment_results()の戻り値
-        output_path: 保存先パス（拡張子なし）
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,15 +81,6 @@ def save_judgment_results(judgment_results: list, output_path: str) -> None:
 def load_judgment_results(csv_path: str) -> list:
     """
     判定結果CSVを読み込み、辞書のリストとして返す
-
-    Args:
-        csv_path: CSVファイルのパス
-
-    Returns:
-        [
-            {"group": "a", "fold_index": 0, "id": "08_013319", "pred_label": 1, "true_label": 1, "is_correct": True},
-            ...
-        ]
     """
     results = []
 
