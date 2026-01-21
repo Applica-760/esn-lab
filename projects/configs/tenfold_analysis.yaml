@@ -6,7 +6,7 @@ sample_groups: [a, b, c, d, e, f, g, h, i, j]
 # 対象モード (test / train)
 mode:
   - test
-  # - train
+  - train
 
 
 # 表示順に対応するJSONのインデックス
