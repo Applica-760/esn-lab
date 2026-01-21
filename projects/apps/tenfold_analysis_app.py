@@ -78,11 +78,6 @@ def compute_and_save_confusion_matrices(param_dirs, sample_groups, param_judgmen
             if not group_judgment_results:
                 continue
             
-            # スキップ判定
-            accumulated_path = output_param_dir / group / "accumulated.csv"
-            if accumulated_path.exists():
-                continue
-            
             # fold別
             fold_indices = sorted(set(r["fold_index"] for r in group_judgment_results))
             for fold_idx in fold_indices:
@@ -135,21 +130,22 @@ def main():
     # modeループ
     for mode in modes:
         print(f"Processing mode: {mode}")
+        mode_output_dir = output_dir / mode
 
         # 第1段階: 判定結果の計算と保存
         param_judgment_results = compute_and_save_judgments(
-            param_dirs, sample_groups, mode, eval_result_dir, output_dir
+            param_dirs, sample_groups, mode, eval_result_dir, mode_output_dir
         )
 
         # 第2段階: 混同行列の計算とプロット
         compute_and_save_confusion_matrices(
             param_dirs, sample_groups, param_judgment_results, 
-            output_dir, class_names, class_order
+            mode_output_dir, class_names, class_order
         )
 
         # 第3段階: メトリクスのプロット
         ylim = getattr(cfg, 'plot_ylim', [0, 1])
-        plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=ylim)
+        plot_performance_summary(param_dirs, mode_output_dir, param_key="Nx", ylim=ylim)
 
     print("Analysis finished")
 
