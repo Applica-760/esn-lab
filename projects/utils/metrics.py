@@ -104,12 +104,22 @@ def plot_metric_by_param(
     plt.close(fig)
 
 
-def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None):
+def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None, mode=None):
     """
-    全パラメータのtotal.csvを読み込み、
+    全パラメータのtotal_{mode}.csvを読み込み、
     指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
+    
+    Args:
+        param_dirs: パラメータディレクトリのリスト
+        output_dir: 出力ディレクトリ
+        param_key: 横軸に使用するパラメータキー
+        ylim: Y軸の範囲
+        mode: train/test（ファイル名に含める）
     """
     from projects.utils.confusion import load_confusion_matrix_csv
+    
+    # mode suffix
+    mode_suffix = f"_{mode}" if mode else ""
     
     param_values = []
     accuracies = []
@@ -117,7 +127,7 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None):
 
     for param_dir in param_dirs:
         param_name = param_dir.name
-        total_csv_path = output_dir / param_name / "total.csv"
+        total_csv_path = output_dir / param_name / f"total{mode_suffix}.csv"
 
         if not total_csv_path.exists():
             print(f"skipped (total.csv not found): {param_name}")
@@ -149,18 +159,18 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None):
     plot_metric_by_param(
         param_values, accuracies,
         xlabel=param_key, ylabel="Accuracy",
-        title=f"Accuracy by {param_key}",
-        output_path=str(output_dir / f"accuracy_by_{param_key}"),
+        title=f"Accuracy by {param_key}" + (f" ({mode})" if mode else ""),
+        output_path=str(output_dir / f"accuracy_by_{param_key}{mode_suffix}"),
         ylim=ylim
     )
-    print(f"Saved: accuracy_by_{param_key}.png/pdf")
+    print(f"Saved: accuracy_by_{param_key}{mode_suffix}.png/pdf")
 
     # Macro F1プロット
     plot_metric_by_param(
         param_values, macro_f1s,
         xlabel=param_key, ylabel="Macro F1",
-        title=f"Macro F1 by {param_key}",
-        output_path=str(output_dir / f"macro_f1_by_{param_key}"),
+        title=f"Macro F1 by {param_key}" + (f" ({mode})" if mode else ""),
+        output_path=str(output_dir / f"macro_f1_by_{param_key}{mode_suffix}"),
         ylim=ylim
     )
-    print(f"Saved: macro_f1_by_{param_key}.png/pdf")
+    print(f"Saved: macro_f1_by_{param_key}{mode_suffix}.png/pdf")

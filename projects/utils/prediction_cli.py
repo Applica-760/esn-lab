@@ -458,8 +458,8 @@ def run_interactive_cli(eval_result_dir: Path, analysis_dir: Path) -> Optional[d
     # Step 2: mode選択
     mode = select_mode()
     
-    # judgment_results.csv をロード
-    judgment_csv_path = analysis_dir / param_name / "judgment_results.csv"
+    # judgment_results_{mode}.csv をロード
+    judgment_csv_path = analysis_dir / param_name / f"judgment_results_{mode}.csv"
     if not judgment_csv_path.exists():
         print(f"\nエラー: {judgment_csv_path} が見つかりません")
         return None

@@ -33,8 +33,8 @@ from projects.utils.plot_prediction import plot_prediction
 # デフォルトのeval_results.json格納ディレクトリ
 DEFAULT_EVAL_RESULT_DIR = Path("outputs/experiments/eval_results")
 
-# デフォルトのanalysis結果格納ディレクトリ
-DEFAULT_ANALYSIS_DIR = Path("outputs/analysis/prediction_plots")
+# デフォルトのanalysis結果格納ディレクトリ（judgment_results_{mode}.csvがある階層）
+DEFAULT_ANALYSIS_DIR = Path("outputs/analysis/confusion_matrix")
 
 
 # =============================================================================
@@ -65,9 +65,9 @@ def select_data_sources() -> tuple:
         if not prompt_confirm("続行しますか?", default=False):
             return None, None
     
-    # analysis_dir (judgment_results.csv の格納ディレクトリ)
+    # analysis_dir (judgment_results_{mode}.csv の格納ディレクトリ)
     analysis_dir = prompt_path(
-        "\njudgment_results.csv の格納ディレクトリ (パラメータディレクトリがある階層):",
+        "\njudgment_results_{mode}.csv の格納ディレクトリ (パラメータディレクトリがある階層):",
         DEFAULT_ANALYSIS_DIR
     )
     

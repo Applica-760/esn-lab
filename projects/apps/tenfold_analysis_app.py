@@ -51,14 +51,14 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, eval_result_dir,
         param_name = param_dir.name
         judgment_results = param_judgment_results[param_name]
         if judgment_results:
-            output_path = output_dir / param_name / "judgment_results"
+            output_path = output_dir / param_name / f"judgment_results_{mode}"
             save_judgment_results(judgment_results, str(output_path))
 
     return param_judgment_results
 
 
 def compute_and_save_confusion_matrices(param_dirs, sample_groups, param_judgment_results, 
-                                        output_dir, class_names, class_order):
+                                        output_dir, class_names, class_order, mode):
     """
     第2段階: 混同行列の計算とプロット
     """
@@ -83,23 +83,23 @@ def compute_and_save_confusion_matrices(param_dirs, sample_groups, param_judgmen
             for fold_idx in fold_indices:
                 cm = compute_cm_from_judgment_results(group_judgment_results, n_classes, 
                                                      fold_index=fold_idx, group=group)
-                output_path = output_param_dir / group / f"fold_{fold_idx}"
+                output_path = output_param_dir / group / f"fold_{fold_idx}_{mode}"
                 save_confusion_matrix_csv(cm, class_names, str(output_path), class_order)
-                plot_confusion_matrix(cm, class_names, f"{param_name} / {group} / fold {fold_idx}", 
+                plot_confusion_matrix(cm, class_names, f"{param_name} / {group} / fold {fold_idx} ({mode})", 
                                     str(output_path), class_order)
             
             # accumulated
             cm = compute_cm_from_judgment_results(group_judgment_results, n_classes, group=group)
-            output_path = output_param_dir / group / "accumulated"
+            output_path = output_param_dir / group / f"accumulated_{mode}"
             save_confusion_matrix_csv(cm, class_names, str(output_path), class_order)
-            plot_confusion_matrix(cm, class_names, f"{param_name} / {group} / accumulated", 
+            plot_confusion_matrix(cm, class_names, f"{param_name} / {group} / accumulated ({mode})", 
                                 str(output_path), class_order)
         
         # total
         total_cm = compute_cm_from_judgment_results(judgment_results, n_classes)
-        output_path = output_param_dir / "total"
+        output_path = output_param_dir / f"total_{mode}"
         save_confusion_matrix_csv(total_cm, class_names, str(output_path), class_order)
-        plot_confusion_matrix(total_cm, class_names, f"{param_name} / total", 
+        plot_confusion_matrix(total_cm, class_names, f"{param_name} / total ({mode})", 
                             str(output_path), class_order)
 
 
@@ -130,22 +130,21 @@ def main():
     # modeループ
     for mode in modes:
         print(f"Processing mode: {mode}")
-        mode_output_dir = output_dir / mode
 
         # 第1段階: 判定結果の計算と保存
         param_judgment_results = compute_and_save_judgments(
-            param_dirs, sample_groups, mode, eval_result_dir, mode_output_dir
+            param_dirs, sample_groups, mode, eval_result_dir, output_dir
         )
 
         # 第2段階: 混同行列の計算とプロット
         compute_and_save_confusion_matrices(
             param_dirs, sample_groups, param_judgment_results, 
-            mode_output_dir, class_names, class_order
+            output_dir, class_names, class_order, mode
         )
 
         # 第3段階: メトリクスのプロット
         ylim = getattr(cfg, 'plot_ylim', [0, 1])
-        plot_performance_summary(param_dirs, mode_output_dir, param_key="Nx", ylim=ylim)
+        plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=ylim, mode=mode)
 
     print("Analysis finished")
 
