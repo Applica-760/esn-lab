@@ -13,7 +13,7 @@ from projects.utils.app_init import setup_app_environment, tenfold_data_loader, 
 from projects.utils.weights import save_single_weight, build_param_str, is_valid_weight_file
 
 """
-python -m projects.apps.train_tenfold --config projects/configs/tenfold_train.yaml
+python -m projects.apps.train_tenfold --config projects/configs/train_tenfold.yaml
 """
 
 def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir):
@@ -37,10 +37,10 @@ def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, out
 def main():
     cfg, output_dir = setup_app_environment()
 
-    for fold in cfg.folds:
-        print(f"fold {fold}")
-        data_source = Path(cfg.data_source_base_dir) / fold
-        fold_output_dir = output_dir / fold
+    for group in cfg.groups:
+        print(f"group {group}")
+        data_source = Path(cfg.data_source_base_dir) / group
+        group_output_dir = output_dir / group
 
         data_folds, label_folds, id_folds = tenfold_data_loader(data_source)    # data loader データセットをロードするための主体
         param_grid = build_param_grid(cfg)                                   # grid builder パラメタサーチのデータを定義
@@ -48,7 +48,7 @@ def main():
 
         with ProcessPoolExecutor(max_workers=cfg.workers) as executor:
             futures = [
-                executor.submit(one_process, params, i, data_folds, label_folds, id_folds, cfg.Nu, cfg.Ny, fold_output_dir)
+                executor.submit(one_process, params, i, data_folds, label_folds, id_folds, cfg.Nu, cfg.Ny, group_output_dir)
                 for params, i in jobs
             ]
             for future in futures:

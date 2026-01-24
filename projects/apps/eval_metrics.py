@@ -8,16 +8,11 @@ import numpy as np
 from pathlib import Path
 
 from projects.utils.app_init import setup_app_environment
-from projects.utils.eval.confusion import (
-    compute_cm_from_judgment_results,
-    save_confusion_matrix,
-)
-from projects.utils.eval.metrics import plot_performance_summary
-from projects.utils.eval.judgment import (
-    compute_judgment_results,
-    save_judgment_results,
-)
 from projects.utils.weights import list_param_dirs
+from projects.utils.eval.confusion import compute_cm_from_judgment_results, save_confusion_matrix
+from projects.utils.eval.filter import filter_by_group, filter_by_fold
+from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
+from projects.utils.eval.metrics import plot_performance_summary
 
 
 """
@@ -49,7 +44,7 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
         # このparam_dirのすべてのgroupを処理し終えたので保存
         if param_judgment_results[param_name]:
             output_path = output_dir / param_name / f"judgment_results_{mode}"
-            save_judgment_results(param_judgment_results[param_name], str(output_path))
+            save_judgment_results(param_judgment_results[param_name], output_path)
 
     return param_judgment_results
 
@@ -71,30 +66,30 @@ def compute_and_save_confusion_matrices(param_dirs, sample_groups, param_judgmen
         
         # グループ別の混同行列
         for group in sample_groups:
-            group_judgment_results = [r for r in judgment_results if r.get("group") == group]
+            group_judgment_results = filter_by_group(judgment_results, [group])
             if not group_judgment_results:
                 continue
             
             # fold別
             fold_indices = sorted(set(r["fold_index"] for r in group_judgment_results))
             for fold_idx in fold_indices:
-                cm = compute_cm_from_judgment_results(group_judgment_results, n_classes, 
-                                                     fold_index=fold_idx, group=group)
+                fold_judgment_results = filter_by_fold(group_judgment_results, [fold_idx])
+                cm = compute_cm_from_judgment_results(fold_judgment_results, n_classes)
                 output_path = output_param_dir / group / f"fold_{fold_idx}_{mode}"
                 save_confusion_matrix(cm, class_names, f"{param_name} / {group} / fold {fold_idx} ({mode})",
-                                    str(output_path), class_order)
+                                    output_path, class_order)
             
             # accumulated
-            cm = compute_cm_from_judgment_results(group_judgment_results, n_classes, group=group)
+            cm = compute_cm_from_judgment_results(group_judgment_results, n_classes)
             output_path = output_param_dir / group / f"accumulated_{mode}"
             save_confusion_matrix(cm, class_names, f"{param_name} / {group} / accumulated ({mode})",
-                                str(output_path), class_order)
+                                output_path, class_order)
         
         # total
         total_cm = compute_cm_from_judgment_results(judgment_results, n_classes)
         output_path = output_param_dir / f"total_{mode}"
         save_confusion_matrix(total_cm, class_names, f"{param_name} / total ({mode})",
-                            str(output_path), class_order)
+                            output_path, class_order)
 
 
 def main():

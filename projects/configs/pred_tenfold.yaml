@@ -2,7 +2,7 @@
 weight_dir: "outputs/experiments/renew"
 output_dir: "outputs/experiments/pred_results"
 data_source_base_dir: "dataset/10fold_npy"
-folds: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 workers: 10
 
 # 評価モード: "test" (i番目のデータで評価), "train" (i番目以外で評価)

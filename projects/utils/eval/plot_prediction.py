@@ -52,5 +52,3 @@ def plot_prediction(results: list, target_id: str, save_path: str, ext: str = "p
     save_file = f"{save_path}.{ext}"
     plt.savefig(save_file, dpi=150)
     plt.close()
-    
-    print(f"Plot saved to: {save_file}")

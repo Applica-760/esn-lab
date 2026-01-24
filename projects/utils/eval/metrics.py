@@ -62,7 +62,7 @@ def plot_metric_by_param(
     xlabel: str,
     ylabel: str,
     title: str,
-    output_path: str,
+    output_path,
     ylim: list = None
 ) -> None:
     """
@@ -70,6 +70,8 @@ def plot_metric_by_param(
     縦軸: 性能指標（平均±標準偏差）
     同じパラメータ値を持つ結果を集約してエラーバー付きプロット
     """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     # パラメータ値ごとにmetric_valuesを集約
     grouped = defaultdict(list)
     for pv, mv in zip(param_values, metric_values):
@@ -99,8 +101,8 @@ def plot_metric_by_param(
     ax.set_ylim(ylim[0], ylim[1])
 
     fig.tight_layout()
-    plt.savefig(output_path + ".png", dpi=150, bbox_inches='tight')
-    plt.savefig(output_path + ".pdf", dpi=150, bbox_inches='tight')
+    plt.savefig(output_path.with_suffix('.png'), dpi=150, bbox_inches='tight')
+    plt.savefig(output_path.with_suffix('.pdf'), dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 
@@ -153,17 +155,15 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None, 
         param_values, accuracies,
         xlabel=param_key, ylabel="Accuracy",
         title=f"Accuracy by {param_key}" + (f" ({mode})" if mode else ""),
-        output_path=str(output_dir / f"accuracy_by_{param_key}{mode_suffix}"),
+        output_path=output_dir / f"accuracy_by_{param_key}{mode_suffix}",
         ylim=ylim
     )
-    print(f"Saved: accuracy_by_{param_key}{mode_suffix}.png/pdf")
 
     # Macro F1プロット
     plot_metric_by_param(
         param_values, macro_f1s,
         xlabel=param_key, ylabel="Macro F1",
         title=f"Macro F1 by {param_key}" + (f" ({mode})" if mode else ""),
-        output_path=str(output_dir / f"macro_f1_by_{param_key}{mode_suffix}"),
+        output_path=output_dir / f"macro_f1_by_{param_key}{mode_suffix}",
         ylim=ylim
     )
-    print(f"Saved: macro_f1_by_{param_key}{mode_suffix}.png/pdf")

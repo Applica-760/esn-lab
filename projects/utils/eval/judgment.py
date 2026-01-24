@@ -49,24 +49,22 @@ def compute_judgment_results(pred_results: list, group: str = None) -> list:
     return judgment_results
 
 
-def save_judgment_results(judgment_results: list, output_path: str) -> None:
+def save_judgment_results(judgment_results: list, output_path) -> None:
     """
     判定結果をCSV形式で保存
     """
-    output_path = Path(output_path)
+    output_path = Path(output_path).with_suffix('.csv')
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    csv_path = str(output_path) + ".csv"
 
     fieldnames = ["group", "fold_index", "id", "pred_label", "true_label", "is_correct"]
 
-    with open(csv_path, "w", newline="") as f:
+    with open(output_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(judgment_results)
 
 
-def load_judgment_results(csv_path: str) -> list:
+def load_judgment_results(csv_path) -> list:
     """
     判定結果CSVを読み込み、辞書のリストとして返す
     """

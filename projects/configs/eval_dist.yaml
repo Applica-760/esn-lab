@@ -1,0 +1,37 @@
+# 入力: 予測結果のディレクトリ
+pred_result_dir: outputs/experiments/pred_results
+eval_dir: outputs/eval/metrics
+output_dir: outputs/eval/dist
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+# 対象モード (test / train)
+mode:
+  - test
+  # - train
+
+Nx: [7]
+input_scale: [0.001]
+density: [0.5]
+rho: [0.9]
+
+filters:  # フィルタ条件
+  true_label: null  # 正解ラベル: null (フィルタなし), 0 (other), 1 (foraging), 2 (rumination)
+  pred_label: null  # 予測ラベル: null (フィルタなし), 0, 1, 2
+  is_correct: true  # 判定結果: null (フィルタなし), true (正解のみ), false (不正解のみ)
+  groups: null  # グループ: null (全て), または配列 [a, b, c] など
+  fold_indices: null  # fold: null (全て), または配列 [0, 1, 2] など
+
+# ヒストグラム設定
+bins: 40
+
+# グラフの色設定 (カラーコード)
+colors:
+  all: "#4A90D9"
+  foraging: "#2ECC71"
+  rumination: "#E74C3C"
+  other: "#9B59B6"
+
+# 表示順に対応するJSONのインデックス
+# class_names[0]=foraging はJSONの1, class_names[1]=rumination はJSONの2, class_names[2]=other はJSONの0
+class_names: ["foraging", "rumination", "other"]
+class_order: [1, 2, 0]

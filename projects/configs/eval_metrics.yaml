@@ -1,6 +1,6 @@
 # 入力: 予測結果のディレクトリ
 pred_result_dir: outputs/experiments/pred_results
-output_dir: outputs/analysis/confusion_matrix
+output_dir: outputs/eval/metrics
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 
 # 対象モード (test / train)
