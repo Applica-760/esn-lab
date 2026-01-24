@@ -1,52 +1,29 @@
-
-"""
-Prediction Plot の実行スクリプト（エントリーポイント）
-
-対話型CLIを通じてフィルタ条件を収集し、
-条件に合致するサンプルのpredictionプロットを生成する。
-
-使用方法:
-    python -m projects.tools.data_analysis.run_plot_prediction
-
-出力先:
-    outputs/analysis/prediction_plots/{ユーザー指定}/
-        └── {param_name}/{group}/fold_{fold_index}/{id}.png
-"""
-
+import json
 from pathlib import Path
 
-from projects.utils.prediction_cli import (
+from projects.tools.pred_plot.prediction_cli import (
     run_interactive_cli, 
     build_output_path, 
     prompt_path,
     prompt_confirm,
 )
-from projects.utils.filter import group_targets_by_source
-from projects.utils.results import load_eval_results
-from projects.utils.plot_prediction import plot_prediction
+from projects.utils.eval.filter import group_targets_by_source
+from projects.utils.eval.plot_prediction import plot_prediction
 
 
-# =============================================================================
-# 設定
-# =============================================================================
+"""
+python -m projects.tools.pred_plot.run_plot_prediction
+"""
 
-# デフォルトのeval_results.json格納ディレクトリ
-DEFAULT_EVAL_RESULT_DIR = Path("outputs/experiments/eval_results")
+# デフォルトのpred_results.json格納ディレクトリ
+DEFAULT_PRED_RESULT_DIR = Path("outputs/experiments/pred_results")
+# デフォルトの評価結果格納ディレクトリ（judgment_results_{mode}.csvがある階層）
+DEFAULT_EVAL_DIR = Path("outputs/analysis/confusion_matrix")
 
-# デフォルトのanalysis結果格納ディレクトリ（judgment_results_{mode}.csvがある階層）
-DEFAULT_ANALYSIS_DIR = Path("outputs/analysis/confusion_matrix")
-
-
-# =============================================================================
-# データソース選択
-# =============================================================================
 
 def select_data_sources() -> tuple:
     """
     データソースの選択
-    
-    Returns:
-        (eval_result_dir: Path, analysis_dir: Path)
     """
     print("=" * 50)
     print("  Prediction Plot Tool")
@@ -54,28 +31,28 @@ def select_data_sources() -> tuple:
     
     print("\n=== [Step 0] データソース設定 ===")
     
-    # eval_result_dir
-    eval_result_dir = prompt_path(
-        "\neval_results.json の格納ディレクトリ:",
-        DEFAULT_EVAL_RESULT_DIR
+    # pred_result_dir
+    pred_result_dir = prompt_path(
+        "\npred_results.json の格納ディレクトリ:",
+        DEFAULT_PRED_RESULT_DIR
     )
     
-    if not eval_result_dir.exists():
-        print(f"警告: {eval_result_dir} が存在しません")
+    if not pred_result_dir.exists():
+        print(f"警告: {pred_result_dir} が存在しません")
         if not prompt_confirm("続行しますか?", default=False):
             return None, None
     
-    # analysis_dir (judgment_results_{mode}.csv の格納ディレクトリ)
-    analysis_dir = prompt_path(
+    # eval_dir (judgment_results_{mode}.csv の格納ディレクトリ)
+    eval_dir = prompt_path(
         "\njudgment_results_{mode}.csv の格納ディレクトリ (パラメータディレクトリがある階層):",
-        DEFAULT_ANALYSIS_DIR
+        DEFAULT_EVAL_DIR
     )
     
-    if not analysis_dir.exists():
-        print(f"エラー: {analysis_dir} が存在しません")
+    if not eval_dir.exists():
+        print(f"エラー: {eval_dir} が存在しません")
         return None, None
     
-    return eval_result_dir, analysis_dir
+    return pred_result_dir, eval_dir
 
 
 # =============================================================================
@@ -85,24 +62,12 @@ def select_data_sources() -> tuple:
 def execute_plots(config: dict) -> None:
     """
     CLIから取得した設定に基づいてプロットを実行
-    
-    (group, fold_index) でグルーピングし、同じJSONは一度だけロードする最適化を行う。
-    
-    Args:
-        config: run_interactive_cli() の戻り値
-            {
-                "param_name": str,
-                "mode": str,
-                "targets": list[dict],
-                "output_dir": Path,
-                "eval_result_dir": Path,
-            }
     """
     param_name = config["param_name"]
     mode = config["mode"]
     targets = config["targets"]
     output_dir = config["output_dir"]
-    eval_result_dir = config["eval_result_dir"]
+    pred_result_dir = config["pred_result_dir"]
     
     # (group, fold_index) でグルーピング
     grouped = group_targets_by_source(targets)
@@ -115,18 +80,19 @@ def execute_plots(config: dict) -> None:
     for group, folds in grouped.items():
         for fold_index, ids in folds.items():
             # JSONを一度だけロード
-            json_path = eval_result_dir / group / param_name / f"{mode}_results.json"
+            json_path = pred_result_dir / group / param_name / f"{mode}_results.json"
             
             if not json_path.exists():
                 print(f"警告: {json_path} が見つかりません。スキップします。")
                 done += len(ids)
                 continue
             
-            eval_results = load_eval_results(str(json_path))
+            with open(json_path, 'r') as f:
+                pred_results = json.load(f)
             
             # fold_indexに対応するresultsを取得
             fold_data = None
-            for fd in eval_results:
+            for fd in pred_results:
                 if fd["fold_index"] == fold_index:
                     fold_data = fd
                     break
@@ -171,14 +137,14 @@ def main():
     3. プロット実行
     """
     # Step 0: データソース選択
-    eval_result_dir, analysis_dir = select_data_sources()
+    pred_result_dir, eval_dir = select_data_sources()
     
-    if eval_result_dir is None:
+    if pred_result_dir is None:
         print("キャンセルしました")
         return
     
     # 対話型CLI実行
-    config = run_interactive_cli(eval_result_dir, analysis_dir)
+    config = run_interactive_cli(pred_result_dir, eval_dir)
     
     if config is None:
         return

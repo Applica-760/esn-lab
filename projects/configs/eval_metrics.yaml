@@ -1,5 +1,5 @@
-# 入力: eval結果のディレクトリ
-eval_result_dir: outputs/experiments/eval_results
+# 入力: 予測結果のディレクトリ
+pred_result_dir: outputs/experiments/pred_results
 output_dir: outputs/analysis/confusion_matrix
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 
@@ -7,7 +7,6 @@ sample_groups: [a, b, c, d, e, f, g, h, i, j]
 mode:
   - test
   - train
-
 
 # 表示順に対応するJSONのインデックス
 # class_names[0]=foraging はJSONの1, class_names[1]=rumination はJSONの2, class_names[2]=other はJSONの0

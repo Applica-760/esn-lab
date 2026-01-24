@@ -121,3 +121,12 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_
     plt.savefig(str(output_path) + ".png", dpi=150, bbox_inches='tight')
     plt.savefig(str(output_path) + ".pdf", dpi=150, bbox_inches='tight')
     plt.close(fig)
+
+
+def save_confusion_matrix(cm: np.ndarray, class_names: list, title: str, 
+                          output_path: str, class_order: list = None) -> None:
+    """
+    混同行列をCSVと画像(PNG/PDF)で保存（convenience関数）
+    """
+    save_confusion_matrix_csv(cm, class_names, output_path, class_order)
+    plot_confusion_matrix(cm, class_names, title, output_path, class_order)

@@ -3,24 +3,21 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-import argparse
-import shutil
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from esn_lab.model.esn import ESN
-from esn_lab.runner.eval.tenfold import eval_tenfold
-from projects.utils.config import load_config
-from projects.utils.dataset import tenfold_data_loader
+from esn_lab.runner.pred.tenfold import pred_tenfold
+from projects.utils.app_init import setup_app_environment, tenfold_data_loader
 from projects.utils.weights import load_tenfold_weights, load_metadata, list_param_dirs
-from projects.utils.results import save_eval_results, is_valid_result_file
+from projects.utils.prediction import save_pred_results, is_valid_result_file
 
 """
-python -m projects.apps.tenfold_eval_app --config projects/configs/tenfold_eval.yaml
+python -m projects.apps.pred_tenfold --config projects/configs/tenfold_pred.yaml
 """
 
 
 def one_process(param_dir, mode, fold, data_folds, label_folds, id_folds, cfg, output_dir):
-    """単一パラメータセットの10fold評価を実行"""
+    """単一パラメータセットの10fold予測を実行"""
     # スキップ判定: 既に有効な結果ファイルが存在する場合はスキップ
     param_str = param_dir.name
     result_path = Path(output_dir) / fold / param_str / f"{mode}_results.json"
@@ -30,26 +27,16 @@ def one_process(param_dir, mode, fold, data_folds, label_folds, id_folds, cfg, o
     
     params = load_metadata(param_dir)
     weights_list = load_tenfold_weights(param_dir)
-    model = ESN(cfg.Nu, cfg.Ny,
-        params["Nx"], params["density"], params["input_scale"], params["rho"])
-    results = eval_tenfold(model, weights_list,
-        data_folds, label_folds, id_folds, mode=mode)
-    save_eval_results(results, str(result_path))
+    model = ESN(cfg.Nu, cfg.Ny, params["Nx"], params["density"], params["input_scale"], params["rho"])
+    results = pred_tenfold(model, weights_list, data_folds, label_folds, id_folds, mode=mode)
+    save_pred_results(results, str(result_path))
     print(f"proceed: {param_str} fold={fold} mode={mode}")
     return
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to YAML config file")
-    args = parser.parse_args()
-
-    # 1. configの読み込み
-    cfg = load_config(args.config)
+    cfg, output_dir = setup_app_environment()
     weight_dir = Path(cfg.weight_dir)
-    output_dir = Path(cfg.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(args.config, output_dir / "eval_config.lock.yaml")
     modes = cfg.mode  # リスト形式
 
     # 3. modeループ
@@ -70,7 +57,7 @@ def main():
                 for future in futures:
                     future.result()
 
-    print("eval is finished")
+    print("prediction is finished")
     return
 
 

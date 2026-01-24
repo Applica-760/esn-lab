@@ -1,12 +1,12 @@
 from esn_lab.model.esn import ESN
-from esn_lab.pipeline.eval.predictor import pred
+from esn_lab.pipeline.pred.predictor import pred
 from esn_lab.utils.fold_splitter import get_test_fold, get_train_folds
 from concurrent.futures import ProcessPoolExecutor
 
 
-def eval_tenfold(model: ESN, weights_list, tenfold_U, tenfold_D, tenfold_id, mode="test"):
+def pred_tenfold(model: ESN, weights_list, tenfold_U, tenfold_D, tenfold_id, mode="test"):
     """
-    10fold評価を実行
+    10fold予測を実行
     """
     if mode == "test":
         data_getter = get_test_fold
@@ -26,14 +26,14 @@ def eval_tenfold(model: ESN, weights_list, tenfold_U, tenfold_D, tenfold_id, mod
             fold_results.append(result)
         
         all_results.append({"fold_index": i, "results": fold_results})
-        print(f"fold {i} evaluation finished")
+        print(f"fold {i} prediction finished")
     
     return all_results
 
 
-def eval_tenfold_parallel(model: ESN, weights_list, tenfold_U, tenfold_D, tenfold_id, mode="test", n_jobs=1):
+def pred_tenfold_parallel(model: ESN, weights_list, tenfold_U, tenfold_D, tenfold_id, mode="test", n_jobs=1):
     """
-    10fold評価を並列実行
+    10fold予測を並列実行
     """
     if mode == "test":
         data_getter = get_test_fold
@@ -66,6 +66,6 @@ def eval_tenfold_parallel(model: ESN, weights_list, tenfold_U, tenfold_D, tenfol
                 fold_results.append(result)
             
             all_results.append({"fold_index": fold_index, "results": fold_results})
-            print(f"fold {fold_index} evaluation finished")
+            print(f"fold {fold_index} prediction finished")
     
     return all_results

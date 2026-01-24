@@ -24,9 +24,9 @@ from typing import Optional
 
 from simple_term_menu import TerminalMenu
 
-from projects.utils.results import load_judgment_results
+from projects.utils.eval.judgment import load_judgment_results
 from projects.utils.weights import list_param_dirs
-from projects.utils.filter import apply_filters, apply_sampling, extract_ids_with_metadata
+from projects.utils.eval.filter import apply_filters, apply_sampling, extract_ids_with_metadata
 
 
 # =============================================================================
@@ -428,15 +428,15 @@ def show_confirmation(filter_config: dict, sampling_config: dict,
 # メインフロー
 # =============================================================================
 
-def run_interactive_cli(eval_result_dir: Path, analysis_dir: Path) -> Optional[dict]:
+def run_interactive_cli(pred_result_dir: Path, eval_dir: Path) -> Optional[dict]:
     """
     対話型CLIのメインフロー
     
     全ステップを順に実行し、プロット実行に必要な情報を収集する。
     
     Args:
-        eval_result_dir: eval_results.jsonが格納されているディレクトリ
-        analysis_dir: judgment_results.csvが格納されているディレクトリ
+        pred_result_dir: pred_results.jsonが格納されているディレクトリ
+        eval_dir: judgment_results.csvが格納されているディレクトリ
     
     Returns:
         プロット実行に必要な情報の辞書、またはNone（キャンセル時）
@@ -445,7 +445,7 @@ def run_interactive_cli(eval_result_dir: Path, analysis_dir: Path) -> Optional[d
             "mode": str,
             "targets": list[dict],  # [{"id": str, "group": str, "fold_index": int}, ...]
             "output_dir": Path,
-            "eval_result_dir": Path,
+            "pred_result_dir": Path,
         }
     """
     print("=" * 50)
@@ -453,7 +453,7 @@ def run_interactive_cli(eval_result_dir: Path, analysis_dir: Path) -> Optional[d
     print("=" * 50)
     
     # Step 1: パラメータ選択
-    param_dir, param_name = select_data_source(analysis_dir)
+    param_dir, param_name = select_data_source(eval_dir)
     
     # Step 2: mode選択
     mode = select_mode()
@@ -519,7 +519,7 @@ def run_interactive_cli(eval_result_dir: Path, analysis_dir: Path) -> Optional[d
         "mode": mode,
         "targets": targets,
         "output_dir": output_dir,
-        "eval_result_dir": eval_result_dir,
+        "pred_result_dir": pred_result_dir,
     }
 
 

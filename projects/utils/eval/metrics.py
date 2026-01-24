@@ -108,15 +108,8 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None, 
     """
     全パラメータのtotal_{mode}.csvを読み込み、
     指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
-    
-    Args:
-        param_dirs: パラメータディレクトリのリスト
-        output_dir: 出力ディレクトリ
-        param_key: 横軸に使用するパラメータキー
-        ylim: Y軸の範囲
-        mode: train/test（ファイル名に含める）
     """
-    from projects.utils.confusion import load_confusion_matrix_csv
+    from projects.utils.eval.confusion import load_confusion_matrix_csv
     
     # mode suffix
     mode_suffix = f"_{mode}" if mode else ""

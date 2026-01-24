@@ -1,0 +1,27 @@
+pred_result_dir: outputs/experiments/pred_results
+eval_dir: outputs/analysis/confusion_matrix
+output_dir: outputs/analysis/prediction_plots
+
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+Nx: 7
+input_scale: 0.001
+density: 0.5
+rho: 0.9
+
+mode: test  # 対象モード (test / train のいずれか)
+
+filters:  # フィルタ条件
+  true_label: null  # 正解ラベル: null (フィルタなし), 0 (other), 1 (foraging), 2 (rumination)
+  pred_label: null  # 予測ラベル: null (フィルタなし), 0, 1, 2
+  is_correct: null  # 判定結果: null (フィルタなし), true (正解のみ), false (不正解のみ)
+  groups: null  # グループ: null (全て), または配列 [a, b, c] など
+  fold_indices: null  # fold: null (全て), または配列 [0, 1, 2] など
+
+sampling:  # サンプリング設定
+  method: random  # サンプリング方法: all (全件), random (ランダム), first (先頭から)
+  n: 10  # サンプリング件数（method が random/first の場合に使用）
+  seed: 42  # ランダムシード（method が random の場合に使用）  # ランダムシード（method が random の場合に使用）
+
+class_names: ["foraging", "rumination", "other"]  # 表示順に対応するJSONのインデックス: class_names[0]=foraging はJSONの1, class_names[1]=rumination はJSONの2, class_names[2]=other はJSONの0
+class_order: [1, 2, 0]

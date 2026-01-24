@@ -3,21 +3,17 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-import argparse
-import shutil
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
 from esn_lab.utils.fold_splitter import get_train_folds
 from esn_lab.pipeline.train.trainer import train
-from projects.utils.dataset import tenfold_data_loader
-from projects.utils.config import load_config
-from projects.utils.param_grid import build_param_grid
+from projects.utils.app_init import setup_app_environment, tenfold_data_loader, build_param_grid
 from projects.utils.weights import save_single_weight, build_param_str, is_valid_weight_file
 
 """
-python -m projects.apps.tenfold_train_app --config projects/configs/tenfold_train.yaml
+python -m projects.apps.train_tenfold --config projects/configs/tenfold_train.yaml
 """
 
 def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir):
@@ -39,23 +35,12 @@ def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, out
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to YAML config file")
-    args = parser.parse_args()
-    
-    # configファイルの読み込み
-    cfg = load_config(args.config)
-    
-    # output_base_dirの作成とyaml.lockの保存
-    output_dir = Path(cfg.output_base_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    lock_file = output_dir / "config.lock.yaml"
-    shutil.copy(args.config, lock_file)
+    cfg, output_dir = setup_app_environment()
 
     for fold in cfg.folds:
         print(f"fold {fold}")
         data_source = Path(cfg.data_source_base_dir) / fold
-        output_dir = Path(cfg.output_base_dir) / fold
+        fold_output_dir = output_dir / fold
 
         data_folds, label_folds, id_folds = tenfold_data_loader(data_source)    # data loader データセットをロードするための主体
         param_grid = build_param_grid(cfg)                                   # grid builder パラメタサーチのデータを定義
@@ -63,7 +48,7 @@ def main():
 
         with ProcessPoolExecutor(max_workers=cfg.workers) as executor:
             futures = [
-                executor.submit(one_process, params, i, data_folds, label_folds, id_folds, cfg.Nu, cfg.Ny, output_dir)
+                executor.submit(one_process, params, i, data_folds, label_folds, id_folds, cfg.Nu, cfg.Ny, fold_output_dir)
                 for params, i in jobs
             ]
             for future in futures:

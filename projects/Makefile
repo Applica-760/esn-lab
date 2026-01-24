@@ -1,17 +1,17 @@
 # Makefile for tenfold experiments
 
 TRAIN_CONFIG ?= projects/configs/tenfold_train.yaml
-EVAL_CONFIG ?= projects/configs/tenfold_eval.yaml
+PRED_CONFIG ?= projects/configs/tenfold_pred.yaml
 
 train:
 	python -m projects.apps.tenfold_train_appv3 --config $(TRAIN_CONFIG)
 
-eval:
-	python -m projects.apps.tenfold_eval_app --config $(EVAL_CONFIG)
+pred:
+	python -m projects.apps.tenfold_pred_app --config $(PRED_CONFIG)
 
-all: train eval
+all: train pred
 
-.PHONY: train eval all
+.PHONY: train pred all
 
 # make -f projects/Makefile all
 # make -f projects/Makefile train
