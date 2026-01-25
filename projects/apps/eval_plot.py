@@ -43,7 +43,7 @@ def main():
     # データロード
     cfg, _ = setup_app_environment()
     param_name = build_param_str(build_param_grid(cfg)[0])
-    judgment_csv_path = Path(cfg.eval_dir) / param_name / f"judgment_results_{cfg.mode}.csv"
+    judgment_csv_path = Path(cfg.judge_dir) / param_name / f"judgment_results_{cfg.mode}.csv"
     judgment_results = load_judgment_results(judgment_csv_path)
 
     # フィルタリング

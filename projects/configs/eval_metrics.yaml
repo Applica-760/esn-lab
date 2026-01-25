@@ -1,5 +1,6 @@
-# 入力: 予測結果のディレクトリ
+# 入力: 予測結果のディレクトリと判定結果のディレクトリ
 pred_result_dir: outputs/experiments/pred_results
+judge_dir: outputs/eval/judgement
 output_dir: outputs/eval/metrics
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 

@@ -1,5 +1,5 @@
 pred_dir: outputs/experiments/pred_results
-eval_dir: outputs/analysis/confusion_matrix
+judge_dir: outputs/eval/judgement
 output_dir: outputs/analysis/prediction_plots
 
 sample_groups: [a, b, c, d, e, f, g, h, i, j]

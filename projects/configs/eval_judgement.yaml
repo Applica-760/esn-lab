@@ -1,0 +1,9 @@
+# 入力: 予測結果のディレクトリ
+pred_result_dir: outputs/experiments/pred_results
+output_dir: outputs/eval/judgement
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+# 対象モード (test / train)
+mode:
+  - test
+  - train

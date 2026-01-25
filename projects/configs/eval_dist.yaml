@@ -1,7 +1,7 @@
 # 入力: 予測結果のディレクトリ
 pred_result_dir: outputs/experiments/pred_results
-eval_dir: outputs/eval/metrics
-output_dir: outputs/eval/dist
+judge_dir: outputs/eval/judgement
+output_dir: outputs/eval/dist2
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 
 # 対象モード (test / train)
@@ -17,7 +17,7 @@ rho: [0.9]
 filters:  # フィルタ条件
   true_label: null  # 正解ラベル: null (フィルタなし), 0 (other), 1 (foraging), 2 (rumination)
   pred_label: null  # 予測ラベル: null (フィルタなし), 0, 1, 2
-  is_correct: true  # 判定結果: null (フィルタなし), true (正解のみ), false (不正解のみ)
+  is_correct: null  # 判定結果: null (フィルタなし), true (正解のみ), false (不正解のみ)
   groups: null  # グループ: null (全て), または配列 [a, b, c] など
   fold_indices: null  # fold: null (全て), または配列 [0, 1, 2] など
 

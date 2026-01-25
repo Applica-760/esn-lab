@@ -3,15 +3,13 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-import json
-import numpy as np
 from pathlib import Path
 
 from projects.utils.app_init import setup_app_environment
 from projects.utils.weights import list_param_dirs
 from projects.utils.eval.confusion import compute_cm_from_judgment_results, save_confusion_matrix
 from projects.utils.eval.filter import filter_by_group, filter_by_fold
-from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
+from projects.utils.eval.judgment import load_judgment_results
 from projects.utils.eval.metrics import plot_performance_summary
 
 
@@ -20,31 +18,23 @@ python -m projects.apps.eval_metrics --config projects/configs/eval_metrics.yaml
 """
 
 
-def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir, output_dir):
+def load_judgment_results_for_params(param_dirs, mode, judge_dir):
     """
-    判定結果の計算と保存
+    保存された判定結果の読み込み
     """
-    param_judgment_results = {param_dir.name: [] for param_dir in param_dirs}
+    param_judgment_results = {}
 
     for param_dir in param_dirs:
         param_name = param_dir.name
+        judgment_csv_path = judge_dir / param_name / f"judgment_results_{mode}.csv"
         
-        # すべてのgroupを処理
-        for group in sample_groups:
-            json_path = pred_result_dir / group / param_name / f"{mode}_results.json"
-
-            if not json_path.exists():
-                continue
-
-            with open(json_path, 'r') as f:
-                pred_results = json.load(f)
-            judgment_results = compute_judgment_results(pred_results, group=group)
-            param_judgment_results[param_name].extend(judgment_results)
+        if not judgment_csv_path.exists():
+            print(f"  Warning: Judgment results not found: {judgment_csv_path}")
+            param_judgment_results[param_name] = []
+            continue
         
-        # このparam_dirのすべてのgroupを処理し終えたので保存
-        if param_judgment_results[param_name]:
-            output_path = output_dir / param_name / f"judgment_results_{mode}"
-            save_judgment_results(param_judgment_results[param_name], output_path)
+        judgment_results = load_judgment_results(judgment_csv_path)
+        param_judgment_results[param_name] = judgment_results
 
     return param_judgment_results
 
@@ -96,6 +86,7 @@ def main():
     cfg, output_dir = setup_app_environment()
 
     pred_result_dir = Path(cfg.pred_result_dir)
+    judge_dir = Path(cfg.judge_dir)
 
     sample_groups = cfg.sample_groups
     modes = cfg.mode  # リスト形式
@@ -110,18 +101,18 @@ def main():
     for mode in modes:
         print(f"Processing mode: {mode}")
 
-        # 第1段階: 判定結果の計算と保存
-        param_judgment_results = compute_and_save_judgments(
-            param_dirs, sample_groups, mode, pred_result_dir, output_dir
+        # 判定結果の読み込み
+        param_judgment_results = load_judgment_results_for_params(
+            param_dirs, mode, judge_dir
         )
 
-        # 第2段階: 混同行列の計算とプロット
+        # 混同行列の計算とプロット
         compute_and_save_confusion_matrices(
             param_dirs, sample_groups, param_judgment_results, 
             output_dir, class_names, class_order, mode
         )
 
-        # 第3段階: メトリクスのプロット
+        # メトリクスのプロット
         ylim = getattr(cfg, 'plot_ylim', [0, 1])
         plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=ylim, mode=mode)
 
