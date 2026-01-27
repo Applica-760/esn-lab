@@ -1,9 +1,8 @@
 # 入力: 予測結果のディレクトリ
 pred_result_dir: outputs/experiments/pred_results
-judge_dir: outputs/eval/judgement
-output_dir: outputs/eval/dist3
+judge_dir: outputs/eval/metrics
+output_dir: outputs/eval/dist_node
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
-workers: 4
 
 # 対象モード (test / train)
 mode:
@@ -23,11 +22,29 @@ filters:  # フィルタ条件
   fold_indices: null  # fold: null (全て), または配列 [0, 1, 2] など
 
 # ヒストグラム設定
-bins: 40
+bins: 50
+
+# プロットする指標の設定
+# range: [min, max] で横軸の範囲を固定。null の場合は自動調整
+metrics:
+  confidence:
+    enabled: true
+    xlabel: "Confidence (Max Output Value)"
+    range: [0, 1]  # 最大出力値の範囲
+  margin:
+    enabled: true
+    xlabel: "Margin (1st - 2nd Output)"
+    range: [0, 0.5]  # 1位と2位の差の範囲
+  true_class_output:
+    enabled: true
+    xlabel: "True Class Output Value"
+    range: [-0.2, 1]  # 正解クラス出力値の範囲
 
 # グラフの色設定 (カラーコード)
 colors:
   all: "#4A90D9"
+  correct: "#2ECC71"
+  incorrect: "#E74C3C"
   foraging: "#2ECC71"
   rumination: "#E74C3C"
   other: "#9B59B6"
