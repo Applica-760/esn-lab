@@ -32,16 +32,42 @@ def plot_histogram(
     bins: int,
     color: str,
     xlabel: str = 'True Label Prediction Ratio',
-    value_range: tuple = (0, 1)
+    value_range: tuple = (0, 1),
+    show_count: bool = True,
+    show_cumulative: bool = False
 ) -> None:
     """
     汎用ヒストグラムプロット関数
     """
-    plt.figure(figsize=(8, 6))
-    plt.hist(values, bins=bins, range=value_range, color=color, edgecolor='black', alpha=0.7)
-    plt.xlabel(xlabel)
-    plt.ylabel('Frequency')
-    plt.xlim(value_range)
+    fig, ax1 = plt.subplots(figsize=(8, 6))
+    
+    # ヒストグラム描画
+    n, bins_edges, patches = ax1.hist(
+        values, bins=bins, range=value_range, 
+        color=color, edgecolor='black', alpha=0.7,
+        label=f'n={len(values)}' if show_count else None
+    )
+    
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel('Frequency')
+    ax1.set_xlim(value_range)
+    
+    if show_count:
+        ax1.legend(loc='upper left')
+    
+    # 累積分布の追加
+    if show_cumulative:
+        ax2 = ax1.twinx()
+        
+        # 累積分布を計算（0-1にスケール）
+        cumulative = np.cumsum(n) / len(values)
+        bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
+        
+        ax2.plot(bin_centers, cumulative, color='red', linewidth=2, marker='o', markersize=3)
+        ax2.set_ylabel('Cumulative Distribution', color='black')
+        ax2.tick_params(axis='y', labelcolor='black')
+        ax2.set_ylim(0, 1)
+    
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()

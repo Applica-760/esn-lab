@@ -130,7 +130,8 @@ def main():
         
         all_ratios = [r["ratio"] for r in all_ratio_results]
         output_path = output_dir / f"dist_all_{mode}.png"
-        plot_histogram(all_ratios, output_path, cfg.bins, cfg.colors["all"])
+        plot_histogram(all_ratios, output_path, cfg.bins, cfg.colors["all"],
+                      show_count=cfg.show_count, show_cumulative=cfg.show_cumulative)
         print(f"  Saved: {output_path}")
         
         for i, class_name in enumerate(cfg.class_names):
@@ -142,7 +143,8 @@ def main():
                 continue
             
             output_path = output_dir / f"dist_{class_name}_{mode}.png"
-            plot_histogram(label_ratios, output_path, cfg.bins, cfg.colors[class_name])
+            plot_histogram(label_ratios, output_path, cfg.bins, cfg.colors[class_name],
+                          show_count=cfg.show_count, show_cumulative=cfg.show_cumulative)
             print(f"  Saved: {output_path} (n={len(label_ratios)})")
     
     print("plot finished")

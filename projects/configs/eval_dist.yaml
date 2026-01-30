@@ -1,7 +1,7 @@
 # 入力: 予測結果のディレクトリ
 pred_result_dir: outputs/experiments/pred_results
 judge_dir: outputs/eval/judgement
-output_dir: outputs/eval/dist3
+output_dir: outputs/eval/dist4
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 workers: 4
 
@@ -24,6 +24,8 @@ filters:  # フィルタ条件
 
 # ヒストグラム設定
 bins: 40
+show_count: true  # データ数を凡例に表示
+show_cumulative: true  # 累積分布を第2軸に表示
 
 # グラフの色設定 (カラーコード)
 colors:

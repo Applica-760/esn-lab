@@ -92,11 +92,6 @@ def analyze_source_directory(source_dir: Path, source_char: str) -> dict:
         "id_to_folds": id_to_folds
     }
 
-
-def print_source_summary(source_char: str, analysis: dict):
-    return
-
-
 def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, title: str, denom: float):
     """Render normalized upper-triangle heatmap including diagonal.
 
@@ -128,7 +123,7 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     for i in range(n):
         for j in range(n):
             if j >= i:
-                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='black', fontsize=15)
+                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='gray', fontsize=15)
     # ax.set_title(title)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     plt.tight_layout()
