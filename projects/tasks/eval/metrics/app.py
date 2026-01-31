@@ -1,11 +1,5 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 from pathlib import Path
 
-from projects.utils.app_init import setup_app_environment
 from projects.utils.weights import list_param_dirs
 from projects.utils.eval.confusion import compute_cm_from_judgment_results, save_confusion_matrix
 from projects.utils.eval.filter import filter_by_group, filter_by_fold
@@ -82,9 +76,13 @@ def compute_and_save_confusion_matrices(param_dirs, sample_groups, param_judgmen
                             output_path, class_order)
 
 
-def main():
-    cfg, output_dir = setup_app_environment()
-
+def main(cfg):
+    """
+    メトリクス評価タスクのメイン関数
+    
+    Args:
+        cfg: 設定オブジェクト（cfg.output_dirに出力ディレクトリが含まれる）
+    """
     pred_result_dir = Path(cfg.pred_result_dir)
     judge_dir = Path(cfg.judge_dir)
 
@@ -109,15 +107,11 @@ def main():
         # 混同行列の計算とプロット
         compute_and_save_confusion_matrices(
             param_dirs, sample_groups, param_judgment_results, 
-            output_dir, class_names, class_order, mode
+            cfg.output_dir, class_names, class_order, mode
         )
 
         # メトリクスのプロット
         ylim = getattr(cfg, 'plot_ylim', [0, 1])
-        plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=ylim, mode=mode)
+        plot_performance_summary(param_dirs, cfg.output_dir, param_key="Nx", ylim=ylim, mode=mode)
 
     print("evaluation finished")
-
-
-if __name__ == "__main__":
-    main()

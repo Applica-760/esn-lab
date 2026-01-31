@@ -34,6 +34,24 @@ def setup_app_environment() -> tuple[SimpleNamespace, Path]:
     return cfg, output_dir
 
 
+def setup_task_environment(module_path: str) -> SimpleNamespace:
+    """
+    モジュールパスから対応するcfg.yamlを読み込み、設定を返す
+    """
+    # "projects.tasks.train.app" -> "projects/tasks/train"
+    parts = module_path.split(".")
+    config_path = Path("/".join(parts[:-1])) / "cfg.yaml"
+    
+    # YAMLをロード
+    cfg = load_config(str(config_path))
+    output_dir = Path(cfg.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(config_path, output_dir / "config.lock.yaml")
+    cfg.output_dir = output_dir
+    
+    return cfg
+
+
 def tenfold_data_loader(dataset_dir: str | Path):
     """
     10fold用のデータセットをロード

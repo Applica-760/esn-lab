@@ -1,12 +1,7 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 import json
 from pathlib import Path
 
-from projects.utils.app_init import setup_app_environment, build_param_grid
+from projects.utils.app_init import build_param_grid
 from projects.utils.weights import build_param_str
 from projects.utils.eval.filter import apply_filters, apply_sampling, extract_ids_with_metadata, group_targets_by_source
 from projects.utils.eval.judgment import load_judgment_results
@@ -39,9 +34,8 @@ def execute_prediction_plots(cfg, param_name, targets):
                 plot_prediction(results, sample_id, str(output_path), ext="png")
     
 
-def main():
+def main(cfg):
     # データロード
-    cfg, _ = setup_app_environment()
     param_name = build_param_str(build_param_grid(cfg)[0])
     judgment_csv_path = Path(cfg.judge_dir) / param_name / f"judgment_results_{cfg.mode}.csv"
     judgment_results = load_judgment_results(judgment_csv_path)
@@ -54,6 +48,3 @@ def main():
     # 実行
     execute_prediction_plots(cfg, param_name, targets)
     print("plot finished")
-
-if __name__ == "__main__":
-    main()

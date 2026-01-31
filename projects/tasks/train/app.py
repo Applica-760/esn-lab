@@ -1,20 +1,12 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
 from esn_lab.utils.fold_splitter import get_train_folds
 from esn_lab.pipeline.train.trainer import train
-from projects.utils.app_init import setup_app_environment, tenfold_data_loader, build_param_grid
+from projects.utils.app_init import tenfold_data_loader, build_param_grid
 from projects.utils.weights import save_single_weight, build_param_str, is_valid_weight_file
 
-"""
-python -m projects.apps.train_tenfold --config projects/configs/train_tenfold.yaml
-"""
 
 def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir):
     """単一のfold_idx + paramsの組み合わせに対する学習処理"""
@@ -34,13 +26,12 @@ def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, out
     return
 
 
-def main():
-    cfg, output_dir = setup_app_environment()
-
+def main(cfg):
+    
     for group in cfg.groups:
         print(f"group {group}")
         data_source = Path(cfg.data_source_base_dir) / group
-        group_output_dir = output_dir / group
+        group_output_dir = cfg.output_dir / group
 
         data_folds, label_folds, id_folds = tenfold_data_loader(data_source)    # data loader データセットをロードするための主体
         param_grid = build_param_grid(cfg)                                   # grid builder パラメタサーチのデータを定義
@@ -56,6 +47,3 @@ def main():
 
     print("train is finished")
     return
-
-if __name__ == "__main__":
-    main()

@@ -117,13 +117,15 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     im = ax.imshow(mat_masked, cmap='Blues', vmin=0.0, vmax=1.0)
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
-    ax.set_xticklabels([s.upper() for s in sources], fontsize=20)
-    ax.set_yticklabels([s.upper() for s in sources], fontsize=20)
+    # a→D^(1), b→D^(2), ..., j→D^(10)にマッピング（括弧付き上付き文字）
+    source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}$" for s in sources]
+    ax.set_xticklabels(source_labels, fontsize=20)
+    ax.set_yticklabels(source_labels, fontsize=20)
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     for i in range(n):
         for j in range(n):
             if j >= i:
-                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='gray', fontsize=15)
+                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='white', fontsize=15)
     # ax.set_title(title)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     plt.tight_layout()

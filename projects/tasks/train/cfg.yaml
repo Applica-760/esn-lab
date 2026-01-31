@@ -1,4 +1,4 @@
-output_dir: "outputs/experiments/renewd_v3"
+output_dir: "outputs/experiments/task"
 data_source_base_dir: "dataset/10fold_npy"
 groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 workers: 12

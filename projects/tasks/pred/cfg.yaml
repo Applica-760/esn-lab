@@ -1,6 +1,6 @@
 # 評価対象の訓練結果ディレクトリ (config.lock.yamlが存在する場所)
 weight_dir: "outputs/experiments/renew"
-output_dir: "outputs/experiments/pred_results"
+output_dir: "outputs/experiments/pred"
 data_source_base_dir: "dataset/10fold_npy"
 groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 workers: 10

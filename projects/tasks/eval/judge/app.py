@@ -1,12 +1,6 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 import json
 from pathlib import Path
 
-from projects.utils.app_init import setup_app_environment
 from projects.utils.weights import list_param_dirs
 from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
 
@@ -49,9 +43,7 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
     return param_judgment_results
 
 
-def main():
-    cfg, output_dir = setup_app_environment()
-
+def main(cfg):
     pred_result_dir = Path(cfg.pred_result_dir)
     sample_groups = cfg.sample_groups
     modes = cfg.mode  # リスト形式
@@ -66,11 +58,7 @@ def main():
 
         # 判定結果の計算と保存
         compute_and_save_judgments(
-            param_dirs, sample_groups, mode, pred_result_dir, output_dir
+            param_dirs, sample_groups, mode, pred_result_dir, cfg.output_dir
         )
 
     print("judgment computation finished")
-
-
-if __name__ == "__main__":
-    main()

@@ -1,15 +1,10 @@
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 import json
 from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
 
-from projects.utils.app_init import setup_app_environment, build_param_grid
+from projects.utils.app_init import build_param_grid
 from projects.utils.weights import build_param_str
 from projects.utils.eval.dist import (
     compute_confidence,
@@ -173,13 +168,13 @@ def plot_category_metrics(aggregated: dict, cat_key: str, suffix: str, color: st
         print(f"    Saved: {output_path}")
 
 
-def process_mode(mode: str, cfg, output_dir: Path, judge_dir: Path, pred_result_dir: Path, param_grid: list) -> None:
+def process_mode(mode: str, cfg, judge_dir: Path, pred_result_dir: Path, param_grid: list) -> None:
     """
     1つのmodeに対する処理
     """
     print(f"Processing mode: {mode}")
     
-    mode_output_dir = output_dir / mode
+    mode_output_dir = cfg.output_dir / mode
     mode_output_dir.mkdir(parents=True, exist_ok=True)
     
     # サンプルデータを収集（指標計算済み）
@@ -216,18 +211,13 @@ def process_mode(mode: str, cfg, output_dir: Path, judge_dir: Path, pred_result_
         plot_category_metrics(aggregated, cat_key, suffix, color, mode_output_dir, cfg)
 
 
-def main():
-    cfg, output_dir = setup_app_environment()
-    
+def main(cfg):
     judge_dir = Path(cfg.judge_dir)
     pred_result_dir = Path(cfg.pred_result_dir)
     param_grid = build_param_grid(cfg)
     
     for mode in cfg.mode:
-        process_mode(mode, cfg, output_dir, judge_dir, pred_result_dir, param_grid)
+        process_mode(mode, cfg, judge_dir, pred_result_dir, param_grid)
     
     print("plot finished")
 
-
-if __name__ == "__main__":
-    main()
