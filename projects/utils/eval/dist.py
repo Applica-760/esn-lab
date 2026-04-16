@@ -22,6 +22,49 @@ def count_all_class_ratios(predictions, labels) -> tuple:
     return ratios, true_label
 
 
+def _draw_histogram_on_ax(
+    ax,
+    values,
+    bins: int,
+    color: str,
+    xlabel: str,
+    value_range: tuple,
+    show_count: bool,
+    show_cumulative: bool,
+    label_fontsize: int = 10,
+    tick_fontsize: int = 8,
+    cumulative_linewidth: float = 2.0,
+    cumulative_markersize: float = 3.0,
+) -> None:
+    """
+    既存の ax にヒストグラムと累積カウントを描画する内部ヘルパー。
+    figure の作成・保存は呼び出し側が行う。
+    """
+    n, bins_edges, _ = ax.hist(
+        values, bins=bins, range=value_range,
+        color=color, edgecolor='black', alpha=0.7,
+        label=f'n={len(values)}' if show_count else None
+    )
+
+    ax.set_xlabel(xlabel, fontsize=label_fontsize)
+    ax.set_ylabel('Frequency', fontsize=label_fontsize)
+    ax.set_xlim(value_range)
+    ax.tick_params(labelsize=tick_fontsize)
+
+    if show_count:
+        ax.legend(loc='upper left', fontsize=tick_fontsize)
+
+    if show_cumulative:
+        ax2 = ax.twinx()
+        cumulative = np.cumsum(n)
+        bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
+        ax2.plot(bin_centers, cumulative, color='red',
+                 linewidth=cumulative_linewidth, marker='o', markersize=cumulative_markersize)
+        ax2.set_ylabel('Cumulative Count', fontsize=label_fontsize)
+        ax2.tick_params(axis='y', labelsize=tick_fontsize)
+        ax2.set_ylim(0, len(values))
+
+
 def plot_histogram(
     values: list,
     output_path: Path,
@@ -35,35 +78,11 @@ def plot_histogram(
     """
     汎用ヒストグラムプロット関数
     """
-    fig, ax1 = plt.subplots(figsize=(8, 6))
-    
-    # ヒストグラム描画
-    n, bins_edges, patches = ax1.hist(
-        values, bins=bins, range=value_range, 
-        color=color, edgecolor='black', alpha=0.7,
-        label=f'n={len(values)}' if show_count else None
+    fig, ax = plt.subplots(figsize=(8, 6))
+    _draw_histogram_on_ax(
+        ax, values, bins, color, xlabel, value_range,
+        show_count, show_cumulative
     )
-    
-    ax1.set_xlabel(xlabel)
-    ax1.set_ylabel('Frequency')
-    ax1.set_xlim(value_range)
-    
-    if show_count:
-        ax1.legend(loc='upper left')
-    
-    # 累積分布の追加
-    if show_cumulative:
-        ax2 = ax1.twinx()
-        
-        # 累積分布を計算（0-1にスケール）
-        cumulative = np.cumsum(n) / len(values)
-        bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
-        
-        ax2.plot(bin_centers, cumulative, color='red', linewidth=2, marker='o', markersize=3)
-        ax2.set_ylabel('Cumulative Distribution', color='black')
-        ax2.tick_params(axis='y', labelcolor='black')
-        ax2.set_ylim(0, 1)
-    
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()
@@ -95,28 +114,17 @@ def plot_confusion_distribution(
             ax = axes[row_i][col_j]
             ratios = data.get(true_idx, {}).get(pred_idx, [])
 
-            color = colors[col_name]
             if ratios:
-                n, bins_edges, _ = ax.hist(
-                    ratios, bins=bins, range=(0, 1),
-                    color=color, edgecolor='black', alpha=0.7
+                _draw_histogram_on_ax(
+                    ax, ratios, bins, colors[col_name],
+                    xlabel="ratio", value_range=(0, 1),
+                    show_count=False, show_cumulative=show_cumulative,
+                    label_fontsize=7, tick_fontsize=6,
+                    cumulative_linewidth=1.5, cumulative_markersize=2.0,
                 )
-                if show_cumulative:
-                    ax2 = ax.twinx()
-                    cumulative = np.cumsum(n) / len(ratios)
-                    bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
-                    ax2.plot(bin_centers, cumulative, color='red', linewidth=1.5, marker='o', markersize=2)
-                    ax2.set_ylim(0, 1)
-                    ax2.tick_params(axis='y', labelsize=6)
 
             label = f"n={len(ratios)}" if show_count else ""
             ax.set_title(f"true={row_name} / pred={col_name}\n{label}", fontsize=8)
-            ax.set_xlim(0, 1)
-            ax.tick_params(labelsize=6)
-            if row_i == N - 1:
-                ax.set_xlabel("ratio", fontsize=7)
-            if col_j == 0:
-                ax.set_ylabel("Freq", fontsize=7)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
