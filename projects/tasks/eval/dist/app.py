@@ -6,7 +6,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from projects.utils.app_init import build_param_grid
 from projects.utils.weights import build_param_str
-from projects.utils.eval.dist import count_true_pred_ratio, plot_histogram
+from projects.utils.eval.dist import count_all_class_ratios, plot_histogram, plot_confusion_distribution
 from projects.utils.eval.filter import apply_filters
 from projects.utils.eval.judgment import load_judgment_results
 
@@ -54,8 +54,8 @@ def collect_ratios_for_param(
             results_by_id = {s["id"]: s for s in fold_data["results"]}
             for item in items:
                 sample = results_by_id.get(item["id"])
-                ratio = count_true_pred_ratio(sample["predictions"], sample["labels"])
-                ratio_results.append({"ratio": ratio, "true_label": item["true_label"]})
+                ratios, _ = count_all_class_ratios(sample["predictions"], sample["labels"])
+                ratio_results.append({"true_label": item["true_label"], "ratios": ratios})
     
     return ratio_results
 
@@ -63,25 +63,32 @@ def collect_ratios_for_param(
 def one_process(params, mode, judge_dir, pred_result_dir, filters, intermediate_dir):
     param_name = build_param_str(params)
     csv_path = intermediate_dir / f"{param_name}_{mode}_ratios.csv"
-    
+
     if csv_path.exists():
         print(f"skipped: {param_name} {mode}")
         return
-    
+
     ratio_results = collect_ratios_for_param(
         param_name, mode, Path(judge_dir), Path(pred_result_dir), filters
     )
-    
+
     if not ratio_results:
         print(f"no data: {param_name} {mode}")
         return
-    
+
+    n_classes = len(ratio_results[0]["ratios"])
+    fieldnames = ["true_label"] + [f"ratio_{j}" for j in range(n_classes)]
+    rows = [
+        {"true_label": r["true_label"], **{f"ratio_{j}": r["ratios"][j] for j in range(n_classes)}}
+        for r in ratio_results
+    ]
+
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with open(csv_path, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["ratio", "true_label"])
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(ratio_results)
-    
+        writer.writerows(rows)
+
     print(f"proceed: {param_name} {mode} (n={len(ratio_results)})")
 
 
@@ -98,43 +105,65 @@ def main(cfg):
         for future in futures:
             future.result()
     
+    n_classes = len(cfg.class_order)
+
     for mode in cfg.mode:
         print(f"\nPlotting mode: {mode}")
-        all_ratio_results = []
-        
+
+        # CSV を読み込んで data[true_label][pred_class] = [ratios] に集約
+        data = defaultdict(lambda: defaultdict(list))
+        total = 0
         for params in param_grid:
             param_name = build_param_str(params)
             csv_path = intermediate_dir / f"{param_name}_{mode}_ratios.csv"
             if not csv_path.exists():
                 continue
-            
             with open(csv_path, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    all_ratio_results.append({"ratio": float(row["ratio"]), "true_label": int(row["true_label"])})
-        
-        if not all_ratio_results:
+                    true_label = int(row["true_label"])
+                    for j in range(n_classes):
+                        data[true_label][j].append(float(row[f"ratio_{j}"]))
+                    total += 1
+
+        if total == 0:
             print(f"  No data found for mode: {mode}")
             continue
-        
-        all_ratios = [r["ratio"] for r in all_ratio_results]
-        output_path = cfg.output_dir / f"dist_all_{mode}.png"
-        plot_histogram(all_ratios, output_path, cfg.bins, cfg.colors["all"],
-                      show_count=cfg.show_count, show_cumulative=cfg.show_cumulative)
-        print(f"  Saved: {output_path}")
-        
-        for i, class_name in enumerate(cfg.class_names):
-            label_index = cfg.class_order[i]
-            label_ratios = [r["ratio"] for r in all_ratio_results if r["true_label"] == label_index]
-            
-            if not label_ratios:
-                print(f"  No data for {class_name}")
-                continue
-            
-            output_path = cfg.output_dir / f"dist_{class_name}_{mode}.png"
-            plot_histogram(label_ratios, output_path, cfg.bins, cfg.colors[class_name],
-                          show_count=cfg.show_count, show_cumulative=cfg.show_cumulative)
-            print(f"  Saved: {output_path} (n={len(label_ratios)})")
-    
+
+        print(f"  Total samples: {total}")
+
+        # 個別プロット: N×N = 9枚
+        individual_dir = cfg.output_dir / mode / "individual"
+        individual_dir.mkdir(parents=True, exist_ok=True)
+        for row_i, row_name in enumerate(cfg.class_names):
+            true_idx = cfg.class_order[row_i]
+            for col_j, col_name in enumerate(cfg.class_names):
+                pred_idx = cfg.class_order[col_j]
+                ratios = data.get(true_idx, {}).get(pred_idx, [])
+                if not ratios:
+                    print(f"  No data: true={row_name} pred={col_name}")
+                    continue
+                output_path = individual_dir / f"dist_true{row_name}_pred{col_name}.png"
+                plot_histogram(
+                    ratios, output_path, cfg.bins, cfg.colors[col_name],
+                    xlabel=f"ratio (pred={col_name})",
+                    show_count=cfg.show_count, show_cumulative=cfg.show_cumulative
+                )
+                print(f"  Saved: {output_path} (n={len(ratios)})")
+
+        # 一望プロット: 3×3 を1枚
+        overview_path = cfg.output_dir / mode / f"dist_confusion_{mode}.png"
+        plot_confusion_distribution(
+            data=data,
+            class_names=cfg.class_names,
+            class_order=cfg.class_order,
+            output_path=overview_path,
+            bins=cfg.bins,
+            colors=cfg.colors,
+            show_count=cfg.show_count,
+            show_cumulative=cfg.show_cumulative,
+        )
+        print(f"  Saved overview: {overview_path}")
+
     print("plot finished")
 

@@ -2,28 +2,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-def count_true_pred_ratio(predictions, labels) -> float:
+def count_all_class_ratios(predictions, labels) -> tuple:
     """
-    judge_sample_by_majority_voteを参考に，
-    「フレームごとの予測ラベルのうち，真のラベルに該当するものが全体の時系列長の何%か」を取得して，小数点以下2桁で丸めて返す
+    各クラスへの予測フレーム割合をN個返す。
+    Returns: (ratios, true_label)
+        ratios: list[float] — クラスjと予測されたフレームの割合 (j=0..N-1)
+        true_label: int     — 多数決による真のラベル
     """
     predictions = np.array(predictions)
     labels = np.array(labels)
 
-    # フレーム単位のラベルに変換（argmax）
     pred_frames = np.argmax(predictions, axis=1)
     true_frames = np.argmax(labels, axis=1)
 
-    # 真のラベル（多数決）を取得
     true_label = int(np.argmax(np.bincount(true_frames)))
+    n_classes = predictions.shape[1]
 
-    # 真のラベルと一致するフレーム数をカウント
-    match_count = np.sum(pred_frames == true_label)
-    total_frames = len(pred_frames)
-
-    # %を算出して小数点以下2桁で丸める
-    ratio = round(match_count / total_frames, 2)
-    return ratio
+    ratios = [round(float(np.mean(pred_frames == j)), 2) for j in range(n_classes)]
+    return ratios, true_label
 
 
 def plot_histogram(
@@ -68,6 +64,60 @@ def plot_histogram(
         ax2.tick_params(axis='y', labelcolor='black')
         ax2.set_ylim(0, 1)
     
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
+
+
+def plot_confusion_distribution(
+    data: dict,
+    class_names: list,
+    class_order: list,
+    output_path: Path,
+    bins: int,
+    colors: dict,
+    show_count: bool = True,
+    show_cumulative: bool = False,
+) -> None:
+    """
+    N×N の混同分布ヒストグラムを1枚の figure に描画する。
+    行 = true_label、列 = predicted_class。
+
+    data: {true_label_idx: {pred_class_idx: [ratio, ...]}}
+    """
+    N = len(class_names)
+    fig, axes = plt.subplots(N, N, figsize=(4 * N, 3 * N))
+
+    for row_i, row_name in enumerate(class_names):
+        true_idx = class_order[row_i]
+        for col_j, col_name in enumerate(class_names):
+            pred_idx = class_order[col_j]
+            ax = axes[row_i][col_j]
+            ratios = data.get(true_idx, {}).get(pred_idx, [])
+
+            color = colors[col_name]
+            if ratios:
+                n, bins_edges, _ = ax.hist(
+                    ratios, bins=bins, range=(0, 1),
+                    color=color, edgecolor='black', alpha=0.7
+                )
+                if show_cumulative:
+                    ax2 = ax.twinx()
+                    cumulative = np.cumsum(n) / len(ratios)
+                    bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
+                    ax2.plot(bin_centers, cumulative, color='red', linewidth=1.5, marker='o', markersize=2)
+                    ax2.set_ylim(0, 1)
+                    ax2.tick_params(axis='y', labelsize=6)
+
+            label = f"n={len(ratios)}" if show_count else ""
+            ax.set_title(f"true={row_name} / pred={col_name}\n{label}", fontsize=8)
+            ax.set_xlim(0, 1)
+            ax.tick_params(labelsize=6)
+            if row_i == N - 1:
+                ax.set_xlabel("ratio", fontsize=7)
+            if col_j == 0:
+                ax.set_ylabel("Freq", fontsize=7)
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()
