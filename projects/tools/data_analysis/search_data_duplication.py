@@ -92,7 +92,7 @@ def analyze_source_directory(source_dir: Path, source_char: str) -> dict:
         "id_to_folds": id_to_folds
     }
 
-def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, title: str, denom: float):
+def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, title: str, denom: float, class_label: str | None = None):
     """Render normalized upper-triangle heatmap including diagonal.
 
     Args:
@@ -100,6 +100,7 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
         output_path: path to save png
         title: plot title
         denom: normalization denominator (e.g., 255 for overall, 85 for per-class)
+        class_label: optional subscript label (e.g., 'O', 'F', 'R') in roman font
     """
     sources = sorted(source_to_ids.keys())
     n = len(sources)
@@ -118,7 +119,11 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
     # a→D^(1), b→D^(2), ..., j→D^(10)にマッピング（括弧付き上付き文字）
-    source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}$" for s in sources]
+    # class_labelが指定されている場合は下付き文字を追加
+    if class_label:
+        source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}_{{\mathrm{{{class_label}}}}}$" for s in sources]
+    else:
+        source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}$" for s in sources]
     ax.set_xticklabels(source_labels, fontsize=20)
     ax.set_yticklabels(source_labels, fontsize=20)
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -154,6 +159,7 @@ def analyze_cross_source_duplication(all_analyses: dict, output_dir: Path):
     _render_pairwise_heatmap(source_to_ids, output_dir / "cross_sources_pairwise_overlap_counts.png", "Pairwise common ID ratio (upper triangle) - overall", denom=255.0)
 
     # Build class-wise source_to_ids
+    class_labels = {0: 'O', 1: 'F', 2: 'R'}
     for cls in [0, 1, 2]:
         source_to_ids_cls = {}
         for source_char in "abcdefghij":
@@ -169,7 +175,8 @@ def analyze_cross_source_duplication(all_analyses: dict, output_dir: Path):
             source_to_ids_cls,
             output_dir / f"cross_sources_pairwise_overlap_counts_class{cls}.png",
             f"Pairwise common ID ratio (upper triangle) - class {cls}",
-            denom=85.0
+            denom=85.0,
+            class_label=class_labels[cls]
         )
 
 

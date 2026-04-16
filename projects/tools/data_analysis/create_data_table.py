@@ -80,7 +80,7 @@ def create_frequency_table(df: pd.DataFrame) -> pd.DataFrame:
     return result_df
 
 
-def plot_frequency_chart(freq_table: pd.DataFrame, output_path: Path) -> None:
+def plot_frequency_chart(freq_table: pd.DataFrame, output_path: Path, format: str) -> None:
     """度数分布のヒストグラムと累積度数の折れ線グラフを描画
     
     Args:
@@ -118,7 +118,7 @@ def plot_frequency_chart(freq_table: pd.DataFrame, output_path: Path) -> None:
     ax1.tick_params(axis='y', labelsize=13)
     
     # 棒グラフ（度数ヒストグラム）- 合計度数
-    ax1.bar(x, total, color="#B4B4B4FF", label="Frequency")
+    ax1.bar(x, total, color="#3758A5FF", label="Frequency")
     
     ax1.set_xlabel("Data Length (px)", fontsize=15)
     ax1.set_ylabel("Frequency", fontsize=15)
@@ -127,21 +127,23 @@ def plot_frequency_chart(freq_table: pd.DataFrame, output_path: Path) -> None:
     
     # 累積度数の折れ線グラフ（第2軸、0〜1にスケール）
     ax2 = ax1.twinx()
-    ax2.plot(x, cumulative_ratio, color="#5A66B0", marker="o", linewidth=2, 
+    ax2.plot(x, cumulative_ratio, color="#D62525", marker="o", linewidth=2, 
              label="Cumulative Ratio")
     ax2.set_ylabel("Cumulative Ratio", fontsize=15)
     ax2.set_ylim(0, 1.1)
     ax2.tick_params(axis='y', labelsize=13)
     
-    # 両軸の凡例を1つにまとめて最適な位置に配置
+    # 両軸の凡例を1つにまとめてグラフ内上部中央に配置
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best', fontsize=12)
+    ax1.legend(lines1 + lines2, labels1 + labels2, 
+              loc='upper center', bbox_to_anchor=(0.5, 0.98), 
+              ncol=2, fontsize=15)
     
     plt.tight_layout()
     
     # PDF保存
-    fig.savefig(output_path, format="pdf", bbox_inches="tight")
+    fig.savefig(output_path, format=format, bbox_inches="tight")
     plt.close(fig)
     print(f"グラフを保存しました: {output_path}")
 
@@ -173,8 +175,10 @@ def main():
     print(f"CSVを保存しました: {output_csv_path}")
     
     # グラフ描画・保存
-    output_pdf_path = output_dir / "data_table.pdf"
-    plot_frequency_chart(freq_table, output_pdf_path)
+    output_pdf_path = output_dir / "data_graph.pdf"
+    plot_frequency_chart(freq_table, output_pdf_path, "pdf")
+    output_pdf_path = output_dir / "data_graph.png"
+    plot_frequency_chart(freq_table, output_pdf_path, "png")
     
     # コンソールにも表示
     print("\n=== 度数分布表 ===")
