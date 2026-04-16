@@ -124,7 +124,7 @@ def plot_confusion_distribution(
                 )
 
             label = f"n={len(ratios)}" if show_count else ""
-            ax.set_title(f"true={row_name} / pred={col_name}\n{label}", fontsize=8)
+            ax.set_title(f"true={row_name} / argmax={col_name}\n{label}", fontsize=8)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)

@@ -143,7 +143,7 @@ def main(cfg):
                 if not ratios:
                     print(f"  No data: true={row_name} pred={col_name}")
                     continue
-                output_path = individual_dir / f"dist_true{row_name}_pred{col_name}.png"
+                output_path = individual_dir / f"dist_true{row_name}_argmax{col_name}.png"
                 plot_histogram(
                     ratios, output_path, cfg.bins, cfg.colors[col_name],
                     xlabel=f"ratio (pred={col_name})",
