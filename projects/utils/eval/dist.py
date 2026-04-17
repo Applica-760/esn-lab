@@ -97,12 +97,16 @@ def plot_confusion_distribution(
     colors: dict,
     show_count: bool = True,
     show_cumulative: bool = False,
+    value_range: tuple = (0, 1),
+    xlabel: str = "ratio",
+    col_label: str = "argmax",
 ) -> None:
     """
     N×N の混同分布ヒストグラムを1枚の figure に描画する。
-    行 = true_label、列 = predicted_class。
+    行 = true_label、列 = predicted_class (またはノードインデックス)。
 
-    data: {true_label_idx: {pred_class_idx: [ratio, ...]}}
+    data: {true_label_idx: {col_idx: [values, ...]}}
+    col_label: タイトルの列ラベル (例: "argmax", "node")
     """
     N = len(class_names)
     fig, axes = plt.subplots(N, N, figsize=(4 * N, 3 * N))
@@ -112,19 +116,19 @@ def plot_confusion_distribution(
         for col_j, col_name in enumerate(class_names):
             pred_idx = class_order[col_j]
             ax = axes[row_i][col_j]
-            ratios = data.get(true_idx, {}).get(pred_idx, [])
+            values = data.get(true_idx, {}).get(pred_idx, [])
 
-            if ratios:
+            if values:
                 _draw_histogram_on_ax(
-                    ax, ratios, bins, colors[col_name],
-                    xlabel="ratio", value_range=(0, 1),
+                    ax, values, bins, colors[col_name],
+                    xlabel=xlabel, value_range=value_range,
                     show_count=False, show_cumulative=show_cumulative,
                     label_fontsize=7, tick_fontsize=6,
                     cumulative_linewidth=1.5, cumulative_markersize=2.0,
                 )
 
-            label = f"n={len(ratios)}" if show_count else ""
-            ax.set_title(f"true={row_name} / argmax={col_name}\n{label}", fontsize=8)
+            label = f"n={len(values)}" if show_count else ""
+            ax.set_title(f"true={row_name} / {col_label}={col_name}\n{label}", fontsize=8)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
@@ -153,19 +157,19 @@ def compute_margin(predictions) -> np.ndarray:
     return sorted_preds[:, -1] - sorted_preds[:, -2]
 
 
-def compute_true_class_output(predictions, labels) -> np.ndarray:
+def compute_true_class_output(predictions, labels, node_idx=None) -> np.ndarray:
     """
-    各時刻での正解クラスの出力値を計算
+    各時刻での指定ノードの出力値を計算。
+    node_idx=None の場合は真のクラス（多数決）を自動判定する。
     """
     predictions = np.array(predictions)
-    labels = np.array(labels)
-    
-    # 真のラベル（多数決で決定）
-    true_frames = np.argmax(labels, axis=1)
-    true_label = int(np.argmax(np.bincount(true_frames)))
-    
-    # 各時刻の正解クラスの出力値を取得
-    return predictions[:, true_label]
+
+    if node_idx is None:
+        labels = np.array(labels)
+        true_frames = np.argmax(labels, axis=1)
+        node_idx = int(np.argmax(np.bincount(true_frames)))
+
+    return predictions[:, node_idx]
 
 
 

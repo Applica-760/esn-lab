@@ -11,6 +11,7 @@ from projects.utils.eval.dist import (
     compute_margin,
     compute_true_class_output,
     plot_histogram,
+    plot_confusion_distribution,
 )
 from projects.utils.eval.filter import apply_filters
 from projects.utils.eval.judgment import load_judgment_results
@@ -71,10 +72,13 @@ def collect_node_values_for_param(
                 predictions = sample["predictions"]
                 labels = sample["labels"]
                 
+                preds_arr = np.array(predictions)
+                n_nodes = preds_arr.shape[1]
                 sample_data.append({
                     "confidence": compute_confidence(predictions),
                     "margin": compute_margin(predictions),
                     "true_class_output": compute_true_class_output(predictions, labels),
+                    "node_outputs": {j: preds_arr[:, j] for j in range(n_nodes)},
                     "true_label": item["true_label"],
                     "is_correct": item["is_correct"]
                 })
@@ -82,9 +86,12 @@ def collect_node_values_for_param(
     return sample_data
 
 
-def aggregate_metrics_by_category(sample_data: list, class_order: list) -> dict:
+def aggregate_metrics_by_category(sample_data: list, class_order: list) -> tuple:
     """
-    サンプルデータを1回のループでカテゴリ別に集約
+    サンプルデータを1回のループでカテゴリ別に集約。
+    Returns:
+        result: カテゴリ別指標 {cat_key: {metric: np.ndarray}}
+        node_data: 2D集約 {true_label: {node_idx: [values]}}
     """
     categories = {
         "all": {"confidence": [], "margin": [], "true_class_output": []},
@@ -93,27 +100,32 @@ def aggregate_metrics_by_category(sample_data: list, class_order: list) -> dict:
     }
     for label_idx in class_order:
         categories[f"label_{label_idx}"] = {"confidence": [], "margin": [], "true_class_output": []}
-    
+
+    node_data = defaultdict(lambda: defaultdict(list))
+
     for sample in sample_data:
         conf = sample["confidence"]
         marg = sample["margin"]
         tco = sample["true_class_output"]
         true_label = sample["true_label"]
         is_correct = sample["is_correct"]
-        
+
         categories["all"]["confidence"].append(conf)
         categories["all"]["margin"].append(marg)
         categories["all"]["true_class_output"].append(tco)
-        
+
         key = "correct" if is_correct else "incorrect"
         categories[key]["confidence"].append(conf)
         categories[key]["margin"].append(marg)
         categories[key]["true_class_output"].append(tco)
-        
+
         categories[f"label_{true_label}"]["confidence"].append(conf)
         categories[f"label_{true_label}"]["margin"].append(marg)
         categories[f"label_{true_label}"]["true_class_output"].append(tco)
-    
+
+        for node_idx, values in sample["node_outputs"].items():
+            node_data[true_label][node_idx].extend(values.tolist())
+
     result = {}
     for cat_name, metrics in categories.items():
         if metrics["confidence"]:
@@ -124,8 +136,8 @@ def aggregate_metrics_by_category(sample_data: list, class_order: list) -> dict:
             }
         else:
             result[cat_name] = None
-    
-    return result
+
+    return result, node_data
 
 
 def plot_category_metrics(aggregated: dict, cat_key: str, suffix: str, color: str, output_dir: Path, cfg) -> None:
@@ -194,9 +206,9 @@ def process_mode(mode: str, cfg, judge_dir: Path, pred_result_dir: Path, param_g
     
     # 1回の集約で全カテゴリを分類
     print("  Aggregating metrics by category...")
-    aggregated = aggregate_metrics_by_category(all_sample_data, cfg.class_order)
+    aggregated, node_data = aggregate_metrics_by_category(all_sample_data, cfg.class_order)
     del all_sample_data
-    
+
     # プロット対象の定義: (cat_key, suffix, color)
     plot_targets = [
         ("all", "all", cfg.colors["all"]),
@@ -205,10 +217,30 @@ def process_mode(mode: str, cfg, judge_dir: Path, pred_result_dir: Path, param_g
     ]
     for i, class_name in enumerate(cfg.class_names):
         plot_targets.append((f"label_{cfg.class_order[i]}", class_name, cfg.colors[class_name]))
-    
+
     # 統一ループでプロット
     for cat_key, suffix, color in plot_targets:
         plot_category_metrics(aggregated, cat_key, suffix, color, mode_output_dir, cfg)
+
+    # 3×3 ノード出力分布の一望プロット
+    node_output_cfg = cfg.metrics.get("node_output", {})
+    if node_output_cfg.get("enabled", False):
+        value_range = tuple(node_output_cfg["range"]) if node_output_cfg.get("range") else (0, 1)
+        overview_path = mode_output_dir / f"node_output_confusion_{mode}.png"
+        plot_confusion_distribution(
+            data=node_data,
+            class_names=cfg.class_names,
+            class_order=cfg.class_order,
+            output_path=overview_path,
+            bins=cfg.bins,
+            colors=cfg.colors,
+            show_count=getattr(cfg, "show_count", True),
+            show_cumulative=getattr(cfg, "show_cumulative", False),
+            value_range=value_range,
+            xlabel=node_output_cfg.get("xlabel", "Node Output Value"),
+            col_label="node",
+        )
+        print(f"  Saved overview: {overview_path}")
 
 
 def main(cfg):

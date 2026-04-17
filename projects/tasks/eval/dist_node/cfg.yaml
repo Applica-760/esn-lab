@@ -23,6 +23,8 @@ filters:  # フィルタ条件
 
 # ヒストグラム設定
 bins: 50
+show_count: true    # データ数をタイトルに表示
+show_cumulative: true  # 累積分布を第2軸に表示
 
 # プロットする指標の設定
 # range: [min, max] で横軸の範囲を固定。null の場合は自動調整
@@ -39,6 +41,10 @@ metrics:
     enabled: true
     xlabel: "True Class Output Value"
     range: [-0.2, 1]  # 正解クラス出力値の範囲
+  node_output:
+    enabled: true
+    xlabel: "Node Output Value"
+    range: [-0.2, 1]  # 各ノード出力値の範囲（3×3 一望プロット用）
 
 # グラフの色設定 (カラーコード)
 colors:
