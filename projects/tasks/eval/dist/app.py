@@ -35,7 +35,7 @@ def collect_ratios_for_param(
     
     grouped = defaultdict(lambda: defaultdict(list))
     for r in filtered_results:
-        grouped[r["group"]][r["fold_index"]].append({"id": r["id"], "true_label": r["true_label"]})
+        grouped[r["group"]][r["fold_index"]].append({"id": r["id"], "true_label": r["true_label"], "pred_label": r["pred_label"]})
     
     ratio_results = []
     for group, folds in grouped.items():
@@ -55,7 +55,7 @@ def collect_ratios_for_param(
             for item in items:
                 sample = results_by_id.get(item["id"])
                 ratios, _ = count_all_class_ratios(sample["predictions"], sample["labels"])
-                ratio_results.append({"true_label": item["true_label"], "ratios": ratios})
+                ratio_results.append({"true_label": item["true_label"], "pred_label": item["pred_label"], "ratios": ratios})
     
     return ratio_results
 
@@ -77,9 +77,9 @@ def one_process(params, mode, judge_dir, pred_result_dir, filters, intermediate_
         return
 
     n_classes = len(ratio_results[0]["ratios"])
-    fieldnames = ["true_label"] + [f"ratio_{j}" for j in range(n_classes)]
+    fieldnames = ["true_label", "pred_label"] + [f"ratio_{j}" for j in range(n_classes)]
     rows = [
-        {"true_label": r["true_label"], **{f"ratio_{j}": r["ratios"][j] for j in range(n_classes)}}
+        {"true_label": r["true_label"], "pred_label": r["pred_label"], **{f"ratio_{j}": r["ratios"][j] for j in range(n_classes)}}
         for r in ratio_results
     ]
 
@@ -112,6 +112,7 @@ def main(cfg):
 
         # CSV を読み込んで data[true_label][pred_class] = [ratios] に集約
         data = defaultdict(lambda: defaultdict(list))
+        data_split = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         total = 0
         for params in param_grid:
             param_name = build_param_str(params)
@@ -122,8 +123,11 @@ def main(cfg):
                 reader = csv.DictReader(f)
                 for row in reader:
                     true_label = int(row["true_label"])
+                    pred_label = int(row["pred_label"])
                     for j in range(n_classes):
-                        data[true_label][j].append(float(row[f"ratio_{j}"]))
+                        v = float(row[f"ratio_{j}"])
+                        data[true_label][j].append(v)
+                        data_split[true_label][pred_label][j].append(v)
                     total += 1
 
         if total == 0:
@@ -164,6 +168,26 @@ def main(cfg):
             show_cumulative=cfg.show_cumulative,
         )
         print(f"  Saved overview: {overview_path}")
+
+        # true_label ごとの分割プロット: true_label × 3×3 = 3枚
+        split_dir = cfg.output_dir / mode / "split"
+        split_dir.mkdir(parents=True, exist_ok=True)
+        for i, true_name in enumerate(cfg.class_names):
+            true_idx = cfg.class_order[i]
+            split_path = split_dir / f"dist_split_true{true_name}_{mode}.png"
+            plot_confusion_distribution(
+                data=data_split[true_idx],
+                class_names=cfg.class_names,
+                class_order=cfg.class_order,
+                output_path=split_path,
+                bins=cfg.bins,
+                colors=cfg.colors,
+                show_count=cfg.show_count,
+                show_cumulative=cfg.show_cumulative,
+                row_label="pred",
+                suptitle=f"true = {true_name}",
+            )
+            print(f"  Saved split: {split_path}")
 
     print("plot finished")
 

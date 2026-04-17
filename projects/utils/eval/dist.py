@@ -100,23 +100,29 @@ def plot_confusion_distribution(
     value_range: tuple = (0, 1),
     xlabel: str = "ratio",
     col_label: str = "argmax",
+    row_label: str = "true",
+    suptitle: str = None,
 ) -> None:
     """
     N×N の混同分布ヒストグラムを1枚の figure に描画する。
-    行 = true_label、列 = predicted_class (またはノードインデックス)。
 
-    data: {true_label_idx: {col_idx: [values, ...]}}
-    col_label: タイトルの列ラベル (例: "argmax", "node")
+    data: {row_idx: {col_idx: [values, ...]}}
+    row_label: 行ラベルの prefix (例: "true", "pred")
+    col_label: 列ラベルの prefix (例: "argmax", "node")
+    suptitle: figure 全体のタイトル（省略時はなし）
     """
     N = len(class_names)
     fig, axes = plt.subplots(N, N, figsize=(4 * N, 3 * N))
 
+    if suptitle:
+        fig.suptitle(suptitle, fontsize=13, y=1.01)
+
     for row_i, row_name in enumerate(class_names):
-        true_idx = class_order[row_i]
+        row_idx = class_order[row_i]
         for col_j, col_name in enumerate(class_names):
-            pred_idx = class_order[col_j]
+            col_idx = class_order[col_j]
             ax = axes[row_i][col_j]
-            values = data.get(true_idx, {}).get(pred_idx, [])
+            values = data.get(row_idx, {}).get(col_idx, [])
 
             if values:
                 _draw_histogram_on_ax(
@@ -128,7 +134,7 @@ def plot_confusion_distribution(
                 )
 
             label = f"n={len(values)}" if show_count else ""
-            ax.set_title(f"true={row_name} / {col_label}={col_name}\n{label}", fontsize=8)
+            ax.set_title(f"{row_label}={row_name} / {col_label}={col_name}\n{label}", fontsize=8)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
@@ -170,7 +176,3 @@ def compute_true_class_output(predictions, labels, node_idx=None) -> np.ndarray:
         node_idx = int(np.argmax(np.bincount(true_frames)))
 
     return predictions[:, node_idx]
-
-
-
-
