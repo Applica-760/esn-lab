@@ -21,9 +21,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-import japanize_matplotlib  # 日本語フォント対応
-
-# 日本語フォントの設定
 matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 plt.rcParams['font.size'] = 10
 

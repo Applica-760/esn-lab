@@ -1,8 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "esn-lab"
 version = "0.2.0"
-description = "A Python package for Echo State Network experiments." 
-readme = "./docs/readme-en.md" 
+description = "A Python package for Echo State Network experiments."
+readme = "./docs/readme-en.md"
+requires-python = ">=3.10"
 
 license = { text = "MIT License" }
 
@@ -40,6 +45,10 @@ test = [
 "Repository" = "https://github.com/Applica-760/esn-lab"
 "Bug Tracker" = "https://github.com/Applica-760/esn-lab/issues"
 
+
+[dependency-groups]
+research = [
+]
 
 [tool.setuptools.packages.find]
 where = ["src"] 

@@ -22,7 +22,6 @@ import readline
 from pathlib import Path
 from typing import Optional
 
-from simple_term_menu import TerminalMenu
 
 from projects.utils.eval.judgment import load_judgment_results
 from projects.utils.weights import list_param_dirs
@@ -88,64 +87,63 @@ def reset_completer():
 
 def menu_select_one(title: str, options: list, default: int = 0) -> int:
     """
-    単一選択メニュー（上下キーで選択）
-    
+    単一選択メニュー
+
+    入力方法: 番号を入力してEnter（例: 2）。Enterのみでデフォルト選択。
+
     Args:
         title: メニュータイトル
         options: 選択肢のリスト
-        default: デフォルト選択のインデックス
-    
+        default: デフォルト選択のインデックス（0始まり）
+
     Returns:
         選択されたインデックス
     """
     print(f"\n{title}")
-    menu = TerminalMenu(
-        options,
-        cursor_index=default,
-        menu_cursor_style=("fg_cyan", "bold"),
-        menu_highlight_style=("bg_cyan", "fg_black"),
-    )
-    idx = menu.show()
-    
-    # Ctrl+Cなどでキャンセルされた場合はデフォルトを返す
-    if idx is None:
-        return default
-    return idx
+    for i, opt in enumerate(options):
+        marker = " *" if i == default else ""
+        print(f"  {i + 1}. {opt}{marker}")
+    while True:
+        raw = input(f"番号を入力 [{default + 1}]: ").strip()
+        if raw == "":
+            return default
+        try:
+            idx = int(raw) - 1
+            if 0 <= idx < len(options):
+                return idx
+        except ValueError:
+            pass
+        print(f"  1〜{len(options)} の番号を入力してください")
 
 
 def menu_select_multiple(title: str, options: list) -> list:
     """
-    複数選択メニュー（スペースで選択、Enterで確定）
-    
+    複数選択メニュー
+
+    入力方法: 番号をスペース区切りで入力してEnter（例: 1 3）。Enterのみで全選択。
+
     Args:
         title: メニュータイトル
         options: 選択肢のリスト
-    
+
     Returns:
         選択されたインデックスのリスト
     """
     print(f"\n{title}")
-    print("  (スペースで選択/解除、Enterで確定)")
-    
-    menu = TerminalMenu(
-        options,
-        multi_select=True,
-        show_multi_select_hint=True,
-        menu_cursor_style=("fg_cyan", "bold"),
-        menu_highlight_style=("bg_cyan", "fg_black"),
-        multi_select_cursor_style=("fg_green", "bold"),
-        multi_select_select_on_accept=False,
-    )
-    selected = menu.show()
-    
-    if selected is None:
-        return []
-    
-    # 単一選択の場合はタプルではなくintが返る
-    if isinstance(selected, int):
-        return [selected]
-    
-    return list(selected)
+    for i, opt in enumerate(options):
+        print(f"  {i + 1}. {opt}")
+    print("  (番号をスペース区切りで入力、Enterで全選択)")
+    while True:
+        raw = input("番号を入力: ").strip()
+        if raw == "":
+            return list(range(len(options)))
+        try:
+            indices = [int(s) - 1 for s in raw.split()]
+            if all(0 <= i < len(options) for i in indices) and indices:
+                return indices
+        except ValueError:
+            pass
+        print(f"  1〜{len(options)} の番号をスペース区切りで入力してください")
 
 
 def prompt_int(prompt: str, default: int) -> int:

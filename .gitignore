@@ -9,6 +9,7 @@
 # development memos (now in docs/)
 docs/commands.md
 docs/memo.md
+.claude/
 
 # mac
 .DS_Store
