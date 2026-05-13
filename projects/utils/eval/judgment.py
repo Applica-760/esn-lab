@@ -20,8 +20,25 @@ def judge_sample_by_majority_vote(predictions, labels) -> dict:
     }
 
 
+def judge_sample_by_mean_score(predictions, labels) -> dict:
+    predictions = np.array(predictions)
+    labels = np.array(labels)
+
+    pred_label = int(np.argmax(np.mean(predictions, axis=0)))
+
+    true_frames = np.argmax(labels, axis=1)
+    true_label = int(np.argmax(np.bincount(true_frames)))
+
+    return {
+        "pred_label": pred_label,
+        "true_label": true_label,
+        "is_correct": pred_label == true_label,
+    }
+
+
 JUDGE_STRATEGIES = {
     "majority_vote": judge_sample_by_majority_vote,
+    "mean_score": judge_sample_by_mean_score,
 }
 
 
