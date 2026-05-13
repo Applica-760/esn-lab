@@ -3,8 +3,10 @@ import numpy as np
 
 # リッジ回帰（beta=0のときは線形回帰）
 class Tikhonov:
-    def __init__(self, N_x, N_y, beta):
+    def __init__(self, N_x, N_y, beta=0.0, auto=False, scale=1e-4):
         self.beta = beta
+        self.auto = auto
+        self.scale = scale
         self.X_XT = np.zeros((N_x, N_x))
         self.D_XT = np.zeros((N_y, N_x))
         self.N_x = N_x
@@ -18,8 +20,12 @@ class Tikhonov:
 
     # Woutの最適解（近似解）の導出
     def get_Wout_opt(self):
+        if self.auto:
+            beta = self.scale * np.linalg.eigvalsh(self.X_XT).max()
+        else:
+            beta = self.beta
 
-        A = self.X_XT + self.beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
+        A = self.X_XT + beta * np.identity(self.N_x, dtype=self.X_XT.dtype)
         B = self.D_XT.T
 
         try:
@@ -28,7 +34,7 @@ class Tikhonov:
 
         except np.linalg.LinAlgError:
             # 特異行列などで解けなかった場合のフォールバック
-            X_pseudo_inv = np.linalg.pinv(self.X_XT + self.beta * np.identity(self.N_x))
+            X_pseudo_inv = np.linalg.pinv(self.X_XT + beta * np.identity(self.N_x))
             Wout_opt = np.dot(self.D_XT, X_pseudo_inv)
 
         return Wout_opt

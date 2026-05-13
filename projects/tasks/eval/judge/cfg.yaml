@@ -7,3 +7,6 @@ sample_groups: [a, b, c, d, e, f, g, h, i, j]
 mode:
   - test
   - train
+
+# 判別戦略 (majority_vote)
+judge_strategy: majority_vote

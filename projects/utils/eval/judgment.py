@@ -4,17 +4,12 @@ from pathlib import Path
 
 
 def judge_sample_by_majority_vote(predictions, labels) -> dict:
-    """
-    多数決によるサンプル判定
-    """
     predictions = np.array(predictions)
     labels = np.array(labels)
 
-    # フレーム単位のラベルに変換（argmax）
     pred_frames = np.argmax(predictions, axis=1)
     true_frames = np.argmax(labels, axis=1)
 
-    # 多数決で最終ラベルを決定
     pred_label = int(np.argmax(np.bincount(pred_frames)))
     true_label = int(np.argmax(np.bincount(true_frames)))
 
@@ -25,17 +20,23 @@ def judge_sample_by_majority_vote(predictions, labels) -> dict:
     }
 
 
-def compute_judgment_results(pred_results: list, group: str = None) -> list:
+JUDGE_STRATEGIES = {
+    "majority_vote": judge_sample_by_majority_vote,
+}
+
+
+def compute_judgment_results(pred_results: list, strategy: str, group: str = None) -> list:
     """
     予測結果から全サンプルの判定結果を計算
     """
+    judge_fn = JUDGE_STRATEGIES[strategy]
     judgment_results = []
 
     for fold_data in pred_results:
         fold_index = fold_data["fold_index"]
 
         for sample in fold_data["results"]:
-            judgment = judge_sample_by_majority_vote(sample["predictions"], sample["labels"])
+            judgment = judge_fn(sample["predictions"], sample["labels"])
 
             judgment_results.append({
                 "group": group,

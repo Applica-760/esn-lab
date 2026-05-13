@@ -13,7 +13,7 @@ python -m projects.apps.eval_judgement --config projects/configs/eval_judgement.
 """
 
 
-def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir, output_dir):
+def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir, output_dir, strategy):
     """
     判定結果の計算と保存
     """
@@ -21,7 +21,7 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
 
     for param_dir in param_dirs:
         param_name = param_dir.name
-        
+
         # すべてのgroupを処理
         for group in sample_groups:
             json_path = pred_result_dir / group / param_name / f"{mode}_results.json"
@@ -31,7 +31,7 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
 
             with open(json_path, 'r') as f:
                 pred_results = json.load(f)
-            judgment_results = compute_judgment_results(pred_results, group=group)
+            judgment_results = compute_judgment_results(pred_results, strategy, group=group)
             param_judgment_results[param_name].extend(judgment_results)
         
         # このparam_dirのすべてのgroupを処理し終えたので保存
@@ -58,7 +58,8 @@ def main(cfg):
 
         # 判定結果の計算と保存
         compute_and_save_judgments(
-            param_dirs, sample_groups, mode, pred_result_dir, cfg.output_dir
+            param_dirs, sample_groups, mode, pred_result_dir, cfg.output_dir,
+            strategy=cfg.judge_strategy,
         )
 
     print("judgment computation finished")
