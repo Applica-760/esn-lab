@@ -8,8 +8,8 @@ from esn_lab.utils.activate_func import identity
 # 入力層
 class Input:
     def __init__(self, N_u, N_x, input_scale, seed=0):
-        np.random.seed(seed=seed)
-        self.Win = np.random.uniform(-input_scale, input_scale, (N_x, N_u))
+        rng = np.random.default_rng(seed)
+        self.Win = rng.uniform(-input_scale, input_scale, (N_x, N_u))
 
     def __call__(self, u):
         return np.dot(self.Win, u)
@@ -32,8 +32,8 @@ class Reservoir:
         W = np.array(connection)
 
         rec_scale = 1.0
-        np.random.seed(seed=self.seed)
-        W *= np.random.uniform(-rec_scale, rec_scale, (N_x, N_x))
+        rng = np.random.default_rng(self.seed)
+        W *= rng.uniform(-rec_scale, rec_scale, (N_x, N_x))
 
         eigv_list = np.linalg.eig(W)[0]
         sp_radius = np.max(np.abs(eigv_list))
@@ -55,8 +55,8 @@ class Reservoir:
 # 出力層
 class Output:
     def __init__(self, N_x, N_y, seed=0):
-        np.random.seed(seed=seed)
-        self.Wout = np.random.normal(size=(N_y, N_x))
+        rng = np.random.default_rng(seed)
+        self.Wout = rng.standard_normal(size=(N_y, N_x))
 
     def __call__(self, x):
         return np.dot(self.Wout, x)

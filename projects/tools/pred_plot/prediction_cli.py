@@ -16,7 +16,6 @@ Prediction Plot 用の対話型CLI
 このモジュールはCUI（ユーザーインタラクション）のみを担当する。
 """
 
-import os
 import glob
 import readline
 from pathlib import Path
@@ -52,17 +51,17 @@ def setup_path_completer():
     def path_completer(text, state):
         # ~を展開
         if text.startswith("~"):
-            text = os.path.expanduser(text)
-        
+            text = str(Path(text).expanduser())
+
         # globパターンでマッチするパスを取得
         if text:
             pattern = text + "*"
         else:
             pattern = "*"
-        
+
         matches = glob.glob(pattern)
         # ディレクトリには/を付ける
-        matches = [m + "/" if os.path.isdir(m) else m for m in matches]
+        matches = [m + "/" if Path(m).is_dir() else m for m in matches]
         
         try:
             return matches[state]
@@ -181,7 +180,7 @@ def prompt_path(prompt: str, default: Path) -> Path:
         
         if user_input == "":
             return default
-        return Path(os.path.expanduser(user_input))
+        return Path(user_input).expanduser()
     finally:
         reset_completer()
 

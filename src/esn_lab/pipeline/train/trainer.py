@@ -1,6 +1,4 @@
 # pipeline/trainer
-import numpy as np
-
 from esn_lab.model.esn import ESN
 
 def train(model: ESN, optimizer, U_list, D_list):
@@ -23,7 +21,7 @@ def train(model: ESN, optimizer, U_list, D_list):
             if n > 0:  
                 optimizer(d, x)     # 1データあたりの学習結果が逐次optimizerに記憶されていく
 
-        model.Reservoir.x = np.zeros(model.N_x)     # リザバー状態のリセット
+        model.Reservoir.reset_reservoir_state()
 
     output_weight = optimizer.get_Wout_opt()
 
