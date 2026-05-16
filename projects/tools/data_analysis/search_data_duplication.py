@@ -9,21 +9,22 @@ python -m projects.tools.data_analysis.search_data_duplication \
     --input /home/takumi/share/esn-lab/dataset/10fold_npy \
     --output /home/takumi/share/esn-lab/outputs/analysis/duplication_analysis
 """
+
 import argparse
-import numpy as np
-from pathlib import Path
-from collections import Counter, defaultdict
 import datetime
+from collections import Counter, defaultdict
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-from matplotlib.table import Table
+import numpy as np
 
 
 def load_sample_ids_from_npz(npz_path: Path) -> list[dict]:
     """npzファイルから全サンプルIDとクラスを取得
-    
+
     Args:
         npz_path: npzファイルのパス
-        
+
     Returns:
         サンプル情報のリスト [{"id": str, "class": int}, ...]
     """
@@ -34,25 +35,22 @@ def load_sample_ids_from_npz(npz_path: Path) -> list[dict]:
         # ラベルはone-hot形式 (時系列長, 3) なので、最初の行からクラスを特定
         label = data[f"{i}_label"]
         class_idx = int(np.argmax(label[0]))
-        samples.append({
-            "id": str(data[f"{i}_id"]),
-            "class": class_idx
-        })
+        samples.append({"id": str(data[f"{i}_id"]), "class": class_idx})
     return samples
 
 
 def analyze_source_directory(source_dir: Path, source_char: str) -> dict:
     """1つのsourceディレクトリ内の10foldsを分析
-    
+
     Args:
         source_dir: 分析対象のディレクトリパス
         source_char: sourceディレクトリの文字 (a~j)
-        
+
     Returns:
         分析結果の辞書
     """
     fold_data = {}  # fold_name → [samples...]
-    
+
     # 各foldのデータを読み込み
     for fold_char in "abcdefghij":
         npz_path = source_dir / f"fold_{fold_char}.npz"
@@ -60,39 +58,44 @@ def analyze_source_directory(source_dir: Path, source_char: str) -> dict:
             fold_data[fold_char] = load_sample_ids_from_npz(npz_path)
         else:
             print(f"  警告: {npz_path} が見つかりません")
-    
+
     # サンプルIDの出現頻度を計算
     id_to_folds = defaultdict(list)  # sample_id → [fold_chars...]
     all_ids = []
-    
+
     for fold_char, samples in fold_data.items():
         for sample in samples:
             sample_id = sample["id"]
             id_to_folds[sample_id].append(fold_char)
             all_ids.append(sample_id)
-    
+
     # 重複度の統計
     total_samples = len(all_ids)
     unique_ids = len(id_to_folds)
     duplication_counts = Counter([len(folds) for folds in id_to_folds.values()])
-    
+
     # 重複しているサンプルを抽出
     duplicated_ids = {
-        sample_id: folds 
-        for sample_id, folds in id_to_folds.items() 
-        if len(folds) > 1
+        sample_id: folds for sample_id, folds in id_to_folds.items() if len(folds) > 1
     }
-    
+
     return {
         "fold_data": fold_data,
         "total_samples": total_samples,
         "unique_ids": unique_ids,
         "duplication_counts": duplication_counts,
         "duplicated_ids": duplicated_ids,
-        "id_to_folds": id_to_folds
+        "id_to_folds": id_to_folds,
     }
 
-def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, title: str, denom: float, class_label: str | None = None):
+
+def _render_pairwise_heatmap(
+    source_to_ids: dict[str, set],
+    output_path: Path,
+    title: str,
+    denom: float,
+    class_label: str | None = None,
+):
     """Render normalized upper-triangle heatmap including diagonal.
 
     Args:
@@ -114,14 +117,16 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     mat = mat / float(denom)
     mask = np.tril(np.ones_like(mat, dtype=bool), k=-1)
     mat_masked = np.ma.array(mat, mask=mask)
-    fig, ax = plt.subplots(figsize=(1.2*n, 1.0*n))
-    im = ax.imshow(mat_masked, cmap='Blues', vmin=0.0, vmax=1.0)
+    fig, ax = plt.subplots(figsize=(1.2 * n, 1.0 * n))
+    im = ax.imshow(mat_masked, cmap="Blues", vmin=0.0, vmax=1.0)
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
     # a→D^(1), b→D^(2), ..., j→D^(10)にマッピング（括弧付き上付き文字）
     # class_labelが指定されている場合は下付き文字を追加
     if class_label:
-        source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}_{{\mathrm{{{class_label}}}}}$" for s in sources]
+        source_labels = [
+            rf"$D^{{({ord(s) - ord('a') + 1})}}_{{\mathrm{{{class_label}}}}}$" for s in sources
+        ]
     else:
         source_labels = [f"$D^{{({ord(s) - ord('a') + 1})}}$" for s in sources]
     ax.set_xticklabels(source_labels, fontsize=20)
@@ -130,53 +135,60 @@ def _render_pairwise_heatmap(source_to_ids: dict[str, set], output_path: Path, t
     for i in range(n):
         for j in range(n):
             if j >= i:
-                ax.text(j, i, f"{mat[i, j]:.2f}", ha='center', va='center', color='white', fontsize=15)
+                ax.text(
+                    j, i, f"{mat[i, j]:.2f}", ha="center", va="center", color="white", fontsize=15
+                )
     # ax.set_title(title)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     plt.tight_layout()
     plt.savefig(output_path, dpi=200)
-    pdf_path = output_path.with_suffix('.pdf')
+    pdf_path = output_path.with_suffix(".pdf")
     plt.savefig(pdf_path)
     plt.close(fig)
 
 
 def analyze_cross_source_duplication(all_analyses: dict, output_dir: Path):
     """Cross-source pairwise overlap heatmaps: overall and per class (0,1,2)."""
-    
+
     # 各sourceから全サンプルIDを収集
     source_to_ids = {}
     for source_char in "abcdefghij":
         if source_char in all_analyses:
             analysis = all_analyses[source_char]
             all_ids = set()
-            for samples in analysis['fold_data'].values():
+            for samples in analysis["fold_data"].values():
                 for sample in samples:
-                    all_ids.add(sample['id'])
+                    all_ids.add(sample["id"])
             source_to_ids[source_char] = all_ids
-    
+
     # Build overall source_to_ids (all labels)
-    
-    _render_pairwise_heatmap(source_to_ids, output_dir / "cross_sources_pairwise_overlap_counts.png", "Pairwise common ID ratio (upper triangle) - overall", denom=255.0)
+
+    _render_pairwise_heatmap(
+        source_to_ids,
+        output_dir / "cross_sources_pairwise_overlap_counts.png",
+        "Pairwise common ID ratio (upper triangle) - overall",
+        denom=255.0,
+    )
 
     # Build class-wise source_to_ids
-    class_labels = {0: 'O', 1: 'F', 2: 'R'}
+    class_labels = {0: "O", 1: "F", 2: "R"}
     for cls in [0, 1, 2]:
         source_to_ids_cls = {}
         for source_char in "abcdefghij":
             if source_char in all_analyses:
                 analysis = all_analyses[source_char]
                 ids = set()
-                for samples in analysis['fold_data'].values():
+                for samples in analysis["fold_data"].values():
                     for sample in samples:
-                        if sample['class'] == cls:
-                            ids.add(sample['id'])
+                        if sample["class"] == cls:
+                            ids.add(sample["id"])
                 source_to_ids_cls[source_char] = ids
         _render_pairwise_heatmap(
             source_to_ids_cls,
             output_dir / f"cross_sources_pairwise_overlap_counts_class{cls}.png",
             f"Pairwise common ID ratio (upper triangle) - class {cls}",
             denom=85.0,
-            class_label=class_labels[cls]
+            class_label=class_labels[cls],
         )
 
 
@@ -188,36 +200,26 @@ def main():
     parser = argparse.ArgumentParser(
         description="dataset/10fold_npy内のデータ重複度を分析するスクリプト"
     )
-    parser.add_argument(
-        "-i", "--input",
-        type=str,
-        required=True,
-        help="入力ディレクトリのパス"
-    )
-    parser.add_argument(
-        "-o", "--output",
-        type=str,
-        required=True,
-        help="出力ディレクトリのパス"
-    )
+    parser.add_argument("-i", "--input", type=str, required=True, help="入力ディレクトリのパス")
+    parser.add_argument("-o", "--output", type=str, required=True, help="出力ディレクトリのパス")
     args = parser.parse_args()
-    
+
     base_dir = Path(args.input)
     outputs_dir = Path(args.output)
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     output_dir = outputs_dir / timestamp
-    
+
     if not base_dir.exists():
         print(f"エラー: {base_dir} が見つかりません")
         return
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("="*80)
+
+    print("=" * 80)
     print("Cross-source pairwise overlap (upper triangle) -> outputs")
-    print("="*80)
-    
+    print("=" * 80)
+
     all_analyses = {}
-    
+
     # 各sourceディレクトリを分析
     for source_char in "abcdefghij":
         source_dir = base_dir / source_char
@@ -227,19 +229,18 @@ def main():
             all_analyses[source_char] = analysis
         else:
             print(f"\n警告: {source_dir} が見つかりません")
-    
+
     # 全体サマリー
     # Skip per-source and overall summary; only cross-source outputs
-    
+
     # Source間の重複分析
     analyze_cross_source_duplication(all_analyses, output_dir)
-    
-    print("\n" + "="*80)
+
+    print("\n" + "=" * 80)
     print("分析完了: 出力先")
     print(str(output_dir))
-    print("="*80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":
     main()
-

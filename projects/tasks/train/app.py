@@ -1,14 +1,21 @@
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
 from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
-from esn_lab.utils.fold_splitter import get_train_folds
 from esn_lab.pipeline.train.trainer import train
-from projects.utils.app_init import tenfold_data_loader, build_param_grid
-from projects.utils.weights import save_single_weight, build_param_str, is_valid_weight_file
+from esn_lab.utils.fold_splitter import get_train_folds
+from projects.utils.app_init import build_param_grid, tenfold_data_loader
+from projects.utils.weights import (
+    build_param_str,
+    is_valid_weight_file,
+    save_single_weight,
+)
 
 
-def one_process(params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir, beta_auto=False):
+def one_process(
+    params, fold_idx, data_folds, label_folds, id_folds, Nu, Ny, output_dir, beta_auto=False
+):
     """単一のfold_idx + paramsの組み合わせに対する学習処理"""
     # スキップ判定: 既に有効な重みファイルが存在する場合はスキップ
     param_str = build_param_str(params)
@@ -33,13 +40,28 @@ def main(cfg):
         data_source = Path(cfg.data_source_base_dir) / group
         group_output_dir = cfg.output_dir / group
 
-        data_folds, label_folds, id_folds = tenfold_data_loader(data_source)    # data loader データセットをロードするための主体
-        param_grid = build_param_grid(cfg)                                   # grid builder パラメタサーチのデータを定義
-        jobs = [(params, i) for params in param_grid for i in range(10)]    # param_grid × range(10) をフラットに展開
+        data_folds, label_folds, id_folds = tenfold_data_loader(
+            data_source
+        )  # data loader データセットをロードするための主体
+        param_grid = build_param_grid(cfg)  # grid builder パラメタサーチのデータを定義
+        jobs = [
+            (params, i) for params in param_grid for i in range(10)
+        ]  # param_grid × range(10) をフラットに展開
 
         with ProcessPoolExecutor(max_workers=cfg.workers) as executor:
             futures = [
-                executor.submit(one_process, params, i, data_folds, label_folds, id_folds, cfg.Nu, cfg.Ny, group_output_dir, getattr(cfg, 'beta_auto', False))
+                executor.submit(
+                    one_process,
+                    params,
+                    i,
+                    data_folds,
+                    label_folds,
+                    id_folds,
+                    cfg.Nu,
+                    cfg.Ny,
+                    group_output_dir,
+                    getattr(cfg, "beta_auto", False),
+                )
                 for params, i in jobs
             ]
             for future in futures:

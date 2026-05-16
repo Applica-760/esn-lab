@@ -29,18 +29,18 @@ python tools/dataprep/get_300seqs.py \
     --images-root data/all_s \
     --output data/get_300seqs.csv \
     --jobs 10
-    
+
 """
 
 import argparse
-from PIL import Image
 import csv
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Dict, List, Tuple
+
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
+from PIL import Image
 
 
 # --------- 変換ロジック ---------
@@ -72,13 +72,15 @@ def hhmmss_to_seconds(hms: str) -> int:
 
 
 # --------- 画像名→(シート, 行) 変換 ---------
-def filename_to_sheet_and_row(filename: str, pat: re.Pattern, sheet_prefix: str, month: str) -> Tuple[str, int]:
+def filename_to_sheet_and_row(
+    filename: str, pat: re.Pattern, sheet_prefix: str, month: str
+) -> Tuple[str, int]:
     m = pat.fullmatch(filename)
     if not m:
         raise ValueError(f"Filename does not match pattern: {filename}")
-    day = m.group("day")      # '08'
-    hms = m.group("hms")      # '000122'
-    row_index = hhmmss_to_seconds(hms) + 2   # A2=0秒 → 行=秒+2
+    day = m.group("day")  # '08'
+    hms = m.group("hms")  # '000122'
+    row_index = hhmmss_to_seconds(hms) + 2  # A2=0秒 → 行=秒+2
     sheet_name = f"{sheet_prefix}{month}{day}"
     return sheet_name, row_index
 
@@ -87,7 +89,9 @@ def filename_to_sheet_and_row(filename: str, pat: re.Pattern, sheet_prefix: str,
 def load_column_c_as_array(ws: Worksheet) -> List[int]:
     max_row = ws.max_row
     values = [0] * (max_row + 1)
-    for i, (v,) in enumerate(ws.iter_rows(min_col=3, max_col=3, min_row=1, max_row=max_row, values_only=True), start=1):
+    for i, (v,) in enumerate(
+        ws.iter_rows(min_col=3, max_col=3, min_row=1, max_row=max_row, values_only=True), start=1
+    ):
         values[i] = coerce_to_int(v)
     return values
 
@@ -104,10 +108,7 @@ def get_image_width(path: Path) -> int:
 
 # --------- 1シート分処理 ---------
 def process_tasks_for_sheet(
-    sheet_name: str,
-    tasks: List[Tuple[Path, int]],
-    c_values: List[int],
-    window: int
+    sheet_name: str, tasks: List[Tuple[Path, int]], c_values: List[int], window: int
 ) -> List[Tuple[str, str, int, int]]:
     max_row = len(c_values) - 1
     out_rows: List[Tuple[str, str, int, int]] = []
@@ -116,7 +117,7 @@ def process_tasks_for_sheet(
         end_row = start_row + window - 1
         if start_row <= max_row:
             last = min(end_row, max_row)
-            slice_vals = c_values[start_row:last + 1]
+            slice_vals = c_values[start_row : last + 1]
             if len(slice_vals) < window:
                 slice_vals += [0] * (window - len(slice_vals))
         else:
@@ -145,7 +146,9 @@ def iter_image_files(root: Path, exts: List[str]) -> List[Path]:
 
 # --------- メイン ---------
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="C列300行を連結・変換してCSV出力するツール（画像幅付き）")
+    p = argparse.ArgumentParser(
+        description="C列300行を連結・変換してCSV出力するツール（画像幅付き）"
+    )
     p.add_argument("--excel", required=True)
     p.add_argument("--images-root", required=True)
     p.add_argument("--output", required=True)

@@ -4,7 +4,6 @@ from esn_lab.model.esn import ESN
 from esn_lab.optim.optim import Tikhonov
 from esn_lab.pipeline.train.trainer import train
 
-
 __all__ = [
     "ESN",
     "Tikhonov",

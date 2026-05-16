@@ -1,9 +1,10 @@
 # pipeline/trainer
 from esn_lab.model.esn import ESN
 
+
 def train(model: ESN, optimizer, U_list, D_list):
 
-    for U, D in zip(U_list, D_list): 
+    for U, D in zip(U_list, D_list):
         train_len = len(U)
 
         # 時間発展
@@ -18,12 +19,11 @@ def train(model: ESN, optimizer, U_list, D_list):
             d = model.inv_output_func(d)
 
             # 学習器
-            if n > 0:  
-                optimizer(d, x)     # 1データあたりの学習結果が逐次optimizerに記憶されていく
+            if n > 0:
+                optimizer(d, x)  # 1データあたりの学習結果が逐次optimizerに記憶されていく
 
         model.Reservoir.reset_reservoir_state()
 
     output_weight = optimizer.get_Wout_opt()
 
     return output_weight
-

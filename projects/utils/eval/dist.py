@@ -1,6 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 def count_all_class_ratios(predictions, labels) -> tuple:
     """
@@ -41,27 +43,37 @@ def _draw_histogram_on_ax(
     figure の作成・保存は呼び出し側が行う。
     """
     n, bins_edges, _ = ax.hist(
-        values, bins=bins, range=value_range,
-        color=color, edgecolor='black', alpha=0.7,
-        label=f'n={len(values)}' if show_count else None
+        values,
+        bins=bins,
+        range=value_range,
+        color=color,
+        edgecolor="black",
+        alpha=0.7,
+        label=f"n={len(values)}" if show_count else None,
     )
 
     ax.set_xlabel(xlabel, fontsize=label_fontsize)
-    ax.set_ylabel('Frequency', fontsize=label_fontsize)
+    ax.set_ylabel("Frequency", fontsize=label_fontsize)
     ax.set_xlim(value_range)
     ax.tick_params(labelsize=tick_fontsize)
 
     if show_count:
-        ax.legend(loc='upper left', fontsize=tick_fontsize)
+        ax.legend(loc="upper left", fontsize=tick_fontsize)
 
     if show_cumulative:
         ax2 = ax.twinx()
         cumulative = np.cumsum(n)
         bin_centers = (bins_edges[:-1] + bins_edges[1:]) / 2
-        ax2.plot(bin_centers, cumulative, color='red',
-                 linewidth=cumulative_linewidth, marker='o', markersize=cumulative_markersize)
-        ax2.set_ylabel('Cumulative Count', fontsize=label_fontsize)
-        ax2.tick_params(axis='y', labelsize=tick_fontsize)
+        ax2.plot(
+            bin_centers,
+            cumulative,
+            color="red",
+            linewidth=cumulative_linewidth,
+            marker="o",
+            markersize=cumulative_markersize,
+        )
+        ax2.set_ylabel("Cumulative Count", fontsize=label_fontsize)
+        ax2.tick_params(axis="y", labelsize=tick_fontsize)
         ax2.set_ylim(0, len(values))
 
 
@@ -70,19 +82,16 @@ def plot_histogram(
     output_path: Path,
     bins: int,
     color: str,
-    xlabel: str = 'True Label Prediction Ratio',
+    xlabel: str = "True Label Prediction Ratio",
     value_range: tuple = (0, 1),
     show_count: bool = True,
-    show_cumulative: bool = False
+    show_cumulative: bool = False,
 ) -> None:
     """
     汎用ヒストグラムプロット関数
     """
     fig, ax = plt.subplots(figsize=(8, 6))
-    _draw_histogram_on_ax(
-        ax, values, bins, color, xlabel, value_range,
-        show_count, show_cumulative
-    )
+    _draw_histogram_on_ax(ax, values, bins, color, xlabel, value_range, show_count, show_cumulative)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()
@@ -126,11 +135,18 @@ def plot_confusion_distribution(
 
             if values:
                 _draw_histogram_on_ax(
-                    ax, values, bins, colors[col_name],
-                    xlabel=xlabel, value_range=value_range,
-                    show_count=False, show_cumulative=show_cumulative,
-                    label_fontsize=7, tick_fontsize=6,
-                    cumulative_linewidth=1.5, cumulative_markersize=2.0,
+                    ax,
+                    values,
+                    bins,
+                    colors[col_name],
+                    xlabel=xlabel,
+                    value_range=value_range,
+                    show_count=False,
+                    show_cumulative=show_cumulative,
+                    label_fontsize=7,
+                    tick_fontsize=6,
+                    cumulative_linewidth=1.5,
+                    cumulative_markersize=2.0,
                 )
 
             label = f"n={len(values)}" if show_count else ""
@@ -144,6 +160,7 @@ def plot_confusion_distribution(
 # =============================================================================
 # ノード生値の指標計算関数
 # =============================================================================
+
 
 def compute_confidence(predictions) -> np.ndarray:
     """

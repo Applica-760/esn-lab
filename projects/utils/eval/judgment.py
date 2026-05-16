@@ -1,6 +1,7 @@
 import csv
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 
 def judge_sample_by_majority_vote(predictions, labels) -> dict:
@@ -55,14 +56,16 @@ def compute_judgment_results(pred_results: list, strategy: str, group: str = Non
         for sample in fold_data["results"]:
             judgment = judge_fn(sample["predictions"], sample["labels"])
 
-            judgment_results.append({
-                "group": group,
-                "fold_index": fold_index,
-                "id": sample["id"],
-                "pred_label": judgment["pred_label"],
-                "true_label": judgment["true_label"],
-                "is_correct": judgment["is_correct"],
-            })
+            judgment_results.append(
+                {
+                    "group": group,
+                    "fold_index": fold_index,
+                    "id": sample["id"],
+                    "pred_label": judgment["pred_label"],
+                    "true_label": judgment["true_label"],
+                    "is_correct": judgment["is_correct"],
+                }
+            )
 
     return judgment_results
 
@@ -71,7 +74,7 @@ def save_judgment_results(judgment_results: list, output_path) -> None:
     """
     判定結果をCSV形式で保存
     """
-    output_path = Path(output_path).with_suffix('.csv')
+    output_path = Path(output_path).with_suffix(".csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     fieldnames = ["group", "fold_index", "id", "pred_label", "true_label", "is_correct"]
@@ -91,13 +94,15 @@ def load_judgment_results(csv_path) -> list:
     with open(csv_path, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            results.append({
-                "group": row["group"],
-                "fold_index": int(row["fold_index"]),
-                "id": row["id"],
-                "pred_label": int(row["pred_label"]),
-                "true_label": int(row["true_label"]),
-                "is_correct": row["is_correct"] == "True",
-            })
+            results.append(
+                {
+                    "group": row["group"],
+                    "fold_index": int(row["fold_index"]),
+                    "id": row["id"],
+                    "pred_label": int(row["pred_label"]),
+                    "true_label": int(row["true_label"]),
+                    "is_correct": row["is_correct"] == "True",
+                }
+            )
 
     return results

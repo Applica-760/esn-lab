@@ -5,13 +5,13 @@ CUIや他のインターフェースから独立した、再利用可能なフ�
 """
 
 import random
-from typing import Optional
 from collections import defaultdict
-
+from typing import Optional
 
 # =============================================================================
 # フィルタリング関数
 # =============================================================================
+
 
 def filter_by_true_label(judgment_results: list, label: int) -> list:
     """
@@ -53,22 +53,22 @@ def apply_filters(judgment_results: list, filter_config: dict) -> list:
     複数のフィルタ条件を順次適用
     """
     results = judgment_results
-    
+
     if filter_config.get("true_label") is not None:
         results = filter_by_true_label(results, filter_config["true_label"])
-    
+
     if filter_config.get("pred_label") is not None:
         results = filter_by_pred_label(results, filter_config["pred_label"])
-    
+
     if filter_config.get("is_correct") is not None:
         results = filter_by_correctness(results, filter_config["is_correct"])
-    
+
     if filter_config.get("groups") is not None:
         results = filter_by_group(results, filter_config["groups"])
-    
+
     if filter_config.get("fold_indices") is not None:
         results = filter_by_fold(results, filter_config["fold_indices"])
-    
+
     return results
 
 
@@ -85,10 +85,10 @@ def sample_random(judgment_results: list, n: int, seed: Optional[int] = None) ->
     """
     if seed is not None:
         random.seed(seed)
-    
+
     if n >= len(judgment_results):
         return judgment_results
-    
+
     return random.sample(judgment_results, n)
 
 
@@ -103,10 +103,10 @@ def apply_sampling(judgment_results: list, sampling_config: dict) -> list:
     """
     サンプリングを適用
     """
-    method = sampling_config.get('method', 'all')
-    n = sampling_config.get('n')
-    seed = sampling_config.get('seed')
-    
+    method = sampling_config.get("method", "all")
+    n = sampling_config.get("n")
+    seed = sampling_config.get("seed")
+
     if method == "all":
         return sample_all(judgment_results)
     elif method == "random":
@@ -139,9 +139,9 @@ def group_targets_by_source(targets: list) -> dict:
     targetsを(group, fold_index)でグルーピング
     """
     grouped = defaultdict(lambda: defaultdict(list))
-    
+
     for target in targets:
         grouped[target["group"]][target["fold_index"]].append(target["id"])
-    
+
     # defaultdictを通常のdictに変換
     return {group: dict(folds) for group, folds in grouped.items()}

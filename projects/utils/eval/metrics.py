@@ -3,11 +3,11 @@
 """
 
 import re
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def compute_accuracy_from_cm(cm: np.ndarray) -> float:
@@ -63,7 +63,7 @@ def plot_metric_by_param(
     ylabel: str,
     title: str,
     output_path,
-    ylim: list = None
+    ylim: list = None,
 ) -> None:
     """
     横軸: パラメータ値（Nx等）
@@ -88,7 +88,7 @@ def plot_metric_by_param(
 
     # プロット
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.errorbar(sorted_keys, means, yerr=stds, fmt='o-', capsize=5, capthick=2, markersize=8)
+    ax.errorbar(sorted_keys, means, yerr=stds, fmt="o-", capsize=5, capthick=2, markersize=8)
 
     ax.set_xlabel(xlabel, fontsize=12)
     ax.set_ylabel(ylabel, fontsize=12)
@@ -101,8 +101,8 @@ def plot_metric_by_param(
     ax.set_ylim(ylim[0], ylim[1])
 
     fig.tight_layout()
-    plt.savefig(output_path.with_suffix('.png'), dpi=150, bbox_inches='tight')
-    plt.savefig(output_path.with_suffix('.pdf'), dpi=150, bbox_inches='tight')
+    plt.savefig(output_path.with_suffix(".png"), dpi=150, bbox_inches="tight")
+    plt.savefig(output_path.with_suffix(".pdf"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -112,10 +112,10 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None, 
     指定パラメータ（デフォルトはNx）別にAccuracyとMacro F1の平均・標準偏差をプロット
     """
     from projects.utils.eval.confusion import load_confusion_matrix_csv
-    
+
     # mode suffix
     mode_suffix = f"_{mode}" if mode else ""
-    
+
     param_values = []
     accuracies = []
     macro_f1s = []
@@ -152,18 +152,22 @@ def plot_performance_summary(param_dirs, output_dir, param_key="Nx", ylim=None, 
 
     # Accuracyプロット
     plot_metric_by_param(
-        param_values, accuracies,
-        xlabel=param_key, ylabel="Accuracy",
+        param_values,
+        accuracies,
+        xlabel=param_key,
+        ylabel="Accuracy",
         title=f"Accuracy by {param_key}" + (f" ({mode})" if mode else ""),
         output_path=output_dir / f"accuracy_by_{param_key}{mode_suffix}",
-        ylim=ylim
+        ylim=ylim,
     )
 
     # Macro F1プロット
     plot_metric_by_param(
-        param_values, macro_f1s,
-        xlabel=param_key, ylabel="Macro F1",
+        param_values,
+        macro_f1s,
+        xlabel=param_key,
+        ylabel="Macro F1",
         title=f"Macro F1 by {param_key}" + (f" ({mode})" if mode else ""),
         output_path=output_dir / f"macro_f1_by_{param_key}{mode_suffix}",
-        ylim=ylim
+        ylim=ylim,
     )

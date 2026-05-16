@@ -1,16 +1,21 @@
 from pathlib import Path
 
-from projects.utils.prediction import load_pred_results
 from projects.utils.app_init import build_param_grid
-from projects.utils.weights import build_param_str
-from projects.utils.eval.filter import apply_filters, apply_sampling, extract_ids_with_metadata, group_targets_by_source
+from projects.utils.eval.filter import (
+    apply_filters,
+    apply_sampling,
+    extract_ids_with_metadata,
+    group_targets_by_source,
+)
 from projects.utils.eval.judgment import load_judgment_results
 from projects.utils.eval.plot_prediction import plot_prediction
-
+from projects.utils.prediction import load_pred_results
+from projects.utils.weights import build_param_str
 
 """
 python -m projects.apps.eval_plot --config projects/configs/eval_plot.yaml
 """
+
 
 def execute_prediction_plots(cfg, param_name, targets):
     """
@@ -18,20 +23,20 @@ def execute_prediction_plots(cfg, param_name, targets):
     """
     output_dir = Path(cfg.output_dir)
     grouped = group_targets_by_source(targets)
-    
+
     for group, folds in grouped.items():
         for fold_index, ids in folds.items():
             result_base = str(Path(cfg.pred_dir) / group / param_name / f"{cfg.mode}_results")
             pred_results = load_pred_results(result_base)
-            
+
             fold_data = next(fd for fd in pred_results if fd["fold_index"] == fold_index)
             results = fold_data["results"]
-            
+
             for sample_id in ids:
                 output_path = output_dir / param_name / group / f"fold_{fold_index}" / sample_id
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 plot_prediction(results, sample_id, str(output_path), ext="png")
-    
+
 
 def main(cfg):
     # データロード
@@ -43,7 +48,7 @@ def main(cfg):
     filtered_results = apply_filters(judgment_results, cfg.filters)
     sampled_results = apply_sampling(filtered_results, cfg.sampling)
     targets = extract_ids_with_metadata(sampled_results)
-    
+
     # 実行
     execute_prediction_plots(cfg, param_name, targets)
     print("plot finished")

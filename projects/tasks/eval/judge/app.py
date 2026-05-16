@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from projects.utils.prediction import load_pred_results, is_valid_result_file
-from projects.utils.weights import list_param_dirs
 from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
-
+from projects.utils.prediction import is_valid_result_file, load_pred_results
+from projects.utils.weights import list_param_dirs
 
 """
 python -m projects.apps.eval_judgement --config projects/configs/eval_judgement.yaml
@@ -13,7 +12,9 @@ python -m projects.apps.eval_judgement --config projects/configs/eval_judgement.
 """
 
 
-def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir, output_dir, strategy):
+def compute_and_save_judgments(
+    param_dirs, sample_groups, mode, pred_result_dir, output_dir, strategy
+):
     """
     判定結果の計算と保存
     """
@@ -32,7 +33,7 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
             pred_results = load_pred_results(result_base)
             judgment_results = compute_judgment_results(pred_results, strategy, group=group)
             param_judgment_results[param_name].extend(judgment_results)
-        
+
         # このparam_dirのすべてのgroupを処理し終えたので保存
         if param_judgment_results[param_name]:
             output_path = output_dir / param_name / f"judgment_results_{mode}"
@@ -57,7 +58,11 @@ def main(cfg):
 
         # 判定結果の計算と保存
         compute_and_save_judgments(
-            param_dirs, sample_groups, mode, pred_result_dir, cfg.output_dir,
+            param_dirs,
+            sample_groups,
+            mode,
+            pred_result_dir,
+            cfg.output_dir,
             strategy=cfg.judge_strategy,
         )
 

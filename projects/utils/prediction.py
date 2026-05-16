@@ -1,5 +1,6 @@
 import os
 from collections import defaultdict
+
 import numpy as np
 
 
@@ -24,8 +25,8 @@ def save_pred_results(results: list, base: str) -> None:
         os.makedirs(d, exist_ok=True)
 
     samples = [(fold["fold_index"], s) for fold in results for s in fold["results"]]
-    preds  = [np.asarray(s["predictions"], dtype=np.float32) for _, s in samples]
-    labels = [np.asarray(s["labels"],      dtype=np.float32) for _, s in samples]
+    preds = [np.asarray(s["predictions"], dtype=np.float32) for _, s in samples]
+    labels = [np.asarray(s["labels"], dtype=np.float32) for _, s in samples]
 
     np.savez_compressed(
         path,
@@ -40,8 +41,8 @@ def save_pred_results(results: list, base: str) -> None:
 def load_pred_results(base: str) -> list:
     data = np.load(_result_path(base), allow_pickle=False)
     splits = np.cumsum(data["lengths"])[:-1]
-    preds  = np.split(data["predictions"], splits)
-    labels = np.split(data["labels"],      splits)
+    preds = np.split(data["predictions"], splits)
+    labels = np.split(data["labels"], splits)
 
     folds = defaultdict(list)
     for i, fi in enumerate(data["fold_indices"].tolist()):

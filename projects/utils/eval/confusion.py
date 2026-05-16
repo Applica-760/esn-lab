@@ -3,9 +3,10 @@
 """
 
 import csv
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def compute_confusion_matrix(y_true: list, y_pred: list, n_classes: int) -> np.ndarray:
@@ -31,7 +32,7 @@ def load_confusion_matrix_csv(csv_path: str) -> np.ndarray:
     """
     CSV形式の混同行列を読み込む
     """
-    with open(csv_path, 'r') as f:
+    with open(csv_path, "r") as f:
         reader = csv.reader(f)
         next(reader)  # ヘッダー行をスキップ
         cm = []
@@ -40,19 +41,20 @@ def load_confusion_matrix_csv(csv_path: str) -> np.ndarray:
     return np.array(cm, dtype=int)
 
 
-def save_confusion_matrix_csv(cm: np.ndarray, class_names: list, output_path,
-                               class_order: list = None) -> None:
+def save_confusion_matrix_csv(
+    cm: np.ndarray, class_names: list, output_path, class_order: list = None
+) -> None:
     """
     混同行列をCSV形式で保存
     """
-    output_path = Path(output_path).with_suffix('.csv')
-    
+    output_path = Path(output_path).with_suffix(".csv")
+
     # CMを表示順に並び替え（class_namesは既に表示順なので並び替えない）
     if class_order is not None:
         cm = cm[np.ix_(class_order, class_order)]
 
     # CSV保存
-    with open(output_path, 'w', newline='') as f:
+    with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
         header = [""] + [f"pred_{name}" for name in class_names]
         writer.writerow(header)
@@ -60,24 +62,25 @@ def save_confusion_matrix_csv(cm: np.ndarray, class_names: list, output_path,
             writer.writerow([f"true_{class_names[i]}"] + list(row))
 
 
-def plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_path,
-                          class_order: list = None) -> None:
+def plot_confusion_matrix(
+    cm: np.ndarray, class_names: list, title: str, output_path, class_order: list = None
+) -> None:
     """
     混同行列を画像として保存（行ごとに正規化、0〜1の値、PNG/PDF両形式）
     """
     output_path = Path(output_path)
-    
+
     # CMを表示順に並び替え（class_namesは既に表示順なので並び替えない）
     if class_order is not None:
         cm = cm[np.ix_(class_order, class_order)]
-    
+
     # 行ごとに正規化
     row_sums = cm.sum(axis=1, keepdims=True)
     cm_normalized = np.divide(cm, row_sums, where=row_sums != 0, out=np.zeros_like(cm, dtype=float))
 
     fig, ax = plt.subplots(figsize=(6, 5))
 
-    im = ax.imshow(cm_normalized, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=1)
+    im = ax.imshow(cm_normalized, interpolation="nearest", cmap=plt.cm.Blues, vmin=0, vmax=1)
     ax.figure.colorbar(im, ax=ax)
 
     ax.set(
@@ -86,8 +89,8 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_
         xticklabels=class_names,
         yticklabels=class_names,
         title=title,
-        ylabel='True label',
-        xlabel='Predicted label'
+        ylabel="True label",
+        xlabel="Predicted label",
     )
 
     # ラベルを回転
@@ -98,19 +101,25 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: list, title: str, output_
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             text = f"{cm_normalized[i, j]:.2f}"
-            ax.text(j, i, text,
-                    ha="center", va="center",
-                    fontsize=12,
-                    color="white" if cm_normalized[i, j] > thresh else "black")
+            ax.text(
+                j,
+                i,
+                text,
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="white" if cm_normalized[i, j] > thresh else "black",
+            )
 
     fig.tight_layout()
-    plt.savefig(output_path.with_suffix('.png'), dpi=150, bbox_inches='tight')
-    plt.savefig(output_path.with_suffix('.pdf'), dpi=150, bbox_inches='tight')
+    plt.savefig(output_path.with_suffix(".png"), dpi=150, bbox_inches="tight")
+    plt.savefig(output_path.with_suffix(".pdf"), dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
-def save_confusion_matrix(cm: np.ndarray, class_names: list, title: str, 
-                          output_path, class_order: list = None) -> None:
+def save_confusion_matrix(
+    cm: np.ndarray, class_names: list, title: str, output_path, class_order: list = None
+) -> None:
     """
     混同行列をCSVと画像(PNG/PDF)で保存（convenience関数）
     """

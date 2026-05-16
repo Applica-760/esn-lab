@@ -1,13 +1,16 @@
 import json
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 
 def build_param_str(params: dict) -> str:
     """
     パラメータ辞書からディレクトリ名用の文字列を生成
     """
-    return f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+    return (
+        f"Nx{params['Nx']}_dens{params['density']}_inscl{params['input_scale']}_rho{params['rho']}"
+    )
 
 
 def is_valid_weight_file(filepath: str) -> bool:
@@ -20,9 +23,9 @@ def is_valid_weight_file(filepath: str) -> bool:
 
     try:
         with np.load(path) as data:
-            if 'weight' not in data:
+            if "weight" not in data:
                 return False
-            _ = data['weight']
+            _ = data["weight"]
         return True
     except Exception:
         return False
@@ -37,7 +40,7 @@ def save_single_weight(params: dict, weight: np.ndarray, fold_idx: int, output_d
 
     metadata_path = param_dir / "metadata.json"
     if not metadata_path.exists():
-        with open(metadata_path, 'w') as f:
+        with open(metadata_path, "w") as f:
             json.dump(params, f, indent=2)
 
     np.savez(param_dir / f"fold{fold_idx}.npz", weight=weight)
@@ -50,7 +53,7 @@ def save_tenfold_weights(params: dict, weights_list: list, output_dir: str) -> N
     param_dir = Path(output_dir) / build_param_str(params)
     param_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(param_dir / "metadata.json", 'w') as f:
+    with open(param_dir / "metadata.json", "w") as f:
         json.dump(params, f, indent=2)
 
     for i, weight in enumerate(weights_list):
@@ -73,7 +76,7 @@ def load_metadata(param_dir: str) -> dict:
     """
     metadata.jsonを読み込み
     """
-    with open(Path(param_dir) / "metadata.json", 'r') as f:
+    with open(Path(param_dir) / "metadata.json", "r") as f:
         return json.load(f)
 
 

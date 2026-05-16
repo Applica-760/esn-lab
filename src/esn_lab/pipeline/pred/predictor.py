@@ -8,7 +8,7 @@ def pred(model: ESN, id, U, D):
 
     pred_len = len(U)
     Y_pred = []
-    
+
     # 時間発展
     for n in range(pred_len):
         x_in = model.Input(U[n])
@@ -24,4 +24,4 @@ def pred(model: ESN, id, U, D):
         "id": id,
         "predictions": np.array(Y_pred),
         "labels": np.array(D),
-    } 
+    }
