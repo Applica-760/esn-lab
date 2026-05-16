@@ -1,51 +1,50 @@
 import os
-import json
+from collections import defaultdict
 import numpy as np
 
 
-def is_valid_result_file(filepath: str) -> bool:
-    """
-    結果ファイルが存在し、破損していないかを確認
-    """
-    if not os.path.exists(filepath):
+def _result_path(base: str) -> str:
+    return base if base.endswith(".npz") else base + ".npz"
+
+
+def is_valid_result_file(base: str) -> bool:
+    path = _result_path(base)
+    if not os.path.exists(path):
         return False
-    
     try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-            # リスト形式であることを確認
-            if not isinstance(data, list):
-                return False
+        np.load(path, allow_pickle=False)
         return True
     except Exception:
         return False
 
 
-def save_pred_results(results: list, output_path: str) -> None:
-    """
-    予測結果をJSON形式で保存
-    """
-    # ndarrayをリストに変換
-    serializable_results = _convert_to_serializable(results)
-    
-    # ディレクトリがなければ作成
-    output_dir = os.path.dirname(output_path)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    
-    with open(output_path, 'w') as f:
-        json.dump(serializable_results, f, indent=2)
+def save_pred_results(results: list, base: str) -> None:
+    path = _result_path(base)
+    if d := os.path.dirname(path):
+        os.makedirs(d, exist_ok=True)
+
+    samples = [(fold["fold_index"], s) for fold in results for s in fold["results"]]
+    preds  = [np.asarray(s["predictions"], dtype=np.float32) for _, s in samples]
+    labels = [np.asarray(s["labels"],      dtype=np.float32) for _, s in samples]
+
+    np.savez_compressed(
+        path,
+        fold_indices=np.array([fi for fi, _ in samples], dtype=np.int32),
+        ids=np.array([s["id"] for _, s in samples]),
+        lengths=np.array([p.shape[0] for p in preds], dtype=np.int32),
+        predictions=np.concatenate(preds),
+        labels=np.concatenate(labels),
+    )
 
 
-def _convert_to_serializable(obj):
-    """
-    任意のオブジェクトを再帰的にJSON serializable形式に変換
-    """
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, dict):
-        return {k: _convert_to_serializable(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_convert_to_serializable(item) for item in obj]
-    else:
-        return obj
+def load_pred_results(base: str) -> list:
+    data = np.load(_result_path(base), allow_pickle=False)
+    splits = np.cumsum(data["lengths"])[:-1]
+    preds  = np.split(data["predictions"], splits)
+    labels = np.split(data["labels"],      splits)
+
+    folds = defaultdict(list)
+    for i, fi in enumerate(data["fold_indices"].tolist()):
+        folds[fi].append({"id": str(data["ids"][i]), "predictions": preds[i], "labels": labels[i]})
+
+    return [{"fold_index": fi, "results": ss} for fi, ss in sorted(folds.items())]

@@ -10,7 +10,7 @@ def one_process(param_dir, mode, group, data_folds, label_folds, id_folds, cfg, 
     """単一パラメータセットの10fold予測を実行"""
     # スキップ判定: 既に有効な結果ファイルが存在する場合はスキップ
     param_str = param_dir.name
-    result_path = Path(output_dir) / group / param_str / f"{mode}_results.json"
+    result_path = Path(output_dir) / group / param_str / f"{mode}_results"
     if is_valid_result_file(str(result_path)):
         print(f"skipped (already exists): {param_str} group={group} mode={mode}")
         return

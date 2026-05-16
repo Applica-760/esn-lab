@@ -1,6 +1,6 @@
-import json
 from pathlib import Path
 
+from projects.utils.prediction import load_pred_results, is_valid_result_file
 from projects.utils.weights import list_param_dirs
 from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
 
@@ -24,13 +24,12 @@ def compute_and_save_judgments(param_dirs, sample_groups, mode, pred_result_dir,
 
         # すべてのgroupを処理
         for group in sample_groups:
-            json_path = pred_result_dir / group / param_name / f"{mode}_results.json"
+            result_base = str(pred_result_dir / group / param_name / f"{mode}_results")
 
-            if not json_path.exists():
+            if not is_valid_result_file(result_base):
                 continue
 
-            with open(json_path, 'r') as f:
-                pred_results = json.load(f)
+            pred_results = load_pred_results(result_base)
             judgment_results = compute_judgment_results(pred_results, strategy, group=group)
             param_judgment_results[param_name].extend(judgment_results)
         

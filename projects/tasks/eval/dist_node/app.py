@@ -1,9 +1,9 @@
-import json
 from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
 
+from projects.utils.prediction import load_pred_results, is_valid_result_file
 from projects.utils.app_init import build_param_grid
 from projects.utils.weights import build_param_str
 from projects.utils.eval.dist import (
@@ -51,12 +51,11 @@ def collect_node_values_for_param(
     
     sample_data = []
     for group, folds in grouped.items():
-        json_path = pred_result_dir / group / param_name / f"{mode}_results.json"
-        if not json_path.exists():
+        result_base = str(pred_result_dir / group / param_name / f"{mode}_results")
+        if not is_valid_result_file(result_base):
             continue
-        
-        with open(json_path, 'r') as f:
-            pred_results = json.load(f)
+
+        pred_results = load_pred_results(result_base)
         
         for fold_index, items in folds.items():
             fold_data = next((fd for fd in pred_results if fd["fold_index"] == fold_index), None)
