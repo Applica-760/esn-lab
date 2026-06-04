@@ -1,16 +1,23 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 from projects.utils.prediction import load_pred_results, is_valid_result_file
 from projects.utils.app_init import build_param_grid
 from projects.utils.weights import build_param_str
 
 
+# ── helpers ───────────────────────────────────────────────────────────────────
+
 def strip_warmup(predictions, labels, warmup_ratio):
     T = len(predictions)
     warmup = int(T * warmup_ratio)
     return predictions[warmup:], labels[warmup:]
+
+
+def get_bin_indices(T, n_bins):
+    return np.minimum((np.arange(T) / T * n_bins).astype(int), n_bins - 1)
 
 
 def collect_fold_samples(fold_data, warmup_ratio):
@@ -24,10 +31,16 @@ def collect_fold_samples(fold_data, warmup_ratio):
     return samples
 
 
-def analyze_temporal_accuracy(samples, n_bins, class_names, class_order, output_dir):
-    """相対フレーム位置ごとのフレーム正答率を true class 別に集計してプロット"""
-    # bin ごとの正解数・総数: [n_classes, n_bins]
-    n_classes = len(class_names)
+def _class_display_name(pred_class_idx, class_names, class_order):
+    """予測クラスインデックス → 表示名"""
+    return class_names[class_order.index(pred_class_idx)]
+
+
+# ── temporal accuracy ─────────────────────────────────────────────────────────
+
+def compute_temporal_accuracy(samples, n_bins):
+    """Returns ndarray [n_classes, n_bins]: 相対位置ごとのフレーム正答率"""
+    n_classes = samples[0]["predictions"].shape[1]
     correct_counts = np.zeros((n_classes, n_bins))
     total_counts = np.zeros((n_classes, n_bins))
 
@@ -36,21 +49,22 @@ def analyze_temporal_accuracy(samples, n_bins, class_names, class_order, output_
         T = len(preds)
         true_label = s["true_label"]
         frame_correct = (np.argmax(preds, axis=1) == np.argmax(labels, axis=1)).astype(float)
-        bin_indices = np.minimum((np.arange(T) / T * n_bins).astype(int), n_bins - 1)
+        bin_idx = get_bin_indices(T, n_bins)
         for b in range(n_bins):
-            mask = bin_indices == b
+            mask = bin_idx == b
             if mask.any():
                 correct_counts[true_label, b] += frame_correct[mask].sum()
                 total_counts[true_label, b] += mask.sum()
 
+    denom = np.where(total_counts > 0, total_counts, np.nan)
+    return correct_counts / denom
+
+
+def plot_temporal_accuracy(acc, n_bins, class_names, class_order, output_dir):
     x = np.linspace(0, 100, n_bins)
     fig, ax = plt.subplots(figsize=(8, 4))
     for i, class_idx in enumerate(class_order):
-        name = class_names[i]
-        denom = total_counts[class_idx]
-        acc = np.where(denom > 0, correct_counts[class_idx] / denom, np.nan)
-        ax.plot(x, acc, label=name)
-
+        ax.plot(x, acc[class_idx], label=class_names[i])
     ax.set_xlabel("Relative position (%)")
     ax.set_ylabel("Frame accuracy")
     ax.set_ylim(0, 1)
@@ -62,23 +76,31 @@ def analyze_temporal_accuracy(samples, n_bins, class_names, class_order, output_
     plt.close(fig)
 
 
+def analyze_temporal_accuracy(samples, n_bins, class_names, class_order, output_dir):
+    acc = compute_temporal_accuracy(samples, n_bins)
+    plot_temporal_accuracy(acc, n_bins, class_names, class_order, output_dir)
+    return acc
+
+
+# ── score trajectory ──────────────────────────────────────────────────────────
+
 def analyze_score_trajectory(samples, n_bins, class_names, class_order, output_dir):
-    """相対フレーム位置ごとのクラス別スコア平均を true class 別にプロット"""
+    """スコア軌跡 + std シェーディング（true class別）"""
     n_classes = len(class_names)
-    # score_sums / counts: [n_classes(true), n_classes(score), n_bins]
-    score_sums = np.zeros((n_classes, n_classes, n_bins))
-    score_counts = np.zeros((n_classes, n_bins))
+    # score_data[true_label][score_class][bin] = list of per-sample bin means
+    score_data = [[[[] for _ in range(n_bins)] for _ in range(n_classes)] for _ in range(n_classes)]
 
     for s in samples:
         preds = s["predictions"]
         T = len(preds)
         true_label = s["true_label"]
-        bin_indices = np.minimum((np.arange(T) / T * n_bins).astype(int), n_bins - 1)
+        bin_idx = get_bin_indices(T, n_bins)
         for b in range(n_bins):
-            mask = bin_indices == b
+            mask = bin_idx == b
             if mask.any():
-                score_sums[true_label, :, b] += preds[mask].mean(axis=0)
-                score_counts[true_label, b] += 1
+                bin_means = preds[mask].mean(axis=0)
+                for sc in range(n_classes):
+                    score_data[true_label][sc][b].append(bin_means[sc])
 
     x = np.linspace(0, 100, n_bins)
     fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4), sharey=True)
@@ -86,9 +108,12 @@ def analyze_score_trajectory(samples, n_bins, class_names, class_order, output_d
         ax = axes[i]
         ax.set_title(f"true = {class_names[i]}")
         for j, score_idx in enumerate(class_order):
-            denom = score_counts[class_idx]
-            mean_score = np.where(denom > 0, score_sums[class_idx, score_idx] / denom, np.nan)
-            ax.plot(x, mean_score, label=class_names[j])
+            data_per_bin = score_data[class_idx][score_idx]
+            means = np.array([np.mean(d) if d else np.nan for d in data_per_bin])
+            stds = np.array([np.std(d) if len(d) > 1 else 0.0 for d in data_per_bin])
+            color = f"C{j}"
+            ax.plot(x, means, label=class_names[j], color=color)
+            ax.fill_between(x, means - stds, means + stds, alpha=0.2, color=color)
         ax.set_xlabel("Relative position (%)")
         ax.legend(fontsize=8)
 
@@ -100,22 +125,24 @@ def analyze_score_trajectory(samples, n_bins, class_names, class_order, output_d
     plt.close(fig)
 
 
-def analyze_stability(samples, class_names, class_order, output_dir):
-    """サンプル内 argmax 変動率の分布を true class 別にプロット"""
-    n_classes = len(class_names)
-    instabilities = [[] for _ in range(n_classes)]
+# ── stability ─────────────────────────────────────────────────────────────────
 
+def compute_stability(samples):
+    """Returns list[list[float]]: サンプルごとの argmax 変動率（true class別）"""
+    n_classes = samples[0]["predictions"].shape[1]
+    instabilities = [[] for _ in range(n_classes)]
     for s in samples:
         preds = s["predictions"]
         true_label = s["true_label"]
         argmax_seq = np.argmax(preds, axis=1)
-        if len(argmax_seq) > 1:
-            change_rate = np.mean(argmax_seq[1:] != argmax_seq[:-1])
-        else:
-            change_rate = 0.0
+        change_rate = float(np.mean(argmax_seq[1:] != argmax_seq[:-1])) if len(argmax_seq) > 1 else 0.0
         instabilities[true_label].append(change_rate)
+    return instabilities
 
-    fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4), sharey=False)
+
+def plot_stability(instabilities, class_names, class_order, output_dir):
+    n_classes = len(class_names)
+    fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4))
     for i, class_idx in enumerate(class_order):
         ax = axes[i]
         data = instabilities[class_idx]
@@ -123,13 +150,149 @@ def analyze_stability(samples, class_names, class_order, output_dir):
         ax.set_title(f"true = {class_names[i]} (n={len(data)})")
         ax.set_xlabel("Argmax change rate")
         ax.set_ylabel("Count")
-
     fig.suptitle("Within-sample stability by true class")
     fig.tight_layout()
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / "stability.png", dpi=150)
     plt.close(fig)
 
+
+def analyze_stability(samples, class_names, class_order, output_dir):
+    instabilities = compute_stability(samples)
+    plot_stability(instabilities, class_names, class_order, output_dir)
+    return instabilities
+
+
+# ── argmax heatmap ────────────────────────────────────────────────────────────
+
+def analyze_argmax_heatmap(samples, n_bins, class_names, class_order, output_dir):
+    """sample × 相対位置 → argmax クラスのヒートマップ（true class順ソート）"""
+    n_classes = len(class_names)
+    samples_sorted = sorted(samples, key=lambda s: s["true_label"])
+    n_samples = len(samples_sorted)
+
+    heatmap = np.full((n_samples, n_bins), fill_value=-1, dtype=int)
+    for i, s in enumerate(samples_sorted):
+        preds = s["predictions"]
+        T = len(preds)
+        bin_idx = get_bin_indices(T, n_bins)
+        argmax_seq = np.argmax(preds, axis=1)
+        for b in range(n_bins):
+            mask = bin_idx == b
+            if mask.any():
+                heatmap[i, b] = np.argmax(np.bincount(argmax_seq[mask], minlength=n_classes))
+
+    # 予測クラスインデックス j → 表示クラスと同じ色（C{rank}）
+    colors = [f"C{class_order.index(j)}" for j in range(n_classes)]
+    cmap = mcolors.ListedColormap(colors)
+    norm = mcolors.BoundaryNorm(np.arange(-0.5, n_classes + 0.5), cmap.N)
+
+    # true class 切り替わり位置に境界線を引く
+    boundaries = [
+        idx for idx in range(1, n_samples)
+        if samples_sorted[idx]["true_label"] != samples_sorted[idx - 1]["true_label"]
+    ]
+
+    fig, ax = plt.subplots(figsize=(10, max(4, n_samples // 8)))
+    ax.imshow(heatmap, aspect="auto", cmap=cmap, norm=norm,
+              extent=[0, 100, n_samples, 0], interpolation="nearest")
+    for b in boundaries:
+        ax.axhline(b, color="white", linewidth=1.0)
+
+    cbar = fig.colorbar(ax.images[0], ax=ax, ticks=range(n_classes))
+    cbar.ax.set_yticklabels([_class_display_name(j, class_names, class_order) for j in range(n_classes)])
+    ax.set_xlabel("Relative position (%)")
+    ax.set_ylabel("Sample (sorted by true class)")
+    ax.set_title("Argmax heatmap")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "argmax_heatmap.png", dpi=150)
+    plt.close(fig)
+
+
+# ── score margin ──────────────────────────────────────────────────────────────
+
+def analyze_score_margin(samples, class_names, class_order, output_dir):
+    """margin = max_score − 2nd_max_score のサンプル平均分布（true class別ヒストグラム）"""
+    n_classes = len(class_names)
+    margins = [[] for _ in range(n_classes)]
+
+    for s in samples:
+        preds = s["predictions"]
+        true_label = s["true_label"]
+        sorted_scores = np.sort(preds, axis=1)
+        margin = float((sorted_scores[:, -1] - sorted_scores[:, -2]).mean())
+        margins[true_label].append(margin)
+
+    fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4), sharey=True)
+    for i, class_idx in enumerate(class_order):
+        ax = axes[i]
+        data = margins[class_idx]
+        ax.hist(data, bins=20, edgecolor="white")
+        ax.set_title(f"true = {class_names[i]} (n={len(data)})")
+        ax.set_xlabel("Mean margin (max − 2nd max)")
+        ax.set_ylabel("Count")
+    fig.suptitle("Score margin distribution by true class")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "score_margin.png", dpi=150)
+    plt.close(fig)
+
+
+# ── fold summary ──────────────────────────────────────────────────────────────
+
+def summarize_temporal_accuracy(fold_accs, n_bins, class_names, class_order, output_dir):
+    """fold別 accuracy 曲線を重ね描き + mean"""
+    x = np.linspace(0, 100, n_bins)
+    n_classes = len(class_names)
+    fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4), sharey=True)
+    for i, class_idx in enumerate(class_order):
+        ax = axes[i]
+        ax.set_title(f"true = {class_names[i]}")
+        fold_curves = np.array([acc[class_idx] for acc in fold_accs])
+        for curve in fold_curves:
+            ax.plot(x, curve, alpha=0.3, linewidth=0.8, color="steelblue")
+        ax.plot(x, np.nanmean(fold_curves, axis=0), linewidth=2.0, color="steelblue", label="mean")
+        ax.set_xlabel("Relative position (%)")
+        ax.set_ylim(0, 1)
+        ax.legend(fontsize=8)
+    axes[0].set_ylabel("Frame accuracy")
+    fig.suptitle("Temporal accuracy across folds")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "temporal_accuracy_folds.png", dpi=150)
+    plt.close(fig)
+
+
+def summarize_stability(fold_indices, fold_stabs, class_names, class_order, output_dir):
+    """fold別 argmax 変動率分布を violin plot で表示"""
+    n_classes = len(class_names)
+    n_folds = len(fold_indices)
+    fig, axes = plt.subplots(1, n_classes, figsize=(5 * n_classes, 4), sharey=True)
+    for i, class_idx in enumerate(class_order):
+        ax = axes[i]
+        ax.set_title(f"true = {class_names[i]}")
+        positions, plot_data = [], []
+        for f, _ in enumerate(fold_indices):
+            d = fold_stabs[f][class_idx]
+            if len(d) > 1:
+                positions.append(f + 1)
+                plot_data.append(d)
+        if plot_data:
+            ax.violinplot(plot_data, positions=positions, showmedians=True)
+        ax.set_xticks(range(1, n_folds + 1))
+        ax.set_xticklabels([str(fi) for fi in fold_indices], fontsize=7)
+        ax.set_xlabel("Fold")
+        ax.set_ylim(0, 1)
+    axes[0].set_ylabel("Argmax change rate")
+    fig.suptitle("Stability distribution across folds")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "stability_folds.png", dpi=150)
+    plt.close(fig)
+
+
+# ── main ──────────────────────────────────────────────────────────────────────
 
 def main(cfg):
     pred_result_dir = Path(cfg.pred_result_dir)
@@ -145,6 +308,7 @@ def main(cfg):
                 continue
 
             pred_results = load_pred_results(result_base)
+            fold_results = []
 
             for fold_data in pred_results:
                 fold_index = fold_data["fold_index"]
@@ -153,9 +317,21 @@ def main(cfg):
                     continue
 
                 output_dir = cfg.output_dir / param_str / group / f"fold_{fold_index}"
-                analyze_temporal_accuracy(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
+                acc = analyze_temporal_accuracy(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
                 analyze_score_trajectory(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
-                analyze_stability(samples, cfg.class_names, cfg.class_order, output_dir)
+                stab = analyze_stability(samples, cfg.class_names, cfg.class_order, output_dir)
+                analyze_argmax_heatmap(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
+                analyze_score_margin(samples, cfg.class_names, cfg.class_order, output_dir)
+                fold_results.append((fold_index, acc, stab))
                 print(f"done: {param_str} group={group} fold={fold_index}")
+
+            if fold_results:
+                fold_indices = [r[0] for r in fold_results]
+                fold_accs = [r[1] for r in fold_results]
+                fold_stabs = [r[2] for r in fold_results]
+                summary_dir = cfg.output_dir / param_str / group / "summary"
+                summarize_temporal_accuracy(fold_accs, cfg.n_bins, cfg.class_names, cfg.class_order, summary_dir)
+                summarize_stability(fold_indices, fold_stabs, cfg.class_names, cfg.class_order, summary_dir)
+                print(f"summary: {param_str} group={group}")
 
     print("analysis finished")
