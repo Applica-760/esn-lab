@@ -1,6 +1,6 @@
 pred_dir: outputs/experiments/pred_results
 judge_dir: outputs/eval/judgement
-output_dir: outputs/analysis/prediction_plots
+output_dir: outputs/eval/prediction_plots
 
 sample_groups: [a, b, c, d, e, f, g, h, i, j]
 

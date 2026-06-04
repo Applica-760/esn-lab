@@ -7,7 +7,7 @@ Cross-sourceのペアワイズ共通ID数ヒートマップのみをoutputs配�
 実行例:
 python -m projects.tools.data_analysis.search_data_duplication \
     --input /home/takumi/share/esn-lab/dataset/10fold_npy \
-    --output /home/takumi/share/esn-lab/outputs/analysis/duplication_analysis
+    --output /home/takumi/share/esn-lab/outputs/tools/data_analysis/duplication_analysis
 """
 
 import argparse

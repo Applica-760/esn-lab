@@ -23,6 +23,7 @@ TASK_REGISTRY = {
     "eval.judge": "projects.tasks.eval.judge.app",
     "eval.metrics": "projects.tasks.eval.metrics.app",
     "eval.plot": "projects.tasks.eval.plot.app",
+    "analysis.pred": "projects.tasks.analysis.pred.app",
 }
 
 

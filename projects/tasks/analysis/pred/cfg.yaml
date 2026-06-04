@@ -1,0 +1,14 @@
+pred_result_dir: "TODO: fill in"
+output_dir: "outputs/tasks/analysis/pred"
+groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+
+warmup_ratio: 0.1
+n_bins: 20
+
+Nx: [7]
+input_scale: [0.001]
+density: [0.5]
+rho: [0.9]
+
+class_names: ["foraging", "rumination", "other"]
+class_order: [1, 2, 0]

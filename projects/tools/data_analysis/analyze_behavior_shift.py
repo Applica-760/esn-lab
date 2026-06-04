@@ -5,7 +5,7 @@
 python tools/data_analysis/analyze_behavior_shift.py \
     /home/takumi/share/esn-lab/dataset/complements-binary \
     --csv data/get_300seqs.csv \
-    --output-dir data/transition_analysis2
+    --output-dir outputs/tools/data_analysis/transition_analysis
 
 出力:
     - filtered_series.csv: フィルタリング後の系列データ

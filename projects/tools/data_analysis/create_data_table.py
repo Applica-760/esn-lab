@@ -5,7 +5,7 @@
 Usage:
 python projects/tools/data_analysis/create_data_table.py \
   --csv data/get_300seqs.csv \
-  --output-dir outputs/analysis/data_table
+  --output-dir outputs/tools/data_analysis/data_table
 """
 
 import argparse
