@@ -21,13 +21,15 @@ def get_bin_indices(T, n_bins):
 
 
 def collect_fold_samples(fold_data, warmup_ratio):
-    """fold_data から warmup 除外済みサンプルリストを返す。true_label は labels の多数決 (ground truth のみ)"""
+    """fold_data から warmup 除外済みサンプルリストを返す。true_label は labels の多数決、pred_label は argmax の多数決"""
     samples = []
     for sample in fold_data["results"]:
         preds, labels = strip_warmup(sample["predictions"], sample["labels"], warmup_ratio)
         true_frames = np.argmax(labels, axis=1)
         true_label = int(np.argmax(np.bincount(true_frames)))
-        samples.append({"predictions": preds, "labels": labels, "true_label": true_label})
+        pred_frames = np.argmax(preds, axis=1)
+        pred_label = int(np.argmax(np.bincount(pred_frames, minlength=preds.shape[1])))
+        samples.append({"predictions": preds, "labels": labels, "true_label": true_label, "pred_label": pred_label})
     return samples
 
 
@@ -239,6 +241,119 @@ def analyze_score_margin(samples, class_names, class_order, output_dir):
     plt.close(fig)
 
 
+# ── 3×3 plots (true class × pred class) ──────────────────────────────────────
+
+def _cell_samples(samples, true_idx, pred_idx):
+    return [s for s in samples if s["true_label"] == true_idx and s["pred_label"] == pred_idx]
+
+
+def plot_score_trajectory_3x3(samples, n_bins, class_names, class_order, output_dir):
+    """スコア軌跡 3×3（row=true class, col=pred class）"""
+    n_classes = len(class_names)
+    x = np.linspace(0, 100, n_bins)
+    fig, axes = plt.subplots(n_classes, n_classes, figsize=(5 * n_classes, 4 * n_classes), sharey=True)
+
+    for row_i, true_idx in enumerate(class_order):
+        for col_j, pred_idx in enumerate(class_order):
+            ax = axes[row_i, col_j]
+            cell = _cell_samples(samples, true_idx, pred_idx)
+            ax.set_title(f"true={class_names[row_i]}, pred={class_names[col_j]} (n={len(cell)})", fontsize=8)
+            if col_j == 0:
+                ax.set_ylabel("Mean score")
+            if row_i == n_classes - 1:
+                ax.set_xlabel("Relative position (%)", fontsize=7)
+            if not cell:
+                continue
+
+            score_data = [[[] for _ in range(n_bins)] for _ in range(n_classes)]
+            for s in cell:
+                preds = s["predictions"]
+                bin_idx = get_bin_indices(len(preds), n_bins)
+                for b in range(n_bins):
+                    mask = bin_idx == b
+                    if mask.any():
+                        bin_means = preds[mask].mean(axis=0)
+                        for sc in range(n_classes):
+                            score_data[sc][b].append(bin_means[sc])
+
+            for j, score_idx in enumerate(class_order):
+                data_per_bin = score_data[score_idx]
+                means = np.array([np.mean(d) if d else np.nan for d in data_per_bin])
+                stds = np.array([np.std(d) if len(d) > 1 else 0.0 for d in data_per_bin])
+                color = f"C{j}"
+                ax.plot(x, means, label=class_names[j], color=color)
+                ax.fill_between(x, means - stds, means + stds, alpha=0.2, color=color)
+            ax.legend(fontsize=6)
+
+    fig.suptitle("Score trajectory (true × pred class)")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "score_trajectory_3x3.png", dpi=150)
+    plt.close(fig)
+
+
+def plot_stability_3x3(samples, class_names, class_order, output_dir):
+    """argmax変動率ヒストグラム 3×3（row=true class, col=pred class）"""
+    n_classes = len(class_names)
+    fig, axes = plt.subplots(n_classes, n_classes, figsize=(5 * n_classes, 4 * n_classes), sharey=True)
+
+    for row_i, true_idx in enumerate(class_order):
+        for col_j, pred_idx in enumerate(class_order):
+            ax = axes[row_i, col_j]
+            cell = _cell_samples(samples, true_idx, pred_idx)
+            ax.set_title(f"true={class_names[row_i]}, pred={class_names[col_j]} (n={len(cell)})", fontsize=8)
+            if col_j == 0:
+                ax.set_ylabel("Count")
+            if row_i == n_classes - 1:
+                ax.set_xlabel("Argmax change rate", fontsize=7)
+            if not cell:
+                continue
+
+            data = []
+            for s in cell:
+                argmax_seq = np.argmax(s["predictions"], axis=1)
+                rate = float(np.mean(argmax_seq[1:] != argmax_seq[:-1])) if len(argmax_seq) > 1 else 0.0
+                data.append(rate)
+            ax.hist(data, bins=20, range=(0, 1), edgecolor="white")
+
+    fig.suptitle("Within-sample stability (true × pred class)")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "stability_3x3.png", dpi=150)
+    plt.close(fig)
+
+
+def plot_score_margin_3x3(samples, class_names, class_order, output_dir):
+    """score margin ヒストグラム 3×3（row=true class, col=pred class）"""
+    n_classes = len(class_names)
+    fig, axes = plt.subplots(n_classes, n_classes, figsize=(5 * n_classes, 4 * n_classes), sharey=True)
+
+    for row_i, true_idx in enumerate(class_order):
+        for col_j, pred_idx in enumerate(class_order):
+            ax = axes[row_i, col_j]
+            cell = _cell_samples(samples, true_idx, pred_idx)
+            ax.set_title(f"true={class_names[row_i]}, pred={class_names[col_j]} (n={len(cell)})", fontsize=8)
+            if col_j == 0:
+                ax.set_ylabel("Count")
+            if row_i == n_classes - 1:
+                ax.set_xlabel("Mean margin (max − 2nd max)", fontsize=7)
+            if not cell:
+                continue
+
+            margins = []
+            for s in cell:
+                preds = s["predictions"]
+                sorted_scores = np.sort(preds, axis=1)
+                margins.append(float((sorted_scores[:, -1] - sorted_scores[:, -2]).mean()))
+            ax.hist(margins, bins=20, edgecolor="white")
+
+    fig.suptitle("Score margin distribution (true × pred class)")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "score_margin_3x3.png", dpi=150)
+    plt.close(fig)
+
+
 # ── fold summary ──────────────────────────────────────────────────────────────
 
 def summarize_temporal_accuracy(fold_accs, n_bins, class_names, class_order, output_dir):
@@ -322,6 +437,9 @@ def main(cfg):
                 stab = analyze_stability(samples, cfg.class_names, cfg.class_order, output_dir)
                 analyze_argmax_heatmap(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
                 analyze_score_margin(samples, cfg.class_names, cfg.class_order, output_dir)
+                plot_score_trajectory_3x3(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
+                plot_stability_3x3(samples, cfg.class_names, cfg.class_order, output_dir)
+                plot_score_margin_3x3(samples, cfg.class_names, cfg.class_order, output_dir)
                 fold_results.append((fold_index, acc, stab))
                 print(f"done: {param_str} group={group} fold={fold_index}")
 
