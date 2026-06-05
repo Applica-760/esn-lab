@@ -8,5 +8,12 @@ mode:
   - test
   - train
 
-# 判別戦略 (majority_vote)
+# 判別戦略: majority_vote / mean_score / weighted_score
 judge_strategy: majority_vote
+
+# weighted_score 使用時のみ指定（bayesian の final_params.json の mean フィールドから転記）
+# judge_params:
+#   w0: 1.0
+#   w1: 1.0
+#   w2: 1.0
+#   margin_threshold: 0.0

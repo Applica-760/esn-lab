@@ -37,17 +37,37 @@ def judge_sample_by_mean_score(predictions, labels) -> dict:
     }
 
 
+def make_weighted_score_judge(class_weights: np.ndarray, margin_threshold: float):
+    """加重スコア＋margin棄権による判定ファクトリ。全棄権時は全フレームにフォールバック"""
+    def judge(predictions, labels) -> dict:
+        predictions = np.array(predictions)
+        labels = np.array(labels)
+
+        sorted_scores = np.sort(predictions, axis=1)
+        margins = sorted_scores[:, -1] - sorted_scores[:, -2]
+        valid_mask = margins >= margin_threshold
+        valid_preds = predictions[valid_mask] if valid_mask.any() else predictions
+        pred_label = int(np.argmax((valid_preds * class_weights).mean(axis=0)))
+
+        true_frames = np.argmax(labels, axis=1)
+        true_label = int(np.argmax(np.bincount(true_frames)))
+
+        return {"pred_label": pred_label, "true_label": true_label, "is_correct": pred_label == true_label}
+
+    return judge
+
+
 JUDGE_STRATEGIES = {
     "majority_vote": judge_sample_by_majority_vote,
     "mean_score": judge_sample_by_mean_score,
 }
 
 
-def compute_judgment_results(pred_results: list, strategy: str, group: str = None) -> list:
+def compute_judgment_results(pred_results: list, strategy, group: str = None) -> list:
     """
-    予測結果から全サンプルの判定結果を計算
+    予測結果から全サンプルの判定結果を計算。strategy は str または callable を受け取る
     """
-    judge_fn = JUDGE_STRATEGIES[strategy]
+    judge_fn = JUDGE_STRATEGIES[strategy] if isinstance(strategy, str) else strategy
     judgment_results = []
 
     for fold_data in pred_results:

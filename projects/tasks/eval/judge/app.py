@@ -1,8 +1,25 @@
 from pathlib import Path
 
-from projects.utils.eval.judgment import compute_judgment_results, save_judgment_results
+import numpy as np
+
+from projects.utils.eval.judgment import (
+    JUDGE_STRATEGIES,
+    compute_judgment_results,
+    make_weighted_score_judge,
+    save_judgment_results,
+)
 from projects.utils.prediction import is_valid_result_file, load_pred_results
 from projects.utils.weights import list_param_dirs
+
+
+def _resolve_judge_fn(cfg):
+    if cfg.judge_strategy == "weighted_score":
+        p = cfg.judge_params
+        return make_weighted_score_judge(
+            np.array([p.w0, p.w1, p.w2]),
+            p.margin_threshold,
+        )
+    return JUDGE_STRATEGIES[cfg.judge_strategy]
 
 """
 python -m projects.apps.eval_judgement --config projects/configs/eval_judgement.yaml
@@ -63,7 +80,7 @@ def main(cfg):
             mode,
             pred_result_dir,
             cfg.output_dir,
-            strategy=cfg.judge_strategy,
+            strategy=_resolve_judge_fn(cfg),
         )
 
     print("judgment computation finished")

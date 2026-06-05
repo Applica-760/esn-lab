@@ -9,26 +9,20 @@ import optuna
 
 from projects.utils.app_init import build_param_grid
 from projects.utils.eval.confusion import compute_confusion_matrix
+from projects.utils.eval.judgment import make_weighted_score_judge
 from projects.utils.eval.metrics import compute_macro_f1_from_cm
 from projects.utils.prediction import is_valid_result_file, load_pred_results
 from projects.utils.weights import build_param_str
-
-
-def judge_sample(predictions: np.ndarray, class_weights: np.ndarray, margin_threshold: float) -> int:
-    """加重スコア＋margin棄権による単サンプル判定。全棄権時は全フレームにフォールバック"""
-    sorted_scores = np.sort(predictions, axis=1)
-    margins = sorted_scores[:, -1] - sorted_scores[:, -2]
-    valid_mask = margins >= margin_threshold
-    valid_preds = predictions[valid_mask] if valid_mask.any() else predictions
-    return int(np.argmax((valid_preds * class_weights).mean(axis=0)))
 
 
 def evaluate_samples(
     samples: list, class_weights: np.ndarray, margin_threshold: float, n_classes: int
 ) -> float:
     """1 (group, fold) のサンプルリストに対する macro F1"""
-    preds = [judge_sample(s[0], class_weights, margin_threshold) for s in samples]
-    trues = [s[1] for s in samples]
+    judge = make_weighted_score_judge(class_weights, margin_threshold)
+    results = [judge(s[0], s[1]) for s in samples]
+    preds = [r["pred_label"] for r in results]
+    trues = [r["true_label"] for r in results]
     cm = compute_confusion_matrix(trues, preds, n_classes)
     return compute_macro_f1_from_cm(cm)
 
@@ -128,9 +122,7 @@ def main(cfg):
                 for s in fold_data["results"]:
                     preds = np.asarray(s["predictions"])
                     labels = np.asarray(s["labels"])
-                    true_frames = np.argmax(labels, axis=1)
-                    true_label = int(np.argmax(np.bincount(true_frames, minlength=preds.shape[1])))
-                    fold_map[fi].append((preds, true_label))
+                    fold_map[fi].append((preds, labels))
                     if n_classes is None:
                         n_classes = preds.shape[1]
 
