@@ -38,8 +38,8 @@ def save_pred_results(results: list, base: str) -> None:
         os.makedirs(d, exist_ok=True)
 
     samples = [(fold["fold_index"], s) for fold in results for s in fold["results"]]
-    preds = [np.asarray(s["predictions"], dtype=np.float32) for _, s in samples]
-    labels = [np.asarray(s["labels"], dtype=np.float32) for _, s in samples]
+    preds = [np.asarray(s["predictions"], dtype=np.float64) for _, s in samples]
+    labels = [np.asarray(s["labels"], dtype=np.float64) for _, s in samples]
 
     np.savez_compressed(
         path,
