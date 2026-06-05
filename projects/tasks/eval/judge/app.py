@@ -16,8 +16,8 @@ def _resolve_judge_fn(cfg):
     if cfg.judge_strategy == "weighted_score":
         p = cfg.judge_params
         return make_weighted_score_judge(
-            np.array([p.w0, p.w1, p.w2]),
-            p.margin_threshold,
+            np.array([p["w0"], p["w1"], p["w2"]]),
+            p["margin_threshold"],
         )
     return JUDGE_STRATEGIES[cfg.judge_strategy]
 
