@@ -30,6 +30,7 @@ dependencies = [
     "omegaconf",
     "networkx",
     "tqdm",
+    "optuna",
 ]
 
 [project.optional-dependencies]

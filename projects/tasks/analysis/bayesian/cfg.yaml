@@ -1,0 +1,10 @@
+pred_result_dir: outputs/experiments/pred_results
+output_dir: outputs/tasks/analysis/bayesian
+groups: [a, b, c, d, e, f, g, h, i, j]
+n_trials: 300
+workers: 4
+
+Nx: [7]
+input_scale: [0.001]
+density: [0.5]
+rho: [0.9]
