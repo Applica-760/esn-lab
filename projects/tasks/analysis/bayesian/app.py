@@ -1,7 +1,7 @@
 import csv
 import json
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -114,13 +114,14 @@ def main(cfg):
         print(f"\n=== {param_str} ===")
         param_output_dir = cfg.output_dir / param_str
 
-        # 全 group のデータをロードして (group, fold) → samples の jobs を構築
-        jobs = []
+        all_results = []
         n_classes = None
+
         for group in cfg.groups:
             result_base = str(pred_result_dir / group / param_str / "train_results")
             if not is_valid_result_file(result_base):
                 continue
+
             fold_map = defaultdict(list)
             for fold_data in load_pred_results(result_base):
                 fi = fold_data["fold_index"]
@@ -132,20 +133,22 @@ def main(cfg):
                     fold_map[fi].append((preds, true_label))
                     if n_classes is None:
                         n_classes = preds.shape[1]
-            for fold_index, samples in sorted(fold_map.items()):
-                jobs.append((group, fold_index, samples, n_classes, cfg.n_trials, param_output_dir))
 
-        if not jobs:
-            print("  skip (no data)")
-            continue
+            jobs = [
+                (group, fi, samples, n_classes, cfg.n_trials, param_output_dir)
+                for fi, samples in sorted(fold_map.items())
+            ]
 
-        with ProcessPoolExecutor(max_workers=cfg.workers) as executor:
-            futures = [executor.submit(one_process, *job) for job in jobs]
-            all_results = [f.result() for f in futures]
+            print(f"  group={group}")
+            with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
+                futures = [executor.submit(one_process, *job) for job in jobs]
+                all_results += [f.result() for f in futures]
 
         all_results = [r for r in all_results if r is not None]
         if all_results:
             final_params = compute_final_params(all_results)
             save_summary(all_results, final_params, param_output_dir / "summary")
+        else:
+            print("  skip (no data)")
 
     print("\noptimization finished")
