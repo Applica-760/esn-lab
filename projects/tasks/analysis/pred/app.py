@@ -247,6 +247,47 @@ def _cell_samples(samples, true_idx, pred_idx):
     return [s for s in samples if s["true_label"] == true_idx and s["pred_label"] == pred_idx]
 
 
+def plot_temporal_accuracy_3x3(samples, n_bins, class_names, class_order, output_dir):
+    """フレーム正答率 3×3（row=true class, col=pred class）"""
+    n_classes = len(class_names)
+    x = np.linspace(0, 100, n_bins)
+    fig, axes = plt.subplots(n_classes, n_classes, figsize=(5 * n_classes, 4 * n_classes), sharey=True)
+
+    for row_i, true_idx in enumerate(class_order):
+        for col_j, pred_idx in enumerate(class_order):
+            ax = axes[row_i, col_j]
+            cell = _cell_samples(samples, true_idx, pred_idx)
+            ax.set_title(f"true={class_names[row_i]}, pred={class_names[col_j]} (n={len(cell)})", fontsize=8)
+            if col_j == 0:
+                ax.set_ylabel("Frame accuracy")
+            if row_i == n_classes - 1:
+                ax.set_xlabel("Relative position (%)", fontsize=7)
+            ax.set_ylim(0, 1)
+            if not cell:
+                continue
+
+            acc_per_bin = [[] for _ in range(n_bins)]
+            for s in cell:
+                preds, labels = s["predictions"], s["labels"]
+                frame_correct = (np.argmax(preds, axis=1) == np.argmax(labels, axis=1)).astype(float)
+                bin_idx = get_bin_indices(len(preds), n_bins)
+                for b in range(n_bins):
+                    mask = bin_idx == b
+                    if mask.any():
+                        acc_per_bin[b].append(frame_correct[mask].mean())
+
+            means = np.array([np.mean(d) if d else np.nan for d in acc_per_bin])
+            stds = np.array([np.std(d) if len(d) > 1 else 0.0 for d in acc_per_bin])
+            ax.plot(x, means, color="steelblue")
+            ax.fill_between(x, means - stds, means + stds, alpha=0.2, color="steelblue")
+
+    fig.suptitle("Temporal accuracy (true × pred class)")
+    fig.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_dir / "temporal_accuracy_3x3.png", dpi=150)
+    plt.close(fig)
+
+
 def plot_score_trajectory_3x3(samples, n_bins, class_names, class_order, output_dir):
     """スコア軌跡 3×3（row=true class, col=pred class）"""
     n_classes = len(class_names)
@@ -437,6 +478,7 @@ def main(cfg):
                 stab = analyze_stability(samples, cfg.class_names, cfg.class_order, output_dir)
                 analyze_argmax_heatmap(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
                 analyze_score_margin(samples, cfg.class_names, cfg.class_order, output_dir)
+                plot_temporal_accuracy_3x3(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
                 plot_score_trajectory_3x3(samples, cfg.n_bins, cfg.class_names, cfg.class_order, output_dir)
                 plot_stability_3x3(samples, cfg.class_names, cfg.class_order, output_dir)
                 plot_score_margin_3x3(samples, cfg.class_names, cfg.class_order, output_dir)
