@@ -5,13 +5,13 @@ python -m projects.tasks.cli train
 python -m projects.tasks.cli eval.dist
 """
 
+import argparse
 import os
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 import importlib
-import sys
 
 from projects.utils.app_init import setup_task_environment
 
@@ -30,15 +30,15 @@ TASK_REGISTRY = {
 
 def main():
     """CLIエントリーポイント"""
-    # モジュールパスを取得
-    module_path = TASK_REGISTRY[sys.argv[1]]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("task", choices=TASK_REGISTRY.keys())
+    parser.add_argument("--config", type=str, default=None, help="cfg.yaml 以外の設定ファイル名（タスクディレクトリ内）")
+    args = parser.parse_args()
 
-    # タスクの設定を読み込み
-    cfg = setup_task_environment(module_path)
+    module_path = TASK_REGISTRY[args.task]
+    cfg = setup_task_environment(module_path, config_name=args.config)
 
-    # タスクモジュールを動的にインポート
     module = importlib.import_module(module_path)
-
     module.main(cfg)
 
 

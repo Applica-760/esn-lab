@@ -1,0 +1,18 @@
+# 入力: 予測結果のディレクトリと判定結果のディレクトリ
+pred_result_dir: outputs/experiments/pred_2class
+judge_dir: outputs/eval/judgement_2class
+output_dir: outputs/eval/metrics_2class
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+# 対象モード (test / train)
+mode:
+  - test
+  - train
+
+# 表示順に対応するJSONのインデックス
+# class_names[0]=foraging はJSONの0, class_names[1]=rumination はJSONの1
+class_names: ["foraging", "rumination"]
+class_order: [0, 1]
+
+# プロットのY軸範囲 [min, max]
+plot_ylim: [0, 1]

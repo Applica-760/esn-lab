@@ -36,19 +36,23 @@ def setup_app_environment() -> tuple[SimpleNamespace, Path]:
     return cfg, output_dir
 
 
-def setup_task_environment(module_path: str) -> SimpleNamespace:
+def setup_task_environment(module_path: str, config_name: str | None = None) -> SimpleNamespace:
     """
-    モジュールパスから対応するcfg.yamlを読み込み、設定を返す
+    モジュールパスから対応するcfg.yamlを読み込み、設定を返す。
+    config_name が指定された場合はタスクディレクトリ内の同名ファイルを優先する。
     """
     # "projects.tasks.train.app" -> "projects/tasks/train"
     parts = module_path.split(".")
-    config_path = Path("/".join(parts[:-1])) / "cfg.yaml"
+    task_dir = Path("/".join(parts[:-1]))
+    if config_name is not None:
+        config_path = task_dir / config_name
+    else:
+        config_path = task_dir / "cfg.yaml"
 
-    # YAMLをロード
     cfg = load_config(str(config_path))
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(config_path, output_dir / "config.lock.yaml")
+    shutil.copy(str(config_path), output_dir / "config.lock.yaml")
     cfg.output_dir = output_dir
 
     return cfg

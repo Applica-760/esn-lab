@@ -1,0 +1,18 @@
+# 入力: 予測結果のディレクトリ
+pred_result_dir: outputs/experiments/pred_2class
+output_dir: outputs/eval/judgement_2class
+sample_groups: [a, b, c, d, e, f, g, h, i, j]
+
+# 対象モード (test / train)
+mode:
+  - test
+  - train
+
+# 判別戦略: majority_vote / mean_score / weighted_score
+judge_strategy: majority_vote
+
+# weighted_score 使用時のみ指定（bayesian の final_params.json の mean フィールドから転記）
+# judge_params:
+#   w0: 1.0
+#   w1: 1.0
+#   margin_threshold: 0.0
