@@ -18,7 +18,8 @@
   - 変換後に shape・ラベル値の全件検証を実行
 
 ### Phase 3: 2クラス用データセット生成
-- [ ] `convert_to_2class.py` を実行して 2クラスNPZを生成（既存3クラスデータセットから変換）
+- [x] `convert_to_2class.py` を実行して 2クラスNPZを生成（既存3クラスデータセットから変換）
+- [x] 検証: サンプル数・ID集合・label shape・クラス再採番をCSVとクロスチェック → 全OK
 
 ### Phase 4: 2クラス用 cfg ファイル作成
 - [x] `projects/tasks/train/cfg_2class.yaml`（`Ny: 2`, `data_source_base_dir: dataset/10fold_npy_2class`）
@@ -27,12 +28,14 @@
 - [x] `projects/tasks/eval/metrics/cfg_2class.yaml`（`class_names: ["foraging", "rumination"]`, `class_order: [0, 1]`）
 
 ### Phase 5: 2クラス実験実行・確認
-- [ ] Train: `uv run -m projects.tasks.cli train --config projects/tasks/train/cfg_2class.yaml`
-- [ ] Pred: `uv run -m projects.tasks.cli pred --config projects/tasks/pred/cfg_2class.yaml`
-- [ ] Eval (judge): `uv run -m projects.tasks.cli eval.judge --config projects/tasks/eval/judge/cfg_2class.yaml`
-- [ ] Eval (metrics): `uv run -m projects.tasks.cli eval.metrics --config projects/tasks/eval/metrics/cfg_2class.yaml`
-- [ ] 3クラス結果と比較確認
+- [x] Train: `uv run -m projects.tasks.cli train --config projects/tasks/train/cfg_2class.yaml`
+- [x] Pred: `uv run -m projects.tasks.cli pred --config projects/tasks/pred/cfg_2class.yaml`
+- [x] Eval (judge): `uv run -m projects.tasks.cli eval.judge --config projects/tasks/eval/judge/cfg_2class.yaml`
+- [x] Eval (metrics): `uv run -m projects.tasks.cli eval.metrics --config projects/tasks/eval/metrics/cfg_2class.yaml`
+- [x] 3クラス結果と比較確認
 
 ## 実行ログ
 
 ## 結果
+
+- 全Phase完了（2026-07-13記録）。実行および成果物はスパコン側にあり、本ワークスペースには未同期

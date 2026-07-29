@@ -1,3 +1,7 @@
+# hub:managed:start
+.codegraph/
+# hub:managed:end
+
 # prj
 /design/
 /outputs/
@@ -22,4 +26,8 @@ __pycache__/
 
 # genkai
 /logs/
-run.sh*
+run.sh*.codex/
+.codegraph/
+AGENTS.md
+.mcp.json
+.codex/

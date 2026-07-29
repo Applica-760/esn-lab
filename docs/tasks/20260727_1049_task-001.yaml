@@ -1,0 +1,182 @@
+schema_version: 1
+task:
+  id: TASK-001
+  state: draft
+  title: 2クラスESN出力によるその他のマージン分布分析
+  objective: 採食・反芻の2クラスESNに採食・反芻・その他を入力し、真の行動別の出力マージン分布を比較して、その他が既知2クラスと分離可能かを検証する。
+  approach:
+  - '研究上の入力: research-hub:TASK-002で整理する理論・引用元・その他データの定義・実験仮説を参照する。プロジェクト間のTask依存関係は作成しない。'
+  - '既存実装の流用: projects/tasks/pred/app.py と src/esn_lab/runner/pred/tenfold.py で10-fold・group単位の出力生値を取得し、projects/utils/prediction.py
+    のNPZ保存形式を用いる。projects/tasks/analysis/pred/app.py の analyze_score_margin の算出式を流用する。'
+  - '実装方針: 既存 analysis.pred は予測出力数と真値クラス数が同一であることを前提にするため変更しない。2出力の予測を、採食・反芻・その他の3つの真値群で集計する専用解析と設定を追加する。任意の閾値の採用・分類器の改変は行わない。'
+  - '実行経路: research-hub:docs/operations/research-workflow.md と docs/operations/supercomputer-execution.md
+    に従う。スパコン実行前に日付付き実行指示書を作成し、そこで指定したpush済みcommitを用いる。結果・config.lock・実行commitをローカルへ取得して検証する。'
+  - '報告への引継ぎ: 実験成果物の確定パス・再現手順・解釈を記録した後、research-hubに報告資料作成Taskを起票する。そのTaskのApproachは本Task（esn-lab:TASK-001）と成果物パスを参照し、本TaskのPhase
+    logには起票したresearch-hub Task IDを記録して双方向に追跡可能にする。'
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: 推論データの準備
+    acceptance: []
+    steps:
+    - description: 2クラスESNに採食・反芻・その他を入力し、group/fold・真の行動・サンプルIDを保持した出力生値を保存する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: マージン分布の可視化
+    acceptance:
+    - id: ACC-001
+      statement: 採食・反芻・その他の3群について、同じ定義のマージン分布図と集計値が再現手順・成果物パスとともに保存されている。
+    steps:
+    - description: 各サンプルの max logit - 2nd logit を算出し、真の行動別の分布図と集計値を生成する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 結果の評価
+    acceptance:
+    - id: ACC-002
+      statement: その他と既知2クラスの分離傾向に関する評価が、任意の閾値採用や分類器改変を含めずに記録されている。
+    steps:
+    - description: その他が既知2クラスと分離する傾向の有無を、生成した分布図と集計値に基づいて記録する。閾値やモデル変更の採否は結論に含めない。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 報告タスクへの引継ぎ
+    acceptance:
+    - id: ACC-003
+      statement: research-hub の報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase
+        log記録が相互に確認できる。
+    steps:
+    - description: 成果物パス・再現手順・評価結果を記録し、research-hub に報告資料作成Taskを起票する。起票先TaskのApproachから本Taskと成果物を参照させ、本Phase
+        logに起票先Task IDを残す。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 実装
+    acceptance: []
+    steps:
+    - description: 既存のpred・prediction保存・score margin実装を使い、2出力モデルの予測を採食・反芻・その他の3真値群で集計する専用解析と設定を実装する。既存の3クラス解析は変更しない。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: ローカル検証と共有
+    acceptance:
+    - id: ACC-004
+      statement: 最小入力を用いた検証とuv run pytestが成功し、push済みcommit ID・スパコンで用いる設定・出力先が記録されている。
+    steps:
+    - description: 最小入力を用いたローカル検証とuv run pytestを実行し、3真値群のマージン算出・成果物形式・既存解析への非干渉を確認する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    - description: 検証済み変更をcommitしてpushし、実行対象のcommit ID・実行コマンド・設定ファイル・出力先を記録する。
+      state: pending
+      skip_reason: null
+      deleted: true
+    - description: 検証済み変更をcommitしてpushし、docs/operations/runs/YYYYMMDD_<experiment>.md
+        に実行対象のcommit ID、設定、出力先、スパコンでコピーして実行するコマンドを記載する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: スパコン実行
+    acceptance:
+    - id: ACC-007
+      statement: 日付付き実行指示書に、実行対象のcommit ID、ジョブ .sh の編集内容、投入・状態確認・結果取得のコマンドが未置換のプレースホルダなしで記録されている。
+    steps:
+    - description: 大学スパコンで記録済みcommitを取得し、既存の実行手順に従って2クラスモデルの予測と専用解析を実行する。スケジューラ提出方法はスパコン側の既存手順を用いる。
+      state: pending
+      skip_reason: null
+      deleted: true
+    log: []
+    deleted: true
+  - title: 結果の取得と評価
+    acceptance:
+    - id: ACC-005
+      statement: スパコン実行に用いたcommit ID・設定ファイル・実行コマンドと、取得した結果・config.lockの対応が記録されている。
+    steps:
+    - description: スパコン実行の成果物、config.lock、実行commit IDをローカルへ取得し、採食・反芻・その他のマージン分布図と集計値を確認する。その他の分離傾向は閾値を導入せず記録する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 報告タスクへの引継ぎ
+    acceptance:
+    - id: ACC-006
+      statement: research-hubの報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase
+        log記録が相互に確認できる。
+    steps:
+    - description: 成果物パス・再現手順・評価結果を記録し、research-hubに報告資料作成Taskを起票する。起票先TaskのApproachから本Taskと成果物を参照させ、本Phase
+        logに起票先Task IDを残す。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 実装
+    acceptance: []
+    steps:
+    - description: research-hub:TASK-002の結論を参照し、既存のpred・prediction保存・score margin実装を流用して、2出力モデルの予測を採食・反芻・その他の3真値群で集計する専用解析と設定を実装する。既存の3クラス解析は変更しない。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: ローカル検証と実行指示書
+    acceptance: []
+    steps:
+    - description: 最小入力を用いたローカル検証とuv run pytestを実行し、3真値群のマージン算出・成果物形式・既存解析への非干渉を確認する。検証済み変更をcommitしてpushし、日付付き実行指示書にcommit
+        ID、設定、出力先、スパコンで実行するコマンドを記載する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: スパコン実行
+    acceptance: []
+    steps:
+    - description: 日付付き実行指示書に従い、大学スパコンで記録済みcommitを取得してジョブを投入し、2クラスモデルの予測と専用解析を実行する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: 結果の取得と評価
+    acceptance: []
+    steps:
+    - description: スパコン実行の成果物、config.lock、実行commit IDをローカルへ取得し、採食・反芻・その他のマージン分布図と集計値を確認する。その他の分離傾向は閾値を導入せず記録する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: 報告タスクへの引継ぎ
+    acceptance: []
+    steps:
+    - description: 成果物パス・再現手順・評価結果を記録し、research-hubに報告資料作成Taskを起票する。起票先TaskのApproachから本Taskと成果物を参照させ、本Phase
+        logに起票先Task IDを残す。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+approvals: []
+acceptance_results: []
+change_requests: []
+cancellation: null
+result: null
