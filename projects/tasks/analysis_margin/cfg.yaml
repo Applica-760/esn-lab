@@ -1,0 +1,7 @@
+# pred.margin のtest結果を、3つの真値群で集計する。
+pred_result_dir: "outputs/experiments/pred_margin_2class"
+output_dir: "outputs/experiments/analysis_margin_2class"
+groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+
+warmup_ratio: 0.1
+bins: 20
