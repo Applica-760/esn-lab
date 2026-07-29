@@ -1,7 +1,7 @@
 schema_version: 1
 task:
   id: TASK-002
-  state: in_progress
+  state: completed
   title: 2クラスESN出力によるその他のマージン分布分析
   objective: 採食・反芻の2クラスESNへ採食・反芻・その他を入力し、真値3群の出力マージン分布を比較して、その他が既知2クラスと異なる出力傾向を示すかを記述する。
   approach:
@@ -20,10 +20,16 @@ plan:
     acceptance: []
     steps:
     - description: 2クラス学習で用いたfold対応を保ちながら、採食・反芻・その他の真値、ID、foldを保持して推論できる専用データ経路を設計・実装する。既知2群のID対応と、その他を含む評価対象の対応を検証可能にする。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        decision: '2026-07-29: 評価対象はtestのみ。各サンプルを一度だけ評価し、学習foldへの入力を避ける。'
+      deleted: false
+    - value:
+        implementation: pred.margin を追加。3クラス元データと2クラス学習データのIDをfoldごとに照合し、testのみを2クラス重みで推論してID・fold・3クラス真値を保存する。Ruffと一致・不一致の最小10-fold検証が成功。
+      deleted: false
     deleted: false
   - title: 専用マージン解析
     acceptance:
@@ -31,29 +37,47 @@ plan:
       statement: 2出力の予測結果を真値3群で集計し、各群のマージン分布図と集計値を再現可能な設定・成果物パスとともに出力できる。
     steps:
     - description: 2出力の時刻ごとの生値から |y_foraging - y_rumination| を算出し、warmup除外後のサンプル平均を真値3群で分布図・集計値として出力する専用解析と設定を実装する。既存解析は変更しない。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        implementation: analysis.margin を追加。pred.margin のtest結果からwarmup後の|y_foraging-y_rumination|平均をサンプル単位で算出し、真値3群別のCSV集計値と分布図を出力する。Ruffと最小配列検証が成功。
+      deleted: false
     deleted: false
   - title: ローカル検証と実行指示書
     acceptance: []
     steps:
     - description: 最小fixtureによる推論結果保存・3真値群集計・成果物形式の検証と uv run pytest を実行する。検証済み変更をcommit・pushし、commit
         ID、設定、出力先、スパコン実行手順を日付付き実行指示書へ記録する。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        verification: projects/tests の最小fixtureで推論結果NPZの保存・読込、3真値群集計、CSV・図の成果物形式を検証し、uv
+          run pytest は2 passed。push済み実行commit 9cd940035283f6af697221d80bb494d156a65fd0
+          と実行指示書 docs/operations/runs/20260729_2class-margin-analysis.md を記録。
+      deleted: false
+    - value:
+        configuration: スパコン既存重み outputs/experiments/train_beta_2class に合わせ、推論出力を outputs/experiments/pred_margin_beta_2class、解析出力を
+          outputs/experiments/analysis_margin_beta_2class へ更新。実行commit 27fb41515cb8f3be483e8f5486f54c3c479fa767
+          はpush済み。
+      deleted: false
     deleted: false
   - title: スパコン実行
     acceptance: []
     steps:
     - description: 日付付き実行指示書に記録したpush済みcommitを大学スパコンで取得し、2クラスESNの推論と専用マージン解析を実行する。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        execution: 大学スパコンでpush済みcommit 27fb41515cb8f3be483e8f5486f54c3c479fa767 をcheckoutし、pred.margin
+          と analysis.margin を実行。推論結果10件、解析CSV・分布図、各config.lock.yamlを取得し、ローカル保管先 outputs/experiments/20260729/analysis_margin_beta_2class/
+          を確認。
+      deleted: false
     deleted: false
   - title: 結果評価と報告引継ぎ
     acceptance:
@@ -61,14 +85,27 @@ plan:
       statement: スパコン実行に用いたcommit ID・設定・実行手順と、取得した成果物・config.lock.yaml・評価記録が対応付けられている。
     steps:
     - description: 実行commit ID、config.lock.yaml、成果物と取得元を対応付けてローカルへ取得し、真値3群のマージン分布を確認する。分離傾向の有無のみを記録し、閾値の採用・棄却・分類器改変は行わない。成果物・再現手順・解釈を引き継ぐresearch-hub報告Taskを起票する。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        evaluation: 2550件（各真値群850件）の分布図・集計を確認。otherとforagingは大きく重なり、ruminationはより広い右裾を持つが、マージン単独の明確な3群分離は確認できない。閾値の採用・棄却・分類器改変は行わない。報告Taskとしてresearch-hub:TASK-006を起票。
+      deleted: false
     deleted: false
 approvals:
 - actor: user
-acceptance_results: []
+acceptance_results:
+- acceptance: ACC-001
+  status: passed
+  evidence:
+  - margin_by_sample.csv（2550件）、margin_summary.csv（3群）、margin_distribution.pngを outputs/experiments/20260729/analysis_margin_beta_2class/Nx400_dens0.5_inscl0.001_rho0.9/
+    で確認。
+- acceptance: ACC-002
+  status: passed
+  evidence:
+  - 実行commit 27fb41515cb8f3be483e8f5486f54c3c479fa767、両config.lock.yaml、スパコン取得元・ローカル保管先、research-hub:TASK-006を対応付けて記録。
 change_requests: []
 cancellation: null
-result: null
+result:
+  summary: 2クラスESNのtest推論・真値3群マージン解析を実装・検証・スパコン実行し、成果物と再現情報を取得した。マージン単独では明確な3群分離を確認できず、報告はresearch-hub:TASK-006へ引き継いだ。
