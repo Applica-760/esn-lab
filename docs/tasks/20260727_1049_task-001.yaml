@@ -1,11 +1,12 @@
 schema_version: 1
 task:
   id: TASK-001
-  state: draft
+  state: cancelled
   title: 2クラスESN出力によるその他のマージン分布分析
   objective: 採食・反芻の2クラスESNに採食・反芻・その他を入力し、真の行動別の出力マージン分布を比較して、その他が既知2クラスと分離可能かを検証する。
   approach:
   - '研究上の入力: research-hub:TASK-002で整理する理論・引用元・その他データの定義・実験仮説を参照する。プロジェクト間のTask依存関係は作成しない。'
+  - '引継ぎ文書: research-hub:docs/research/20260729_other-margin-analysis.md を参照し、その他の定義、出力マージンの定義、評価範囲に従う。'
   - '既存実装の流用: projects/tasks/pred/app.py と src/esn_lab/runner/pred/tenfold.py で10-fold・group単位の出力生値を取得し、projects/utils/prediction.py
     のNPZ保存形式を用いる。projects/tasks/analysis/pred/app.py の analyze_score_margin の算出式を流用する。'
   - '実装方針: 既存 analysis.pred は予測出力数と真値クラス数が同一であることを前提にするため変更しない。2出力の予測を、採食・反芻・その他の3つの真値群で集計する専用解析と設定を追加する。任意の閾値の採用・分類器の改変は行わない。'
@@ -54,8 +55,7 @@ plan:
   - title: 報告タスクへの引継ぎ
     acceptance:
     - id: ACC-003
-      statement: research-hub の報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase
-        log記録が相互に確認できる。
+      statement: research-hub の報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase log記録が相互に確認できる。
     steps:
     - description: 成果物パス・再現手順・評価結果を記録し、research-hub に報告資料作成Taskを起票する。起票先TaskのApproachから本Taskと成果物を参照させ、本Phase
         logに起票先Task IDを残す。
@@ -118,8 +118,7 @@ plan:
   - title: 報告タスクへの引継ぎ
     acceptance:
     - id: ACC-006
-      statement: research-hubの報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase
-        log記録が相互に確認できる。
+      statement: research-hubの報告資料作成Taskが起票され、本Task・成果物パスへの参照と、起票先Task IDのPhase log記録が相互に確認できる。
     steps:
     - description: 成果物パス・再現手順・評価結果を記録し、research-hubに報告資料作成Taskを起票する。起票先TaskのApproachから本Taskと成果物を参照させ、本Phase
         logに起票先Task IDを残す。
@@ -178,5 +177,7 @@ plan:
 approvals: []
 acceptance_results: []
 change_requests: []
-cancellation: null
+cancellation:
+  reason: 重複した旧Phaseと未完Phaseが同居しており、research-hubの確定した研究上の入力に基づく単一の実装・実験Taskとして再起票するため
+  actor: user
 result: null

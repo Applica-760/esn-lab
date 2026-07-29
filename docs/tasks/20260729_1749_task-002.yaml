@@ -1,0 +1,74 @@
+schema_version: 1
+task:
+  id: TASK-002
+  state: in_progress
+  title: 2クラスESN出力によるその他のマージン分布分析
+  objective: 採食・反芻の2クラスESNへ採食・反芻・その他を入力し、真値3群の出力マージン分布を比較して、その他が既知2クラスと異なる出力傾向を示すかを記述する。
+  approach:
+  - 研究上の入力は research-hub:docs/research/20260729_other-margin-analysis.md とする。出力マージン比較に限定し、閾値の採用、棄却・分類、再学習・分類器改変、Energy/PCA/Mahalanobisは対象外とする。
+  - 2クラスモデルの出力は維持したまま、ID・fold・真値3群を保持する推論専用経路と、真値3群で集計する専用解析を追加する。既存の2クラス・3クラス解析は変更しない。
+  - research-hub:docs/operations/research-workflow.md と docs/operations/supercomputer-execution.md
+    に従い、スパコン実行前にcommit・設定・出力先・再現手順を記録する。
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: 推論データ経路
+    acceptance: []
+    steps:
+    - description: 2クラス学習で用いたfold対応を保ちながら、採食・反芻・その他の真値、ID、foldを保持して推論できる専用データ経路を設計・実装する。既知2群のID対応と、その他を含む評価対象の対応を検証可能にする。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: 専用マージン解析
+    acceptance:
+    - id: ACC-001
+      statement: 2出力の予測結果を真値3群で集計し、各群のマージン分布図と集計値を再現可能な設定・成果物パスとともに出力できる。
+    steps:
+    - description: 2出力の時刻ごとの生値から |y_foraging - y_rumination| を算出し、warmup除外後のサンプル平均を真値3群で分布図・集計値として出力する専用解析と設定を実装する。既存解析は変更しない。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: ローカル検証と実行指示書
+    acceptance: []
+    steps:
+    - description: 最小fixtureによる推論結果保存・3真値群集計・成果物形式の検証と uv run pytest を実行する。検証済み変更をcommit・pushし、commit
+        ID、設定、出力先、スパコン実行手順を日付付き実行指示書へ記録する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: スパコン実行
+    acceptance: []
+    steps:
+    - description: 日付付き実行指示書に記録したpush済みcommitを大学スパコンで取得し、2クラスESNの推論と専用マージン解析を実行する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: 結果評価と報告引継ぎ
+    acceptance:
+    - id: ACC-002
+      statement: スパコン実行に用いたcommit ID・設定・実行手順と、取得した成果物・config.lock.yaml・評価記録が対応付けられている。
+    steps:
+    - description: 実行commit ID、config.lock.yaml、成果物と取得元を対応付けてローカルへ取得し、真値3群のマージン分布を確認する。分離傾向の有無のみを記録し、閾値の採用・棄却・分類器改変は行わない。成果物・再現手順・解釈を引き継ぐresearch-hub報告Taskを起票する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+approvals:
+- actor: user
+acceptance_results: []
+change_requests: []
+cancellation: null
+result: null

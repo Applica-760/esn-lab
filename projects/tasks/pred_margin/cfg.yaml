@@ -1,0 +1,10 @@
+# 2クラス重みで3クラス元データをtest foldのみ推論する。
+weight_dir: "outputs/experiments/train_beta_2class"
+output_dir: "outputs/experiments/pred_margin_beta_2class"
+data_source_base_dir: "dataset/10fold_npy"
+known_data_source_base_dir: "dataset/10fold_npy_2class"
+groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+workers: 10
+
+Nu: 256
+Ny: 2

@@ -18,12 +18,14 @@ from projects.utils.app_init import setup_task_environment
 TASK_REGISTRY = {
     "train": "projects.tasks.train.app",
     "pred": "projects.tasks.pred.app",
+    "pred.margin": "projects.tasks.pred_margin.app",
     "eval.dist": "projects.tasks.eval.dist.app",
     "eval.dist_node": "projects.tasks.eval.dist_node.app",
     "eval.judge": "projects.tasks.eval.judge.app",
     "eval.metrics": "projects.tasks.eval.metrics.app",
     "eval.plot": "projects.tasks.eval.plot.app",
     "analysis.pred": "projects.tasks.analysis.pred.app",
+    "analysis.margin": "projects.tasks.analysis_margin.app",
     "analysis.bayesian": "projects.tasks.analysis.bayesian.app",
 }
 
