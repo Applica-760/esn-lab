@@ -66,10 +66,13 @@ plan:
     acceptance: []
     steps:
     - description: 作図ロジックのユニットテストを追加し、Ruff と uv run pytest で検証後、Task 003の変更だけをcommitしてorigin/mainへpushする。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        verification: uv run ruff checkとuv run pytestが成功。commit 05353a0をorigin/mainへpush済み。
+      deleted: false
     deleted: false
   - title: スパコン手動実行の指示書
     acceptance: []
