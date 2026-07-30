@@ -87,6 +87,10 @@ plan:
         runbook: docs/operations/runs/20260730_3class-margin-shared-axes.mdに、push済みcommit
           05353a0・スパコンで実行するanalysis.marginコマンド・設定・出力先を記録。ジョブ投入はユーザーが手動で行う。
       deleted: false
+    - value:
+        result: スパコン再実行済み成果物 outputs/experiments/20260730/Nx400_dens0.5_inscl0.001_rho0.9/margin_distribution.png
+          を取得し、research-hubの報告画像へ反映する。
+      deleted: false
     deleted: false
 approvals:
 - actor: user
