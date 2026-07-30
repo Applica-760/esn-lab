@@ -28,6 +28,3 @@ __pycache__/
 /logs/
 run.sh*.codex/
 .codegraph/
-AGENTS.md
-.mcp.json
-.codex/
