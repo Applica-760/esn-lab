@@ -1,7 +1,7 @@
 schema_version: 1
 task:
   id: TASK-006
-  state: draft
+  state: in_progress
   title: projects/tasksの構造を再編
   objective: projects/tasksの実装を責務別に階層化し、共通コードの境界、CLI、設定、テスト、run文書の互換性を保って再編する。
   approach:
@@ -10,8 +10,20 @@ task:
   interruption_task_id: null
   interruption_reason: null
   interruption_source_task_id: null
-plan: null
-approvals: []
+plan:
+  acceptance: []
+  phases:
+  - title: アーキテクチャ文書の移管
+    acceptance: []
+    steps:
+    - description: research-hubのprojects/tasks再編前スナップショットをesn-lab/docs/architectureへ移管し、Labの実装構造をLab自身のarchitecture文書として管理する。Lab側の文書がmainへ統合された後にHub側の複製を削除する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+approvals:
+- actor: user
 acceptance_results: []
 change_requests: []
 cancellation: null
