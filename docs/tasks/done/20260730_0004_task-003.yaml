@@ -1,7 +1,7 @@
 schema_version: 1
 task:
   id: TASK-003
-  state: in_progress
+  state: completed
   title: 3真値群マージン分布の共通軸再出力
   objective: 採食・反芻・その他の3真値群の出力マージン分布を共通軸で比較できる図として再出力し、research-hubの報告で使用できる状態にする。
   approach:
@@ -95,8 +95,13 @@ plan:
 approvals:
 - actor: user
 - actor: user
-acceptance_results: []
+acceptance_results:
+- acceptance: ACC-001
+  status: passed
+  evidence:
+  - 共通x軸0.0–3.3・共通20 bin・共通Count軸の図を出力し、margin_summary.csvと一致する集計値を確認した。
 change_requests:
 - reason: ローカル再作図から、共通軸作図の実装・実行指示書作成・push後にユーザーがスパコンへ手動投入する方針へ変更
 cancellation: null
-result: null
+result:
+  summary: 共通軸のマージン分布図を実装・検証し、スパコン再実行済み成果物を取得してresearch-hubへ反映した。
