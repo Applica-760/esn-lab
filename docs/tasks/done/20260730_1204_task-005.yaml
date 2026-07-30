@@ -1,7 +1,7 @@
 schema_version: 1
 task:
   id: TASK-005
-  state: in_progress
+  state: completed
   title: foraging・rumination出力分布プロットの追加
   objective: 002で作成した差分絶対値のマージンプロットを拡張し、foragingとruminationの出力値自体を分布付きで比較できるプロットを追加する
   approach:
@@ -78,4 +78,6 @@ change_requests:
 - reason: group bのtest fold 0〜4を各fold別の真値3群×予測2群・100 bin図として出力する緊急要件を追加するため
 - reason: analysis.margin の既存成果物とCSVスキーマを維持し、distribution と output_trajectory を責務別に再編するため
 cancellation: null
-result: null
+result:
+  summary: margin分析をdistributionとoutput_trajectoryへ責務別に再編し、3×2・fold別100 bin出力を分離。対象Ruff、pytest
+    4 passed、CLI登録を検証済み。
