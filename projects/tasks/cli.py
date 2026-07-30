@@ -25,7 +25,9 @@ TASK_REGISTRY = {
     "eval.metrics": "projects.tasks.eval.metrics.app",
     "eval.plot": "projects.tasks.eval.plot.app",
     "analysis.pred": "projects.tasks.analysis.pred.app",
-    "analysis.margin": "projects.tasks.analysis_margin.app",
+    "analysis.margin": "projects.tasks.analysis.margin.distribution.app",
+    "analysis.margin.distribution": "projects.tasks.analysis.margin.distribution.app",
+    "analysis.margin.output_trajectory": "projects.tasks.analysis.margin.output_trajectory.app",
     "analysis.bayesian": "projects.tasks.analysis.bayesian.app",
 }
 
