@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from projects.tasks.analysis_margin.app import (
+    collect_samples,
     collect_rows,
     histogram_bin_edges,
 )
@@ -74,6 +75,9 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
         "other",
     }
     assert {row["pred_label"] for row in rows_by_param["Nx_7"]} == {"foraging", "rumination"}
+    assert not collect_samples(
+        tmp_path / "predictions", ["a"], warmup_ratio=1 / 3, fold_indices=[1]
+    )
 
     output_dir = tmp_path / "analysis"
     analyze_margin(
@@ -85,6 +89,8 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
             bins=3,
             x_range=[0.0, 3.3],
             trajectory_bins=3,
+            fold_indices=[0],
+            separate_fold_output=True,
         )
     )
     artifact_dir = output_dir / "Nx_7"
@@ -92,3 +98,4 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
     assert (artifact_dir / "margin_summary.csv").exists()
     assert (artifact_dir / "margin_distribution.png").exists()
     assert (artifact_dir / "score_trajectory_3x2.png").exists()
+    assert (artifact_dir / "a" / "fold_0" / "score_trajectory_3x2.png").exists()

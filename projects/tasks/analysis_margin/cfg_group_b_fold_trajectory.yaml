@@ -1,0 +1,11 @@
+# group bのtest fold 0〜4を、真値3群×予測2群の100 bin軌跡としてfold別に出力する。
+pred_result_dir: "outputs/experiments/pred_margin_beta_2class"
+output_dir: "outputs/experiments/analysis_margin_beta_2class_fold_trajectory"
+groups: ["b"]
+fold_indices: [0, 1, 2, 3, 4]
+separate_fold_output: true
+
+warmup_ratio: 0.1
+bins: 20
+x_range: [0.0, 3.3]
+trajectory_bins: 100

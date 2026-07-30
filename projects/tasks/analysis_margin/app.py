@@ -39,9 +39,13 @@ def summarize_sample(predictions, labels, warmup_ratio: float) -> tuple[str, flo
 
 
 def collect_samples(
-    pred_result_dir: Path, groups: list[str], warmup_ratio: float
+    pred_result_dir: Path,
+    groups: list[str],
+    warmup_ratio: float,
+    fold_indices: list[int] | None = None,
 ) -> dict[str, list[dict]]:
     samples_by_param = defaultdict(list)
+    selected_fold_indices = set(fold_indices or [])
     for group in groups:
         group_dir = pred_result_dir / group
         if not group_dir.exists():
@@ -56,6 +60,8 @@ def collect_samples(
 
             for fold_data in load_pred_results(str(result_base)):
                 fold_index = fold_data["fold_index"]
+                if selected_fold_indices and fold_index not in selected_fold_indices:
+                    continue
                 for sample in fold_data["results"]:
                     true_label, margin, frames = summarize_sample(
                         sample["predictions"], sample["labels"], warmup_ratio
@@ -207,7 +213,12 @@ def plot_score_trajectory(
 
 
 def main(cfg):
-    samples_by_param = collect_samples(Path(cfg.pred_result_dir), cfg.groups, cfg.warmup_ratio)
+    samples_by_param = collect_samples(
+        Path(cfg.pred_result_dir),
+        cfg.groups,
+        cfg.warmup_ratio,
+        getattr(cfg, "fold_indices", None),
+    )
     for param_name, samples in samples_by_param.items():
         rows = [
             {key: value for key, value in sample.items() if key != "predictions"}
@@ -243,6 +254,19 @@ def main(cfg):
             output_dir / "score_trajectory_3x2.png",
             cfg.trajectory_bins,
         )
+        if getattr(cfg, "separate_fold_output", False):
+            for group in cfg.groups:
+                group_samples = [sample for sample in samples if sample["group"] == group]
+                fold_indices = sorted({sample["fold_index"] for sample in group_samples})
+                for fold_index in fold_indices:
+                    fold_samples = [
+                        sample for sample in group_samples if sample["fold_index"] == fold_index
+                    ]
+                    plot_score_trajectory(
+                        fold_samples,
+                        output_dir / group / f"fold_{fold_index}" / "score_trajectory_3x2.png",
+                        cfg.trajectory_bins,
+                    )
         print(f"done: {param_name}")
 
     print("margin analysis is finished")
