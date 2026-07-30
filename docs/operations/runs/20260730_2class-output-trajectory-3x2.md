@@ -5,6 +5,7 @@
 ```sh
 git fetch origin tasks/005
 git checkout tasks/005
+git pull --ff-only origin tasks/005
 uv run -m projects.tasks.cli analysis.margin
 ```
 
