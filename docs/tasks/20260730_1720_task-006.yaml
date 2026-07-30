@@ -17,10 +17,13 @@ plan:
     acceptance: []
     steps:
     - description: research-hubのprojects/tasks再編前スナップショットをesn-lab/docs/architectureへ移管し、Labの実装構造をLab自身のarchitecture文書として管理する。Lab側の文書がmainへ統合された後にHub側の複製を削除する。
-      state: pending
+      state: done
       skip_reason: null
       deleted: false
-    log: []
+    log:
+    - value:
+        result: research-hubの再編前スナップショットをesn-lab/docs/architecture/projects-tasks-baseline.mdへ移管。CLI登録・実装構造・共通コード・互換制約を記録し、Hub側の複製はLab文書のmain統合後に削除する。
+      deleted: false
     deleted: false
 approvals:
 - actor: user
