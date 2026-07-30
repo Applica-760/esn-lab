@@ -1,0 +1,75 @@
+schema_version: 1
+task:
+  id: TASK-004
+  state: in_progress
+  title: trajectoryプロットのbin細分化とtrain/test再出力
+  objective: 6月6日報告の2クラスESN trajectoryプロットの生成元を特定し、binを細分化してtrain/test双方を再出力できる設定を整える。
+  approach:
+  - research-hub:docs/20260709.mdの指摘（横軸binの細分化、testの追加）を入力とする。research-hub:pages/20260606.md末尾の画像の生成Task・設定・入力範囲を特定し、既存の解析ロジックと互換な設定変更として実装・検証する。スパコン実行は別途、push済みcommitと実行指示書に基づき行う。
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: 入力条件と生成元の確定
+    acceptance: []
+    steps:
+    - description: 6月6日trajectory図の生成元であるanalysis.predの実装・旧Task・Git履歴を根拠として、group
+        bのtrain_results/test_resultsの入力パスとパラメータを確定する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        input: 6月6日画像の生成元は旧analysis.pred Task。対象は outputs/experiments/pred_2class/b/Nx400_dens0.5_inscl0.001_rho0.9/{train,test}_results、group
+          b、fold 0〜4、100 binとして確定。
+      deleted: false
+    deleted: false
+  - title: train/test共通trajectory設定の実装
+    acceptance: []
+    steps:
+    - description: analysis.predがtrain/testを切り替え、group bのfold 0〜4を対象に100 binで再描画できるよう実装・設定を追加する。出力はmode別ディレクトリへ分離し、既存成果物を上書きしない。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        implementation: analysis.predへmodesとfold_indicesを追加し、train/testを別出力に分離。cfg_2class_trajectory.yamlでgroup
+          b、fold 0〜4、100 bin、Nx400_dens0.5_inscl0.001_rho0.9を設定。
+      deleted: false
+    deleted: false
+  - title: ローカル検証
+    acceptance: []
+    steps:
+    - description: mode・fold・出力分離のユニットテストを追加し、Ruffとuv run pytestで検証する。検証済み変更をcommitする。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        verification: mode別出力とfold選択の新規pytestを追加。uv run ruff checkが成功し、uv run --with
+          pytest pytestで4件成功。
+      deleted: false
+    deleted: false
+  - title: スパコン手動実行の指示書
+    acceptance: []
+    steps:
+    - description: push済みcommit、スパコン上の入力パス、analysis.predの実行コマンド、100 bin・group b・fold
+        0〜4・train/testの出力先を含む実行指示書を作成する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        runbook: docs/operations/runs/20260730_2class-trajectory-train-test.mdに、tasks/004
+          branchの実行commit・analysis.predコマンド・入力・出力を記録。スパコン投入はユーザーが手動で行う。
+      deleted: false
+    deleted: false
+approvals:
+- actor: user
+acceptance_results: []
+change_requests: []
+cancellation: null
+result: null
