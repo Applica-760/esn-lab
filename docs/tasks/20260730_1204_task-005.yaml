@@ -1,0 +1,39 @@
+schema_version: 1
+task:
+  id: TASK-005
+  state: in_progress
+  title: foraging・rumination出力分布プロットの追加
+  objective: 002で作成した差分絶対値のマージンプロットを拡張し、foragingとruminationの出力値自体を分布付きで比較できるプロットを追加する
+  approach:
+  - 既存002と20260606スライド末尾の参照画像・生成処理を調査し、既存分析フローに再利用可能な出力分布プロットを追加して検証する
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: 実装
+    acceptance: []
+    steps:
+    - description: analysis.margin に、真値3群×予測2群の各セルでforaging・rumination出力の時系列平均と分布帯を描く3×2図を追加する。既存のmargin成果物は変更しない。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: 検証・記録
+    acceptance: []
+    steps:
+    - description: 最小予測結果で3×2図と既存成果物を検証し、Ruff・対象テストを実行する。必要な実行手順を記録する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+approvals:
+- actor: user
+acceptance_results: []
+change_requests: []
+cancellation: null
+result: null

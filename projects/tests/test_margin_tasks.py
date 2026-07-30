@@ -48,7 +48,7 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
                 },
                 {
                     "id": "rumination",
-                    "predictions": np.array([[1.0, 3.0], [1.0, 2.0], [1.0, 1.0]]),
+                    "predictions": np.array([[1.0, 3.0], [1.0, 3.0], [1.0, 2.0]]),
                     "labels": _label(2),
                 },
                 {
@@ -73,6 +73,7 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
         "rumination",
         "other",
     }
+    assert {row["pred_label"] for row in rows_by_param["Nx_7"]} == {"foraging", "rumination"}
 
     output_dir = tmp_path / "analysis"
     analyze_margin(
@@ -83,9 +84,11 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
             warmup_ratio=1 / 3,
             bins=3,
             x_range=[0.0, 3.3],
+            trajectory_bins=3,
         )
     )
     artifact_dir = output_dir / "Nx_7"
     assert (artifact_dir / "margin_by_sample.csv").exists()
     assert (artifact_dir / "margin_summary.csv").exists()
     assert (artifact_dir / "margin_distribution.png").exists()
+    assert (artifact_dir / "score_trajectory_3x2.png").exists()
