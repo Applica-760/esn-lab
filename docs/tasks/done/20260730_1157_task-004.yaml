@@ -1,7 +1,7 @@
 schema_version: 1
 task:
   id: TASK-004
-  state: in_progress
+  state: completed
   title: trajectoryプロットのbin細分化とtrain/test再出力
   objective: 6月6日報告の2クラスESN trajectoryプロットの生成元を特定し、binを細分化してtrain/test双方を再出力できる設定を整える。
   approach:
@@ -72,4 +72,5 @@ approvals:
 acceptance_results: []
 change_requests: []
 cancellation: null
-result: null
+result:
+  summary: train/testのtrajectory再描画をanalysis.predへ追加し、ローカル検証とスパコン手動実行指示書の整備を完了した。
