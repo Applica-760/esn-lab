@@ -5,3 +5,4 @@ groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
 
 warmup_ratio: 0.1
 bins: 20
+x_range: [0.0, 3.3]

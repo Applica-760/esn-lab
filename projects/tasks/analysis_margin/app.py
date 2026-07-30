@@ -98,11 +98,19 @@ def write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
         writer.writerows(rows)
 
 
-def plot_distribution(rows: list[dict], output_path: Path, bins: int) -> None:
+def histogram_bin_edges(x_range: tuple[float, float], bins: int) -> np.ndarray:
+    return np.linspace(*x_range, bins + 1)
+
+
+def plot_distribution(
+    rows: list[dict], output_path: Path, bins: int, x_range: tuple[float, float]
+) -> None:
     fig, axes = plt.subplots(1, len(CLASS_ORDER), figsize=(5 * len(CLASS_ORDER), 4), sharey=True)
+    bin_edges = histogram_bin_edges(x_range, bins)
     for axis, true_label in zip(axes, CLASS_ORDER):
         margins = [row["margin"] for row in rows if row["true_label"] == true_label]
-        axis.hist(margins, bins=bins, edgecolor="white")
+        axis.hist(margins, bins=bin_edges, edgecolor="white")
+        axis.set_xlim(x_range)
         axis.set_title(f"true = {true_label} (n={len(margins)})")
         axis.set_xlabel("Mean margin |y_foraging - y_rumination|")
         axis.set_ylabel("Count")
@@ -127,7 +135,12 @@ def main(cfg):
             summarize_rows(rows),
             ["true_label", "count", "mean", "std", "median", "min", "max"],
         )
-        plot_distribution(rows, output_dir / "margin_distribution.png", cfg.bins)
+        plot_distribution(
+            rows,
+            output_dir / "margin_distribution.png",
+            cfg.bins,
+            tuple(cfg.x_range),
+        )
         print(f"done: {param_name}")
 
     print("margin analysis is finished")

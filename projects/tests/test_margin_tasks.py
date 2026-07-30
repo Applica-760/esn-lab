@@ -3,7 +3,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from projects.tasks.analysis_margin.app import collect_rows
+from projects.tasks.analysis_margin.app import (
+    collect_rows,
+    histogram_bin_edges,
+)
 from projects.tasks.analysis_margin.app import main as analyze_margin
 from projects.tasks.pred_margin.app import validate_fold_correspondence
 from projects.utils.prediction import load_pred_results, save_pred_results
@@ -26,6 +29,10 @@ def test_validate_fold_correspondence_requires_matching_known_ids():
     known_ids[0] = ["different"]
     with pytest.raises(ValueError, match="ID mismatch"):
         validate_fold_correspondence(source_labels, source_ids, known_labels, known_ids)
+
+
+def test_histogram_bin_edges_use_shared_range():
+    np.testing.assert_allclose(histogram_bin_edges((0.0, 3.3), 20), np.linspace(0.0, 3.3, 21))
 
 
 def test_margin_analysis_writes_three_group_artifacts(tmp_path):
@@ -75,6 +82,7 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
             groups=["a"],
             warmup_ratio=1 / 3,
             bins=3,
+            x_range=[0.0, 3.3],
         )
     )
     artifact_dir = output_dir / "Nx_7"

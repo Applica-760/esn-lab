@@ -1,0 +1,91 @@
+schema_version: 1
+task:
+  id: TASK-003
+  state: in_progress
+  title: 3真値群マージン分布の共通軸再出力
+  objective: 採食・反芻・その他の3真値群の出力マージン分布を共通軸で比較できる図として再出力し、research-hubの報告で使用できる状態にする。
+  approach:
+  - esn-lab:TASK-002の成果を入力とする。実行commit 27fb41515cb8f3be483e8f5486f54c3c479fa767、既存成果物
+    outputs/experiments/20260729/analysis_margin_beta_2class/Nx400_dens0.5_inscl0.001_rho0.9/margin_by_sample.csv（2550件）を再利用する。
+  - 作図のみを対象とし、マージンの定義・集計方法・推論・分類器は変更しない。閾値の採用、棄却・分類、再学習は非対象。
+  - 既存CSVから再作図できる場合はローカルで完結させ、スパコン再実行は行わない。既存の analysis.margin の出力は変更しない。
+  - 完成した図のパスは research-hub:TASK-006 の報告スライドへ引き継ぐ。プロジェクト間のTask依存関係は作成しない。
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: 作図仕様の決定と実装
+    acceptance: []
+    steps:
+    - description: 既存の margin_by_sample.csv を入力として、3真値群を共通軸・共通binで比較する作図仕様（重ね描きの有無、density正規化、x軸範囲の扱い）を決定し、既存の
+        analysis.margin の出力を変更せずに実装する。
+      state: pending
+      skip_reason: null
+      deleted: true
+    log: []
+    deleted: false
+  - title: ローカル検証
+    acceptance:
+    - id: ACC-001
+      statement: 3真値群が共通軸・共通binで比較できる図が出力され、margin_summary.csv の集計値と矛盾しない。
+    steps:
+    - description: 既存CSVから再作図し、3群が同一軸・同一binで比較でき、margin_summary.csv の集計値と矛盾しないことを確認する。Ruff
+        と uv run pytest を実行し、検証済み変更をcommitする。
+      state: pending
+      skip_reason: null
+      deleted: true
+    log: []
+    deleted: false
+  - title: 図の引き継ぎ
+    acceptance: []
+    steps:
+    - description: 出力した図のパスと再現情報（実行commit、設定、入力CSV）を記録し、research-hub:TASK-006 の報告スライドへ引き継ぐ。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 共通軸作図の実装
+    acceptance: []
+    steps:
+    - description: 3真値群で共通のx軸（0.0–3.3）・共通bin（20）・共通y軸（Count）を用いるよう analysis.margin
+        の作図ロジックを修正し、既存の集計・推論ロジックは変更しない。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        implementation: 共通x軸（0.0–3.3）・共通20 binを設定し、sharey=TrueでCountの共通y軸を維持。Ruffとuv
+          run pytestが成功。
+      deleted: false
+    deleted: false
+  - title: ローカル検証とpush
+    acceptance: []
+    steps:
+    - description: 作図ロジックのユニットテストを追加し、Ruff と uv run pytest で検証後、Task 003の変更だけをcommitしてorigin/mainへpushする。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+  - title: スパコン手動実行の指示書
+    acceptance: []
+    steps:
+    - description: push済みcommit、スパコン上の作業ディレクトリ、実行コマンド、設定、出力先、結果確認項目を含む実行指示書を docs/operations/runs
+        に作成し、ユーザーが手動でスパコンへ投入できる状態にする。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: false
+approvals:
+- actor: user
+- actor: user
+acceptance_results: []
+change_requests:
+- reason: ローカル再作図から、共通軸作図の実装・実行指示書作成・push後にユーザーがスパコンへ手動投入する方針へ変更
+cancellation: null
+result: null
