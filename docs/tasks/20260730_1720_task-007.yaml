@@ -1,0 +1,18 @@
+schema_version: 1
+task:
+  id: TASK-007
+  state: draft
+  title: 実験出力の規約を整理
+  objective: outputs配下の実験成果物の配置・命名・設定lock・deliverablesの契約を整理し、実装と実行文書の規約を確定する。
+  approach:
+  - research-hub:TASK-011 の目的を引き継ぐ。既存outputsと参照箇所を棚卸しし、スパコン実行時の出力規約とLabからHubへのdeliverables受け渡しを分離して扱う。移行対象は調査後に決定する。
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan: null
+approvals: []
+acceptance_results: []
+change_requests: []
+cancellation: null
+result: null
