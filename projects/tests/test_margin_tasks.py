@@ -3,12 +3,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from projects.tasks.analysis_margin.app import (
-    collect_samples,
-    collect_rows,
+from projects.tasks.analysis.margin.common import collect_samples, margin_rows
+from projects.tasks.analysis.margin.distribution.app import (
     histogram_bin_edges,
 )
-from projects.tasks.analysis_margin.app import main as analyze_margin
+from projects.tasks.analysis.margin.distribution.app import (
+    main as analyze_margin,
+)
 from projects.tasks.pred_margin.app import validate_fold_correspondence
 from projects.utils.prediction import load_pred_results, save_pred_results
 
@@ -68,13 +69,13 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
     assert loaded[0]["results"][0]["predictions"].shape == (3, 2)
     assert loaded[0]["results"][0]["labels"].shape == (3, 3)
 
-    rows_by_param = collect_rows(tmp_path / "predictions", ["a"], warmup_ratio=1 / 3)
+    samples_by_param = collect_samples(tmp_path / "predictions", ["a"], warmup_ratio=1 / 3)
+    rows_by_param = {name: margin_rows(samples) for name, samples in samples_by_param.items()}
     assert {row["true_label"] for row in rows_by_param["Nx_7"]} == {
         "foraging",
         "rumination",
         "other",
     }
-    assert {row["pred_label"] for row in rows_by_param["Nx_7"]} == {"foraging", "rumination"}
     assert not collect_samples(
         tmp_path / "predictions", ["a"], warmup_ratio=1 / 3, fold_indices=[1]
     )
@@ -88,14 +89,9 @@ def test_margin_analysis_writes_three_group_artifacts(tmp_path):
             warmup_ratio=1 / 3,
             bins=3,
             x_range=[0.0, 3.3],
-            trajectory_bins=3,
-            fold_indices=[0],
-            separate_fold_output=True,
         )
     )
     artifact_dir = output_dir / "Nx_7"
     assert (artifact_dir / "margin_by_sample.csv").exists()
     assert (artifact_dir / "margin_summary.csv").exists()
     assert (artifact_dir / "margin_distribution.png").exists()
-    assert (artifact_dir / "score_trajectory_3x2.png").exists()
-    assert (artifact_dir / "a" / "fold_0" / "score_trajectory_3x2.png").exists()

@@ -1,0 +1,7 @@
+# pred.margin のtest結果を、真値3群×予測2群の出力軌跡として集計する。
+pred_result_dir: "outputs/experiments/pred_margin_beta_2class"
+output_dir: "outputs/experiments/analysis_margin_beta_2class_output_trajectory"
+groups: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+
+warmup_ratio: 0.1
+trajectory_bins: 20
