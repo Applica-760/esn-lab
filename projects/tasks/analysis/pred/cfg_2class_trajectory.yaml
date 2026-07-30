@@ -1,0 +1,17 @@
+# 6月6日報告のtrajectory図を、group bのfold 0〜4でtrain/test別に再出力する。
+pred_result_dir: "outputs/experiments/pred_2class"
+output_dir: "outputs/experiments/analysis_pred_2class_trajectory"
+groups: ["b"]
+modes: ["train", "test"]
+fold_indices: [0, 1, 2, 3, 4]
+
+warmup_ratio: 0.1
+n_bins: 100
+
+Nx: [400]
+input_scale: [0.001]
+density: [0.5]
+rho: [0.9]
+
+class_names: ["foraging", "rumination"]
+class_order: [0, 1]
