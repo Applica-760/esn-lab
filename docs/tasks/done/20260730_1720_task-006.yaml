@@ -1,0 +1,161 @@
+schema_version: 1
+task:
+  id: TASK-006
+  state: completed
+  title: projects/tasksの構造を再編
+  objective: projects/tasksの実装を責務別に階層化し、共通コードの境界、CLI、設定、テスト、run文書の互換性を保って再編する。
+  approach:
+  - research-hub:docs/architecture/esn-lab-project-tasks-baseline.md を再編前の基準とする。CLI名・既定設定の解決規則・run文書のコマンドを確認し、worktreeで実装・検証・PR・mergeをLab内で完結させる。
+  depends_on: []
+  interruption_task_id: null
+  interruption_reason: null
+  interruption_source_task_id: null
+plan:
+  acceptance: []
+  phases:
+  - title: アーキテクチャ文書の移管
+    acceptance: []
+    steps:
+    - description: research-hubのprojects/tasks再編前スナップショットをesn-lab/docs/architectureへ移管し、Labの実装構造をLab自身のarchitecture文書として管理する。Lab側の文書がmainへ統合された後にHub側の複製を削除する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: research-hubの再編前スナップショットをesn-lab/docs/architecture/projects-tasks-baseline.mdへ移管。CLI登録・実装構造・共通コード・互換制約を記録し、Hub側の複製はLab文書のmain統合後に削除する。
+      deleted: false
+    deleted: true
+  - title: 再編方針の確定
+    acceptance: []
+    steps:
+    - description: 重複・共通化候補・対象外をarchitecture文書に記録し、CLI・設定・run文書の互換性を保持する再編境界を確定する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 評価入力処理の共通化
+    acceptance: []
+    steps:
+    - description: eval.distとeval.dist_nodeが共用する、judge結果の読込・filter・予測結果とのgroup/fold/id結合をprojects/utils/evalへ抽出する。各アプリ固有の集計・作図は維持し、回帰テストで既存入出力を確認する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 予測分析の責務分割
+    acceptance: []
+    steps:
+    - description: analysis.predを、サンプル正規化・集計・作図・実行オーケストレーションへ分割する。analysis.predのCLI名、設定解決、既存出力ファイル名を維持し、回帰テストで確認する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 残骸整理と互換性検証
+    acceptance: []
+    steps:
+    - description: 旧analysis_margin残骸の追跡状態を確認して削除し、Ruff・対象pytest・CLI入口を検証する。Lab文書のmain統合後、research-hub側の複製architecture文書を削除する。
+      state: pending
+      skip_reason: null
+      deleted: false
+    log: []
+    deleted: true
+  - title: 作業基盤と再編基準の再構築
+    acceptance: []
+    steps:
+    - description: 既存tasks/006ブランチを削除し、同期済みmainから同名ブランチの登録worktreeを再作成して、clean状態とdiagnosticを確認する。
+      state: done
+      skip_reason: null
+      deleted: false
+    - description: research-hubの再編前スナップショットからLabのarchitecture文書を再作成し、TASK-006への参照、重複・共通化候補・対象外、CLI・既定設定・出力・run文書の互換境界を現行実装に合わせて確定する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: 旧tasks/006（e23210b）を削除し、main aa497d5から同名branchと登録worktree projects/worktrees/esn-lab-006を再作成。worktree
+          checkはok、作業ツリーはclean。
+      deleted: false
+    - value:
+        result: research-hubの2026-07-30スナップショットをdocs/architecture/projects-tasks-baseline.mdへ再構築し、現行aa497d5と照合。評価入力処理とanalysis.predの再編境界、対象外、13個のCLI名、設定解決、出力ファイル名、run文書の互換契約を確定。git
+          diff --check、CLI登録との文書照合、uv runによるCLI helpを確認した。
+      deleted: false
+    deleted: false
+  - title: 評価入力処理の共通化
+    acceptance: []
+    steps:
+    - description: eval.distとeval.dist_nodeが共用するjudge結果の読込・filter・予測結果とのgroup/fold/id結合をprojects/utils/evalへ抽出し、欠損または重複する複合キーには文脈付きの明示的エラーを出す。各アプリ固有の集計・作図と既存出力を維持する。
+      state: done
+      skip_reason: null
+      deleted: false
+    - description: 共通入力処理とeval.dist・eval.dist_nodeの回帰テストを追加し、正常系の抽出結果、欠損・重複時のエラー、既存成果物名を検証する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: judge結果の読込・filter・(group, fold_index, id)結合をprojects/utils/eval/input.pyへ共通化し、eval.distとeval.dist_nodeを移行。欠損・判定重複・予測重複はparam/mode/group/fold/id付きValueErrorとした。正常系・3異常系・両アプリ成果物名の回帰テスト5件を追加し、projects/tests全10件と変更対象Ruffが成功。projects全体Ruffの未変更ファイルに既存E501が6件ありPhase
+          9で扱う。
+      deleted: false
+    - value:
+        review: ユーザーレビューを反映し、責務が曖昧なprojects/utils/eval/input.pyをsample_join.pyへrename。eval.dist・eval.dist_node・回帰テストのimportを更新し、対象Ruff・formatと回帰テスト5件が成功した。
+      deleted: false
+    deleted: false
+  - title: 予測分析の責務分割
+    acceptance: []
+    steps:
+    - description: analysis.predをサンプル正規化・集計計算・作図・実行オーケストレーションの責務へ分割し、app.pyはCLIから呼ばれるオーケストレーション入口として維持する。
+      state: done
+      skip_reason: null
+      deleted: false
+    - description: analysis.predの純粋計算と全既存出力ファイル名を回帰テストし、CLI名、既定設定と明示設定の解決、mode・foldの出力階層を維持する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: analysis.predをsamples.py（warmup除外・fold正規化）、metrics.py（I/Oなしの集計計算）、plots.py（描画）、app.py（param/mode/group/fold走査と入出力配置）へ分割。純粋計算、fold成果物9件とsummary
+          2件、既定train階層、明示mode・fold階層、CLI登録、既定・明示設定解決を回帰テスト化。対象Ruff・format、projects/tests全13件、CLI
+          helpが成功した。
+      deleted: false
+    deleted: false
+  - title: 残骸確認と互換性検証
+    acceptance: []
+    steps:
+    - description: 旧projects/tasks/analysis_marginがtracked残骸として存在しないことを確認し、履歴である既存run文書は変更せず、Ruff・対象pytest・CLI入口・設定解決を検証する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: 旧projects/tasks/analysis_marginとtask配下__pycache__のtracked残骸が0件、origin/main比で既存docs/operations/runs差分が0件であることを確認。既存E501
+          6件を4ファイルで挙動不変の行分割に修正し、projects・src全体Ruff、projects/tests全13件、CLI 13モジュールと各既定cfg.yaml、CLI
+          help、analysis.predの既定・明示設定解決が成功した。
+      deleted: false
+    deleted: false
+  - title: 統合後のHub複製削除
+    acceptance: []
+    steps:
+    - description: Lab側の変更をPRでmainへ統合してworktree cleanupを確認した後、同じTaskの最終作業としてresearch-hub側の複製architecture文書を削除し、Lab側文書が参照可能であることを確認する。
+      state: done
+      skip_reason: null
+      deleted: false
+    log:
+    - value:
+        result: 'PR #20をmerge方式でmainへ統合し、Task worktreeと定義YAMLのcleanup、親repoのfast-forward同期を確認。research-hubの複製docs/architecture/esn-lab-project-tasks-baseline.mdを削除してcommit
+          e6d9adeをpushし、esn-lab/docs/architecture/projects-tasks-baseline.mdがmainで参照可能、Hub内参照0件、git
+          diff --check成功を確認した。'
+      deleted: false
+    deleted: false
+approvals:
+- actor: user
+- actor: user
+- actor: user
+acceptance_results: []
+change_requests:
+- reason: 調査に基づき、評価系の共通読込処理抽出とanalysis.predの責務分割を再編対象として具体化するため
+- reason: worktree消失後にtasks/006ブランチをmainから再作成し、Phase 1を含む全Phaseを現行実装と運用方針に基づいてやり直すため
+cancellation: null
+result:
+  summary: 'PR #20をmerge方式でmainへ統合し、worktree cleanupと親repo同期を完了。projects/tasksの責務分割・共通化・互換性検証を反映し、research-hubの移管元文書も削除した。'
