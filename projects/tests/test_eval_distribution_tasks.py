@@ -6,8 +6,8 @@ import pytest
 
 from projects.tasks.eval.dist import app as dist_app
 from projects.tasks.eval.dist_node import app as dist_node_app
-from projects.utils.eval.input import load_filtered_prediction_samples
 from projects.utils.eval.judgment import save_judgment_results
+from projects.utils.eval.sample_join import load_filtered_prediction_samples
 from projects.utils.prediction import save_pred_results
 from projects.utils.weights import build_param_str
 

@@ -11,7 +11,7 @@ from projects.utils.eval.dist import (
     plot_confusion_distribution,
     plot_histogram,
 )
-from projects.utils.eval.input import load_filtered_prediction_samples
+from projects.utils.eval.sample_join import load_filtered_prediction_samples
 from projects.utils.weights import build_param_str
 
 """
