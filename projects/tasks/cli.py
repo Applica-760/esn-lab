@@ -36,7 +36,12 @@ def main():
     """CLIエントリーポイント"""
     parser = argparse.ArgumentParser()
     parser.add_argument("task", choices=TASK_REGISTRY.keys())
-    parser.add_argument("--config", type=str, default=None, help="cfg.yaml 以外の設定ファイル名（タスクディレクトリ内）")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="cfg.yaml 以外の設定ファイル名（タスクディレクトリ内）",
+    )
     args = parser.parse_args()
 
     module_path = TASK_REGISTRY[args.task]
