@@ -52,7 +52,11 @@ def make_weighted_score_judge(class_weights: np.ndarray, margin_threshold: float
         true_frames = np.argmax(labels, axis=1)
         true_label = int(np.argmax(np.bincount(true_frames)))
 
-        return {"pred_label": pred_label, "true_label": true_label, "is_correct": pred_label == true_label}
+        return {
+            "pred_label": pred_label,
+            "true_label": true_label,
+            "is_correct": pred_label == true_label,
+        }
 
     return judge
 

@@ -61,7 +61,10 @@ def one_process(group, fold_index, samples, n_classes, n_trials, output_dir):
 
     study = run_optimization(samples, n_classes, n_trials)
     save_fold_result(study, Path(output_dir) / group / f"fold_{fold_index}")
-    print(f"  done: group={group} fold={fold_index} | macro F1={study.best_value:.4f} | {study.best_params}")
+    print(
+        f"  done: group={group} fold={fold_index} | "
+        f"macro F1={study.best_value:.4f} | {study.best_params}"
+    )
     return {
         "group": group,
         "fold_index": fold_index,
@@ -89,7 +92,14 @@ def save_summary(all_results: list, final_params: dict, output_dir: Path) -> Non
         writer = csv.DictWriter(f, fieldnames=["group", "fold_index", "best_value"] + param_keys)
         writer.writeheader()
         for r in sorted(all_results, key=lambda x: (x["group"], x["fold_index"])):
-            writer.writerow({"group": r["group"], "fold_index": r["fold_index"], "best_value": r["best_value"], **r["best_params"]})
+            writer.writerow(
+                {
+                    "group": r["group"],
+                    "fold_index": r["fold_index"],
+                    "best_value": r["best_value"],
+                    **r["best_params"],
+                }
+            )
 
     with open(output_dir / "final_params.json", "w") as f:
         json.dump(final_params, f, indent=2)

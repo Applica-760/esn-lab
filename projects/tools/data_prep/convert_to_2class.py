@@ -119,8 +119,16 @@ def verify_output(dst_dir: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-npz", required=True, help="3クラスNPZデータセットのルートディレクトリ")
-    parser.add_argument("--output-npz", required=True, help="2クラスNPZ出力先ディレクトリ（既存と別パスを指定）")
+    parser.add_argument(
+        "--input-npz",
+        required=True,
+        help="3クラスNPZデータセットのルートディレクトリ",
+    )
+    parser.add_argument(
+        "--output-npz",
+        required=True,
+        help="2クラスNPZ出力先ディレクトリ（既存と別パスを指定）",
+    )
     args = parser.parse_args()
 
     src_dir = Path(args.input_npz)
