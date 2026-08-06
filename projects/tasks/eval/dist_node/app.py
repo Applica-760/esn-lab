@@ -11,9 +11,7 @@ from projects.utils.eval.dist import (
     plot_confusion_distribution,
     plot_histogram,
 )
-from projects.utils.eval.filter import apply_filters
-from projects.utils.eval.judgment import load_judgment_results
-from projects.utils.prediction import is_valid_result_file, load_pred_results
+from projects.utils.eval.input import load_filtered_prediction_samples
 from projects.utils.weights import build_param_str
 
 """
@@ -28,55 +26,26 @@ def collect_node_values_for_param(
     1つのパラメータ組み合わせについて、フィルタリング後のサンプル情報を収集
     指標は収集時に計算し、生データ（predictions, labels）は保持しない
     """
-    judgment_csv_path = judge_dir / param_name / f"judgment_results_{mode}.csv"
-    if not judgment_csv_path.exists():
-        return []
-
-    judgment_results = load_judgment_results(judgment_csv_path)
-    filtered_results = apply_filters(judgment_results, filters)
-    if not filtered_results:
-        return []
-
-    grouped = defaultdict(lambda: defaultdict(list))
-    for r in filtered_results:
-        grouped[r["group"]][r["fold_index"]].append(
-            {"id": r["id"], "true_label": r["true_label"], "is_correct": r["is_correct"]}
-        )
-
     sample_data = []
-    for group, folds in grouped.items():
-        result_base = str(pred_result_dir / group / param_name / f"{mode}_results")
-        if not is_valid_result_file(result_base):
-            continue
+    samples = load_filtered_prediction_samples(
+        param_name, mode, judge_dir, pred_result_dir, filters
+    )
+    for sample in samples:
+        predictions = sample["predictions"]
+        labels = sample["labels"]
 
-        pred_results = load_pred_results(result_base)
-
-        for fold_index, items in folds.items():
-            fold_data = next((fd for fd in pred_results if fd["fold_index"] == fold_index), None)
-            if fold_data is None:
-                continue
-
-            results_by_id = {s["id"]: s for s in fold_data["results"]}
-            for item in items:
-                sample = results_by_id.get(item["id"])
-                if sample is None:
-                    continue
-
-                predictions = sample["predictions"]
-                labels = sample["labels"]
-
-                preds_arr = np.array(predictions)
-                n_nodes = preds_arr.shape[1]
-                sample_data.append(
-                    {
-                        "confidence": compute_confidence(predictions),
-                        "margin": compute_margin(predictions),
-                        "true_class_output": compute_true_class_output(predictions, labels),
-                        "node_outputs": {j: preds_arr[:, j] for j in range(n_nodes)},
-                        "true_label": item["true_label"],
-                        "is_correct": item["is_correct"],
-                    }
-                )
+        preds_arr = np.array(predictions)
+        n_nodes = preds_arr.shape[1]
+        sample_data.append(
+            {
+                "confidence": compute_confidence(predictions),
+                "margin": compute_margin(predictions),
+                "true_class_output": compute_true_class_output(predictions, labels),
+                "node_outputs": {j: preds_arr[:, j] for j in range(n_nodes)},
+                "true_label": sample["true_label"],
+                "is_correct": sample["is_correct"],
+            }
+        )
 
     return sample_data
 

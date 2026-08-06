@@ -1,14 +1,16 @@
 import csv
-from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
-from projects.utils.prediction import load_pred_results, is_valid_result_file
 from projects.utils.app_init import build_param_grid
+from projects.utils.eval.dist import (
+    count_all_class_ratios,
+    plot_confusion_distribution,
+    plot_histogram,
+)
+from projects.utils.eval.input import load_filtered_prediction_samples
 from projects.utils.weights import build_param_str
-from projects.utils.eval.dist import count_all_class_ratios, plot_histogram, plot_confusion_distribution
-from projects.utils.eval.filter import apply_filters
-from projects.utils.eval.judgment import load_judgment_results
 
 """
 python -m projects.apps.eval_dist --config projects/configs/eval_dist.yaml
@@ -22,40 +24,21 @@ def collect_ratios_for_param(
     mode: str,
     judge_dir: Path,
     pred_result_dir: Path,
-    filters: dict
+    filters: dict,
 ) -> list:
-    judgment_csv_path = judge_dir / param_name / f"judgment_results_{mode}.csv"
-    if not judgment_csv_path.exists():
-        return []
-    
-    judgment_results = load_judgment_results(judgment_csv_path)
-    filtered_results = apply_filters(judgment_results, filters)
-    if not filtered_results:
-        return []
-    
-    grouped = defaultdict(lambda: defaultdict(list))
-    for r in filtered_results:
-        grouped[r["group"]][r["fold_index"]].append({"id": r["id"], "true_label": r["true_label"], "pred_label": r["pred_label"]})
-    
+    samples = load_filtered_prediction_samples(
+        param_name, mode, judge_dir, pred_result_dir, filters
+    )
     ratio_results = []
-    for group, folds in grouped.items():
-        result_base = str(pred_result_dir / group / param_name / f"{mode}_results")
-        if not is_valid_result_file(result_base):
-            continue
-
-        pred_results = load_pred_results(result_base)
-        
-        for fold_index, items in folds.items():
-            fold_data = next((fd for fd in pred_results if fd["fold_index"] == fold_index), None)
-            if fold_data is None:
-                continue
-            
-            results_by_id = {s["id"]: s for s in fold_data["results"]}
-            for item in items:
-                sample = results_by_id.get(item["id"])
-                ratios, _ = count_all_class_ratios(sample["predictions"], sample["labels"])
-                ratio_results.append({"true_label": item["true_label"], "pred_label": item["pred_label"], "ratios": ratios})
-    
+    for sample in samples:
+        ratios, _ = count_all_class_ratios(sample["predictions"], sample["labels"])
+        ratio_results.append(
+            {
+                "true_label": sample["true_label"],
+                "pred_label": sample["pred_label"],
+                "ratios": ratios,
+            }
+        )
     return ratio_results
 
 
@@ -78,12 +61,16 @@ def one_process(params, mode, judge_dir, pred_result_dir, filters, intermediate_
     n_classes = len(ratio_results[0]["ratios"])
     fieldnames = ["true_label", "pred_label"] + [f"ratio_{j}" for j in range(n_classes)]
     rows = [
-        {"true_label": r["true_label"], "pred_label": r["pred_label"], **{f"ratio_{j}": r["ratios"][j] for j in range(n_classes)}}
+        {
+            "true_label": r["true_label"],
+            "pred_label": r["pred_label"],
+            **{f"ratio_{j}": r["ratios"][j] for j in range(n_classes)},
+        }
         for r in ratio_results
     ]
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(csv_path, 'w', newline='') as f:
+    with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
@@ -95,15 +82,23 @@ def main(cfg):
     intermediate_dir = cfg.output_dir / "intermediate"
     param_grid = build_param_grid(cfg)
     jobs = [(params, mode) for params in param_grid for mode in cfg.mode]
-    
+
     with ProcessPoolExecutor(max_workers=cfg.workers) as executor:
         futures = [
-            executor.submit(one_process, params, mode, cfg.judge_dir, cfg.pred_result_dir, cfg.filters, intermediate_dir)
+            executor.submit(
+                one_process,
+                params,
+                mode,
+                cfg.judge_dir,
+                cfg.pred_result_dir,
+                cfg.filters,
+                intermediate_dir,
+            )
             for params, mode in jobs
         ]
         for future in futures:
             future.result()
-    
+
     n_classes = len(cfg.class_order)
 
     for mode in cfg.mode:
@@ -118,7 +113,7 @@ def main(cfg):
             csv_path = intermediate_dir / f"{param_name}_{mode}_ratios.csv"
             if not csv_path.exists():
                 continue
-            with open(csv_path, 'r') as f:
+            with open(csv_path, "r") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     true_label = int(row["true_label"])
@@ -148,9 +143,13 @@ def main(cfg):
                     continue
                 output_path = individual_dir / f"dist_true{row_name}_argmax{col_name}.png"
                 plot_histogram(
-                    ratios, output_path, cfg.bins, cfg.colors[col_name],
+                    ratios,
+                    output_path,
+                    cfg.bins,
+                    cfg.colors[col_name],
                     xlabel=f"ratio (pred={col_name})",
-                    show_count=cfg.show_count, show_cumulative=cfg.show_cumulative
+                    show_count=cfg.show_count,
+                    show_cumulative=cfg.show_cumulative,
                 )
                 print(f"  Saved: {output_path} (n={len(ratios)})")
 
@@ -189,4 +188,3 @@ def main(cfg):
             print(f"  Saved split: {split_path}")
 
     print("plot finished")
-
