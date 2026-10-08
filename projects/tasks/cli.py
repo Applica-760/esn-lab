@@ -29,6 +29,7 @@ TASK_REGISTRY = {
     "analysis.margin.distribution": "projects.tasks.analysis.margin.distribution.app",
     "analysis.margin.output_trajectory": "projects.tasks.analysis.margin.output_trajectory.app",
     "analysis.bayesian": "projects.tasks.analysis.bayesian.app",
+    "analysis.raw_output_viewer": "projects.tasks.analysis.raw_output_viewer.app",
 }
 
 

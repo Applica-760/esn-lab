@@ -31,6 +31,8 @@ dependencies = [
     "networkx",
     "tqdm",
     "optuna",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +40,7 @@ gpu = ["cupy-cuda13x"]
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "httpx",
 ]
 
 
