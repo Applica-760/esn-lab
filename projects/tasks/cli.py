@@ -16,6 +16,7 @@ import importlib
 from projects.utils.app_init import setup_task_environment
 
 TASK_REGISTRY = {
+    "remote_data_browser": "projects.tasks.remote_data_browser.app",
     "train": "projects.tasks.train.app",
     "pred": "projects.tasks.pred.app",
     "pred.margin": "projects.tasks.pred_margin.app",

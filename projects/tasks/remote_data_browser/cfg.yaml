@@ -1,0 +1,14 @@
+ssh:
+  host: genkai.hpc.kyushu-u.ac.jp
+  user: ku50001550
+  identity_file: /Users/murakamitakumi/.ssh/id_rsa_genkai
+  port: 22
+  server_alive_interval: 60
+  server_alive_count_max: 10
+  tcp_keep_alive: true
+
+remote_root: /home/pj24003114/ku50001550/ESN-LAB/esn-lab/
+initial_path: outputs
+local_destination: outputs/downloads/genkai/
+output_dir: outputs/remote_data_browser
+port: 8001
