@@ -69,10 +69,9 @@ class RemoteBrowser:
         self.root = cfg.remote_root
         self.ssh = cfg.ssh
 
-    def list_directory(self, path):
-        path = relative_path(path)
+    def ssh_command(self):
         ssh = self.ssh
-        command = [
+        return [
             "ssh",
             "-T",
             "-o",
@@ -93,8 +92,13 @@ class RemoteBrowser:
             str(ssh["port"]),
             "-l",
             ssh["user"],
+        ]
+
+    def list_directory(self, path):
+        path = relative_path(path)
+        command = self.ssh_command() + [
             "--",
-            ssh["host"],
+            self.ssh["host"],
             shlex.join(["python3", "-c", LIST_DIRECTORY_SCRIPT, self.root, path]),
         ]
         try:
