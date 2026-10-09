@@ -13,7 +13,7 @@ def render_node_png(values, node_name):
     axes.plot(np.arange(len(values)), values, linewidth=0.8)
     axes.set(
         xlim=(0, max(len(values) - 1, 1)),
-        ylim=(-0.2, 1.2),
+        ylim=(-1.5, 2.5),
         xlabel="Time step",
         ylabel="Raw output",
         title=node_name,

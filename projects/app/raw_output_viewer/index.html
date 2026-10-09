@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>生出力ビューアー</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>生出力ビューアー</h1>
+    <div class="conditions">
+      <label>パラメータ<select id="parameter" disabled><option value="">選択してください</option></select></label>
+      <label>Group<select id="group" disabled><option value="">選択してください</option></select></label>
+      <label>Fold<select id="fold" disabled><option value="">選択してください</option></select></label>
+    </div>
+  </header>
+  <main>
+    <aside aria-label="データの選択">
+      <div class="filters">
+        <label>区分<select id="mode-filter">
+          <option value="">すべて</option><option value="train">訓練</option><option value="test">テスト</option>
+        </select></label>
+        <label>真値<select id="label-filter">
+          <option value="">すべて</option><option value="foraging">採食</option><option value="rumination">反芻</option>
+        </select></label>
+      </div>
+      <p id="sample-count">0件</p>
+      <div id="samples" role="group" aria-label="データID一覧"></div>
+    </aside>
+    <section class="viewer" aria-label="出力グラフ">
+      <h2 id="selection">データを選択してください</h2>
+      <p id="status" role="status" aria-live="polite">条件を読み込んでいます…</p>
+      <p id="error" role="alert" hidden></p>
+      <div id="warnings" role="status" aria-live="polite" hidden></div>
+      <div id="plots" hidden>
+        <figure><figcaption>採食ノードの生出力</figcaption><img id="foraging" alt="採食ノードの生出力の時系列"></figure>
+        <figure><figcaption>反芻ノードの生出力</figcaption><img id="rumination" alt="反芻ノードの生出力の時系列"></figure>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

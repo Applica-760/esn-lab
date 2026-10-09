@@ -1,12 +1,14 @@
 import base64
 import logging
+from pathlib import Path
 from threading import Lock
 from typing import Literal
 
 import uvicorn
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from projects.tasks.analysis.raw_output_viewer.data import ResultStore
 from projects.tasks.analysis.raw_output_viewer.plots import render_node_png
@@ -17,6 +19,17 @@ def create_app(cfg):
     app = FastAPI(title="Raw output viewer")
     store = ResultStore(cfg.pred_result_dir)
     lock = Lock()
+    frontend = Path(__file__).resolve().parents[3] / "app" / "raw_output_viewer"
+    app.mount("/assets", StaticFiles(directory=frontend), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        html = (frontend / "index.html").read_text()
+        # HTMLだけ更新され、古いCSS・JSが残る組み合わせを防ぐ。
+        for name in ("style.css", "app.js"):
+            version = (frontend / name).stat().st_mtime_ns
+            html = html.replace(f"/assets/{name}", f"/assets/{name}?v={version}")
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @app.exception_handler(FileNotFoundError)
     async def not_found(request: Request, exc: FileNotFoundError):
@@ -65,12 +78,12 @@ def create_app(cfg):
                 for index, node in enumerate(("foraging", "rumination")):
                     values = sample["predictions"][:, index]
                     images[node] = base64.b64encode(render_node_png(values, node)).decode("ascii")
-                    if (values < -0.2).any() or (values > 1.2).any():
+                    if (values < -1.5).any() or (values > 2.5).any():
                         warnings.append(
                             {
                                 "code": "out_of_range",
                                 "node": node,
-                                "message": f"{node}の出力が縦軸の範囲−0.2〜1.2を超えています。",
+                                "message": f"{node}の出力が縦軸の範囲−1.5〜2.5を超えています。",
                             }
                         )
             except Exception:

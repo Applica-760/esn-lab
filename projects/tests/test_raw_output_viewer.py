@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -81,8 +82,11 @@ def test_selected_train_test_files_are_not_reloaded(tmp_path, monkeypatch):
     assert len(calls) == 2
 
 
-def test_api_returns_two_pngs_with_range_warning(tmp_path):
-    write_results(tmp_path, samples=[sample(value=1.3)])
+@pytest.mark.parametrize(
+    "value,warn", [(-1.6, True), (-1.5, False), (1.3, False), (2.5, False), (2.6, True)]
+)
+def test_api_returns_two_pngs_with_range_warning(tmp_path, value, warn):
+    write_results(tmp_path, samples=[sample(value=value)])
     api = client(tmp_path)
     assert api.get("/api/conditions").json() == {"groups": ["a"]}
     assert api.get("/api/samples", params=QUERY).json()["samples"][0]["id"] == "same-id"
@@ -95,9 +99,12 @@ def test_api_returns_two_pngs_with_range_warning(tmp_path):
     for encoded in body["images"].values():
         with Image.open(BytesIO(base64.b64decode(encoded))) as image:
             assert image.format == "PNG"
+            assert image.size == (1000, 300)
             image.verify()
-    assert [w["node"] for w in body["warnings"]] == ["foraging"]
-    assert body["warnings"][0]["code"] == "out_of_range"
+    assert [w["node"] for w in body["warnings"]] == (["foraging"] if warn else [])
+    if warn:
+        assert body["warnings"][0]["code"] == "out_of_range"
+        assert "−1.5〜2.5" in body["warnings"][0]["message"]
 
 
 def test_plot_keeps_original_values_and_time_axis(monkeypatch):
@@ -115,7 +122,7 @@ def test_plot_keeps_original_values_and_time_axis(monkeypatch):
     axes = captured[0]
     np.testing.assert_array_equal(axes.lines[0].get_xdata(), [0, 1, 2])
     np.testing.assert_array_equal(axes.lines[0].get_ydata(), values)
-    assert axes.get_ylim() == (-0.2, 1.2)
+    assert axes.get_ylim() == (-1.5, 2.5)
     assert axes.get_xlim() == (0, 2)
 
 
@@ -174,3 +181,19 @@ def test_cli_registration_and_local_start(monkeypatch):
     monkeypatch.setattr(viewer_app.uvicorn, "run", lambda app, **kwargs: calls.append(kwargs))
     viewer_app.main(SimpleNamespace(pred_result_dir="unused", port=8000))
     assert calls == [{"host": "127.0.0.1", "port": 8000}]
+
+
+def test_frontend_assets_are_served_without_exposing_source(tmp_path):
+    api = client(tmp_path)
+    response = api.get("/")
+    assert response.status_code == 200
+    assert 'id="samples"' in response.text
+    assert response.headers["cache-control"] == "no-store"
+    for asset in ("style.css", "app.js"):
+        url = re.search(rf'/assets/{re.escape(asset)}\?v=\d+', response.text).group()
+        assert api.get(url).status_code == 200
+    assert 'id="foraging"' in response.text
+    assert 'id="rumination"' in response.text
+    assert api.get("/assets/app.js").status_code == 200
+    assert api.get("/assets/style.css").status_code == 200
+    assert api.get("/assets/%2e%2e/%2e%2e/tasks/cli.py").status_code == 404

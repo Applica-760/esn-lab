@@ -1,0 +1,170 @@
+"use strict";
+
+const ui = Object.fromEntries([
+  "group", "parameter", "fold", "mode-filter", "label-filter", "samples",
+  "sample-count", "selection", "status", "error", "warnings", "plots", "foraging", "rumination",
+].map(id => [id, document.getElementById(id)]));
+const labels = { foraging: "採食", rumination: "反芻", train: "訓練", test: "テスト" };
+let samples = [];
+let selected = null;
+let conditionVersion = 0;
+let plotVersion = 0;
+let catalog = [];
+
+async function request(path, parameters = {}) {
+  const response = await fetch(`${path}?${new URLSearchParams(parameters)}`);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error?.message || "データの取得に失敗しました。");
+  return body;
+}
+
+function showError(error) {
+  ui.error.textContent = error.message || "通信に失敗しました。";
+  ui.error.hidden = false;
+  ui.status.textContent = "";
+}
+
+function clearPlot() {
+  plotVersion++;
+  selected = null;
+  ui.plots.hidden = true;
+  ui.foraging.removeAttribute("src");
+  ui.rumination.removeAttribute("src");
+  ui.warnings.replaceChildren();
+  ui.warnings.hidden = true;
+  ui.error.hidden = true;
+  ui.selection.textContent = "データを選択してください";
+}
+
+function setOptions(select, values) {
+  select.replaceChildren(...values.map(value => new Option(String(value), String(value))));
+  select.value = values.length ? String(values[0]) : "";
+  select.disabled = values.length === 0;
+}
+
+function conditions() {
+  return { group: ui.group.value, parameter: ui.parameter.value, fold: ui.fold.value };
+}
+
+function visibleSamples() {
+  return samples.filter(sample =>
+    (!ui["mode-filter"].value || sample.mode === ui["mode-filter"].value) &&
+    (!ui["label-filter"].value || sample.true_label === ui["label-filter"].value));
+}
+
+function renderList() {
+  const visible = visibleSamples();
+  if (selected && !visible.includes(selected)) {
+    clearPlot();
+    ui.status.textContent = "データを選択してください。";
+  }
+  ui.samples.replaceChildren();
+  ui["sample-count"].textContent = `${visible.length} / ${samples.length}件`;
+  for (const sample of visible) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sample";
+    button.setAttribute("aria-pressed", String(sample === selected));
+    const id = document.createElement("span");
+    id.className = "sample-id";
+    id.textContent = sample.id;
+    button.append(id);
+    for (const value of [sample.mode, sample.true_label]) {
+      const badge = document.createElement("span");
+      badge.className = `badge ${value}`;
+      badge.textContent = labels[value];
+      button.append(badge);
+    }
+    button.addEventListener("click", () => selectSample(sample, button));
+    ui.samples.append(button);
+  }
+  if (!visible.length) {
+    const empty = document.createElement("p");
+    empty.textContent = samples.length ? "該当するデータはありません。" : "条件を選択してください。";
+    ui.samples.append(empty);
+  }
+}
+
+async function loadConditions(level) {
+  const version = ++conditionVersion;
+  clearPlot();
+  samples = [];
+  renderList();
+  if (level === 0) setOptions(ui.parameter, []);
+  if (level <= 1) setOptions(ui.group, []);
+  if (level <= 2) setOptions(ui.fold, []);
+  ui.status.textContent = "読み込んでいます…";
+  try {
+    if (level === 0) {
+      const body = await request("/api/conditions");
+      if (version !== conditionVersion) return;
+      const entries = await Promise.all(body.groups.map(async group => ({
+        group, parameters: (await request("/api/conditions", { group })).parameters,
+      })));
+      if (version !== conditionVersion) return;
+      catalog = entries;
+      setOptions(ui.parameter, [...new Set(catalog.flatMap(entry => entry.parameters))].sort());
+    }
+    if (level <= 1) {
+      setOptions(ui.group, catalog.filter(entry => entry.parameters.includes(ui.parameter.value))
+        .map(entry => entry.group).sort());
+    }
+    if (!ui.parameter.value || !ui.group.value) {
+      ui.status.textContent = "表示できる条件がありません。";
+      return;
+    }
+    if (level <= 2) {
+      const body = await request("/api/conditions", {
+        group: ui.group.value, parameter: ui.parameter.value,
+      });
+      if (version !== conditionVersion) return;
+      setOptions(ui.fold, body.folds);
+    }
+    if (ui.fold.value === "") {
+      ui.status.textContent = "表示できるFoldがありません。";
+      return;
+    }
+    const body = await request("/api/samples", conditions());
+    if (version !== conditionVersion) return;
+    samples = body.samples;
+    renderList();
+    ui.status.textContent = "左の一覧からデータを選択してください。";
+  } catch (error) {
+    if (version === conditionVersion) showError(error);
+  }
+}
+
+async function selectSample(sample, button) {
+  clearPlot();
+  selected = sample;
+  const version = plotVersion;
+  for (const item of ui.samples.children) {
+    if (item.tagName === "BUTTON") item.setAttribute("aria-pressed", String(item === button));
+  }
+  ui.selection.textContent = `${sample.id} · ${labels[sample.mode]} · 真値：${labels[sample.true_label]}`;
+  ui.status.textContent = "グラフを生成しています…";
+  try {
+    const body = await request("/api/plots", { ...conditions(), mode: sample.mode, id: sample.id });
+    if (version !== plotVersion) return;
+    for (const node of ["foraging", "rumination"]) {
+      ui[node].src = `data:image/png;base64,${body.images[node]}`;
+    }
+    for (const warning of body.warnings) {
+      const message = document.createElement("p");
+      message.textContent = warning.message;
+      ui.warnings.append(message);
+    }
+    ui.warnings.hidden = body.warnings.length === 0;
+    ui.plots.hidden = false;
+    ui.status.textContent = `${body.length}時刻 · 縦軸 −1.5〜2.5`;
+  } catch (error) {
+    if (version === plotVersion) showError(error);
+  }
+}
+
+ui.parameter.addEventListener("change", () => loadConditions(1));
+ui.group.addEventListener("change", () => loadConditions(2));
+ui.fold.addEventListener("change", () => loadConditions(3));
+ui["mode-filter"].addEventListener("change", renderList);
+ui["label-filter"].addEventListener("change", renderList);
+loadConditions(0);
