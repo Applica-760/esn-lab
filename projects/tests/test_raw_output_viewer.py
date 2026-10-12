@@ -79,13 +79,84 @@ def test_selected_train_test_files_are_not_reloaded(tmp_path, monkeypatch):
     store.list_samples("a", PARAMETER, 0)
     store.get_sample("a", PARAMETER, 0, "test", "same-id")
     store.get_sample("a", PARAMETER, 0, "train", "same-id")
+    assert store.list_sample_folds("a", PARAMETER, "same-id") == [
+        {"fold": 0, "modes": ["train", "test"]}
+    ]
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize("extension", ["npz", "json"])
+def test_sample_folds_lists_membership_and_reuses_plot_selection(tmp_path, extension):
+    for mode, indices in (("train", [3, 1, 2]), ("test", [3, 0])):
+        path = write_results(tmp_path, mode=mode, extension=extension)
+        folds = [
+            {
+                "fold_index": index,
+                "results": [{**sample(), "id": "other-id" if index == 2 else "same-id"}],
+            }
+            for index in indices
+        ]
+        if extension == "json":
+            path.write_text(json.dumps(folds))
+        else:
+            save_pred_results(folds, str(path))
+    write_results(tmp_path, group="b", fold=8)
+    api = client(tmp_path)
+    query = {key: QUERY[key] for key in ("group", "parameter", "id")}
+    response = api.get("/api/sample-folds", params=query)
+    assert response.status_code == 200
+    assert response.json() == {
+        "folds": [
+            {"fold": 0, "modes": ["test"]},
+            {"fold": 1, "modes": ["train"]},
+            {"fold": 2, "modes": []},
+            {"fold": 3, "modes": ["train", "test"]},
+        ]
+    }
+    selected = response.json()["folds"][1]
+    plot = api.get(
+        "/api/plots", params={**query, "fold": selected["fold"], "mode": selected["modes"][0]}
+    )
+    assert plot.status_code == 200
+    assert (plot.json()["id"], plot.json()["fold"], plot.json()["mode"]) == ("same-id", 1, "train")
+    assert api.get("/api/sample-folds", params={**query, "group": "b"}).json() == {
+        "folds": [{"fold": 8, "modes": ["test"]}]
+    }
+    assert api.get("/api/sample-folds", params=query).json() == response.json()
+
+
+def test_sample_folds_errors_and_json_precedence(tmp_path):
+    write_results(tmp_path)
+    path = write_results(tmp_path, samples=[{**sample(), "id": "json-id"}], extension="json")
+    api = client(tmp_path)
+    query = {"group": "a", "parameter": PARAMETER, "id": "json-id"}
+    assert api.get("/api/sample-folds", params=query).status_code == 200
+    for update in (
+        {"id": "same-id"},
+        {"id": "json"},
+        {"group": "missing"},
+        {"parameter": "missing"},
+    ):
+        response = api.get("/api/sample-folds", params={**query, **update})
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "not_found"
+    for key in query:
+        response = api.get("/api/sample-folds", params={k: v for k, v in query.items() if k != key})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_request"
+    response = api.get("/api/sample-folds", params={**query, "group": ".."})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_data"
+    path.write_text("invalid json")
+    response = client(tmp_path).get("/api/sample-folds", params=query)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_data"
 
 
 @pytest.mark.parametrize(
     "value,warn", [(-1.6, True), (-1.5, False), (1.3, False), (2.5, False), (2.6, True)]
 )
-def test_api_returns_two_pngs_with_range_warning(tmp_path, value, warn):
+def test_api_returns_three_pngs_with_range_warning(tmp_path, value, warn):
     write_results(tmp_path, samples=[sample(value=value)])
     api = client(tmp_path)
     assert api.get("/api/conditions").json() == {"groups": ["a"]}
@@ -95,7 +166,7 @@ def test_api_returns_two_pngs_with_range_warning(tmp_path, value, warn):
     body = response.json()
     assert body["id"] == "same-id" and body["length"] == 4
     assert body["mime_type"] == "image/png" and body["encoding"] == "base64"
-    assert set(body["images"]) == {"foraging", "rumination"}
+    assert set(body["images"]) == {"foraging", "rumination", "overlay"}
     for encoded in body["images"].values():
         with Image.open(BytesIO(base64.b64decode(encoded))) as image:
             assert image.format == "PNG"
@@ -124,6 +195,16 @@ def test_plot_keeps_original_values_and_time_axis(monkeypatch):
     np.testing.assert_array_equal(axes.lines[0].get_ydata(), values)
     assert axes.get_ylim() == (-1.5, 2.5)
     assert axes.get_xlim() == (0, 2)
+    combined = np.column_stack((values, values[::-1]))
+    viewer_plots.render_node_png(combined, "foraging / rumination")
+    axes = captured[1]
+    assert len(axes.lines) == 2
+    for index, line in enumerate(axes.lines):
+        np.testing.assert_array_equal(line.get_ydata(), combined[:, index])
+        np.testing.assert_array_equal(line.get_xdata(), [0, 1, 2])
+    assert [line.get_color() for line in axes.lines] == ["tab:blue", "tab:orange"]
+    assert [text.get_text() for text in axes.get_legend().get_texts()] == ["foraging", "rumination"]
+    assert axes.get_ylim() == (-1.5, 2.5)
 
 
 @pytest.mark.parametrize(
@@ -190,10 +271,11 @@ def test_frontend_assets_are_served_without_exposing_source(tmp_path):
     assert 'id="samples"' in response.text
     assert response.headers["cache-control"] == "no-store"
     for asset in ("style.css", "app.js"):
-        url = re.search(rf'/assets/{re.escape(asset)}\?v=\d+', response.text).group()
+        url = re.search(rf"/assets/{re.escape(asset)}\?v=\d+", response.text).group()
         assert api.get(url).status_code == 200
     assert 'id="foraging"' in response.text
     assert 'id="rumination"' in response.text
+    assert 'id="overlay"' in response.text
     assert api.get("/assets/app.js").status_code == 200
     assert api.get("/assets/style.css").status_code == 200
     assert api.get("/assets/%2e%2e/%2e%2e/tasks/cli.py").status_code == 404

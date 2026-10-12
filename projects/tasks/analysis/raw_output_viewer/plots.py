@@ -10,7 +10,16 @@ def render_node_png(values, node_name):
     figure = Figure(figsize=(10, 3), layout="constrained")
     canvas = FigureCanvasAgg(figure)
     axes = figure.subplots()
-    axes.plot(np.arange(len(values)), values, linewidth=0.8)
+    if values.ndim == 2:
+        for index, (label, color) in enumerate(
+            (("foraging", "tab:blue"), ("rumination", "tab:orange"))
+        ):
+            axes.plot(
+                np.arange(len(values)), values[:, index], linewidth=0.8, label=label, color=color
+            )
+        axes.legend(loc="upper right")
+    else:
+        axes.plot(np.arange(len(values)), values, linewidth=0.8)
     axes.set(
         xlim=(0, max(len(values) - 1, 1)),
         ylim=(-1.5, 2.5),

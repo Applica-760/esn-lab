@@ -65,6 +65,11 @@ def create_app(cfg):
         with lock:
             return {"samples": store.list_samples(group, parameter, fold)}
 
+    @app.get("/api/sample-folds")
+    def sample_folds(group: str, parameter: str, id: str):
+        with lock:
+            return {"folds": store.list_sample_folds(group, parameter, id)}
+
     @app.get("/api/plots")
     def plots(
         group: str, parameter: str, mode: Literal["train", "test"], id: str, fold: int = Query(ge=0)
@@ -86,6 +91,9 @@ def create_app(cfg):
                                 "message": f"{node}の出力が縦軸の範囲−1.5〜2.5を超えています。",
                             }
                         )
+                images["overlay"] = base64.b64encode(
+                    render_node_png(sample["predictions"], "foraging / rumination")
+                ).decode("ascii")
             except Exception:
                 logging.exception("Failed to render sample %s", id)
                 return JSONResponse(

@@ -73,11 +73,27 @@ async function setup(empty = false) {
 }
 
 function plot(marker, warnings = []) {
-  return { length: 4, images: { foraging: marker, rumination: marker }, warnings };
+  return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings };
+}
+
+const folds = { folds: [
+  { fold: 0, modes: ["train", "test"] },
+  { fold: 1, modes: ["train"] },
+  { fold: 2, modes: [] },
+] };
+
+async function beginPlot(view, index = 0) {
+  const done = view.nodes.samples.children[index].events.click();
+  const request = view.pending.shift();
+  assert.match(request.url, /^\/api\/sample-folds\?/);
+  request.respond(folds);
+  await view.settle();
+  return { done, request: view.pending.shift() };
 }
 
 test("fold zero, badges and filters retain train/test identity", async () => {
-  const { nodes, pending, change } = await setup();
+  const view = await setup();
+  const { nodes, change } = view;
   assert.equal(nodes.parameter.value, "p");
   assert.equal(nodes.group.value, "a");
   assert.equal(nodes.fold.value, "0");
@@ -85,8 +101,7 @@ test("fold zero, badges and filters retain train/test identity", async () => {
   assert.equal(nodes.samples.children[0].children[1].textContent, "訓練");
   await change("mode-filter", "test");
   assert.equal(nodes.samples.children.length, 1);
-  const done = nodes.samples.children[0].events.click();
-  const request = pending.shift();
+  const { done, request } = await beginPlot(view);
   const url = new URL(request.url, "http://localhost");
   assert.equal(url.searchParams.get("fold"), "0");
   assert.equal(url.searchParams.get("mode"), "test");
@@ -100,36 +115,41 @@ test("fold zero, badges and filters retain train/test identity", async () => {
 });
 
 test("an older image response cannot overwrite the latest selection", async () => {
-  const { nodes, pending } = await setup();
-  const first = nodes.samples.children[0].events.click();
-  const second = nodes.samples.children[1].events.click();
-  pending[1].respond(plot("new"));
-  await second;
-  pending[0].respond(plot("old"));
-  await first;
+  const view = await setup();
+  const { nodes } = view;
+  const first = await beginPlot(view);
+  const second = await beginPlot(view, 1);
+  second.request.respond(plot("new"));
+  await second.done;
+  first.request.respond(plot("old"));
+  await first.done;
   assert.equal(nodes.foraging.src, "data:image/png;base64,new");
+  assert.equal(nodes.overlay.src, "data:image/png;base64,new");
   assert.match(nodes.selection.textContent, /テスト/);
 });
 
 test("changing conditions discards pending images and stale condition lists", async () => {
-  const { nodes, pending, settle } = await setup();
-  const image = nodes.samples.children[0].events.click();
+  const view = await setup();
+  const { nodes, pending, settle } = view;
+  const image = await beginPlot(view);
   nodes.group.value = "b";
   const older = nodes.group.events.change();
   nodes.group.value = "a";
   const newer = nodes.group.events.change();
-  pending[2].respond({ folds: [0] });
+  pending[1].respond({ folds: [0] });
   await settle();
-  pending[3].respond({ samples: [] });
+  pending[2].respond({ samples: [] });
   await newer;
-  pending[1].respond({ folds: [9] });
+  pending[0].respond({ folds: [9] });
   await older;
-  pending[0].respond(plot("old"));
-  await image;
+  image.request.respond(plot("old"));
+  await image.done;
   assert.equal(nodes.plots.hidden, true);
   assert.equal(nodes.foraging.src, undefined);
+  assert.equal(nodes.overlay.src, undefined);
   assert.equal(nodes.fold.value, "0");
-  assert.equal(pending.length, 4);
+  assert.equal(pending.length, 3);
+  assert.equal(nodes["fold-navigation"].hidden, true);
 });
 
 test("parameter changes select only compatible groups and automatically load the first fold", async () => {
@@ -154,11 +174,104 @@ test("empty parameters leave dependent controls disabled without further request
 });
 
 test("API errors show a message and leave old images hidden", async () => {
-  const { nodes, pending } = await setup();
-  const done = nodes.samples.children[0].events.click();
-  pending.shift().respond({ error: { message: "データが見つかりません。" } }, false);
+  const view = await setup();
+  const { nodes } = view;
+  const { done, request } = await beginPlot(view);
+  request.respond({ error: { message: "データが見つかりません。" } }, false);
   await done;
   assert.equal(nodes.error.hidden, false);
   assert.equal(nodes.error.textContent, "データが見つかりません。");
   assert.equal(nodes.plots.hidden, true);
+});
+
+test("fold switches preserve button elements, selection state and list conditions", async () => {
+  const view = await setup();
+  const { nodes, pending } = view;
+  const initial = await beginPlot(view, 1);
+  initial.request.respond(plot("initial"));
+  await initial.done;
+  const list = nodes.samples.children;
+  assert.deepEqual(nodes["fold-buttons"].children.map(button => button.textContent), [
+    "Fold 0・訓練", "Fold 0・テスト", "Fold 1・訓練", "Fold 2・データなし",
+  ]);
+  assert.equal(nodes["fold-buttons"].children[1].attributes["aria-pressed"], "true");
+  assert.equal(nodes["fold-buttons"].children[3].disabled, true);
+  const buttons = [...nodes["fold-buttons"].children];
+  const older = nodes["fold-buttons"].children[2].events.click();
+  for (const [index, button] of buttons.entries()) {
+    assert.equal(nodes["fold-buttons"].children[index], button);
+  }
+  assert.equal(buttons[1].attributes["aria-pressed"], "false");
+  assert.equal(buttons[2].attributes["aria-pressed"], "true");
+  assert.equal(nodes.plots.hidden, true);
+  assert.equal(nodes.overlay.src, undefined);
+  const request = pending.shift();
+  const url = new URL(request.url, "http://localhost");
+  assert.deepEqual(Object.fromEntries(url.searchParams), {
+    group: "a", parameter: "p", fold: "1", mode: "train", id: "same",
+  });
+  const newer = nodes["fold-buttons"].children[0].events.click();
+  pending.shift().respond(plot("latest"));
+  await newer;
+  request.respond(plot("old"));
+  await older;
+  for (const [index, button] of buttons.entries()) {
+    assert.equal(nodes["fold-buttons"].children[index], button);
+  }
+  assert.equal(nodes.overlay.src, "data:image/png;base64,latest");
+  assert.match(nodes.selection.textContent, /Fold 0 · 訓練/);
+  assert.equal(nodes["fold-buttons"].children[0].attributes["aria-pressed"], "true");
+  assert.equal(nodes.fold.value, "0");
+  assert.equal(nodes.group.value, "a");
+  assert.equal(nodes.parameter.value, "p");
+  assert.equal(nodes.samples.children, list);
+  assert.equal(list[1].attributes["aria-pressed"], "true");
+});
+
+test("stale fold lists cannot replace a different ID or survive condition changes", async () => {
+  const view = await setup();
+  const { nodes, pending, change } = view;
+  await change("fold", "1", { samples: [
+    { id: "first", mode: "test", true_label: "foraging" },
+    { id: "second", mode: "test", true_label: "rumination" },
+  ] });
+  const older = nodes.samples.children[0].events.click();
+  const stale = pending.shift();
+  const current = await beginPlot(view, 1);
+  assert.equal(new URL(current.request.url, "http://localhost").searchParams.get("id"), "second");
+  current.request.respond(plot("current"));
+  await current.done;
+  stale.respond({ folds: [{ fold: 9, modes: ["test"] }] });
+  await older;
+  assert.match(nodes.selection.textContent, /^second/);
+  assert.equal(nodes["fold-buttons"].children.length, 4);
+  const unfinished = nodes.samples.children[0].events.click();
+  const late = pending.shift();
+  await change("parameter", "q", [{ folds: [0] }, { samples: [] }]);
+  late.respond(folds);
+  await unfinished;
+  assert.equal(nodes["fold-navigation"].hidden, true);
+  assert.equal(nodes.plots.hidden, true);
+  assert.equal(pending.length, 0);
+});
+
+test("fold-list failure clears old buttons and can be retried by selecting the ID", async () => {
+  const view = await setup();
+  const { nodes, pending } = view;
+  const initial = await beginPlot(view);
+  initial.request.respond(plot("initial"));
+  await initial.done;
+  const failed = nodes.samples.children[1].events.click();
+  pending.shift().respond({ error: { message: "Fold一覧の取得に失敗" } }, false);
+  await failed;
+  assert.equal(nodes["fold-navigation"].hidden, true);
+  assert.equal(nodes["fold-buttons"].children.length, 0);
+  assert.equal(nodes.plots.hidden, true);
+  assert.equal(nodes.error.textContent, "Fold一覧の取得に失敗");
+  const retry = await beginPlot(view, 1);
+  retry.request.respond(plot("retry"));
+  await retry.done;
+  assert.equal(nodes.error.hidden, true);
+  assert.equal(nodes["fold-navigation"].hidden, false);
+  assert.equal(nodes.overlay.src, "data:image/png;base64,retry");
 });

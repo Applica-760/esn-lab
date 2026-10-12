@@ -8,6 +8,13 @@ label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-w
 select { padding: 8px; border: 1px solid #a9b8c4; border-radius: 5px; background: white; color: inherit; font: inherit; min-width: 0; max-width: 100%; }
 select:disabled { background: #edf1f4; color: #596773; }
 .conditions { display: grid; grid-template-columns: minmax(200px, 600px) 120px 120px; gap: 16px; }
+.conditions-caption { margin: 0 0 8px; font-size: 13px; color: #52616d; }
+#fold-navigation { flex-shrink: 0; margin-bottom: 12px; }
+#fold-navigation p { margin: 0 0 8px; font-size: 13px; }
+#fold-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+#fold-buttons button { padding: 8px 12px; border: 1px solid #a9b8c4; border-radius: 5px; background: white; color: inherit; font: inherit; cursor: pointer; }
+#fold-buttons button[aria-pressed="true"] { border-color: #23658b; background: #eaf4fb; font-weight: 600; }
+#fold-buttons button:disabled { background: #edf1f4; color: #596773; cursor: default; }
 main { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; }
 aside { padding: 20px 16px; background: white; border-right: 1px solid #d8e0e6; display: flex; flex-direction: column; min-height: 0; }
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -29,7 +36,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #23658b; outline
 #error { background: #fce9e9; color: #8e2424; }
 #warnings { background: #fff0cc; color: #745000; margin-bottom: 16px; }
 #warnings p { margin: 4px 0; }
-#plots { flex: 0 1 750px; max-height: 90dvh; min-height: 0; width: 100%; max-width: 1104px; display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#plots { flex: 1; min-height: 0; overflow-y: auto; width: 100%; max-width: 1104px; display: grid; grid-template-rows: repeat(3, min(340px, 45dvh)); gap: 12px; }
 figure { margin: 0; min-height: 0; min-width: 0; padding: 8px; display: grid; grid-template-rows: auto minmax(0, 1fr); background: white; border: 1px solid #d8e0e6; border-radius: 6px; }
 figcaption { font-size: 14px; font-weight: 600; }
 img { display: block; width: 100%; max-width: 1080px; height: 100%; max-height: 300px; min-height: 0; object-fit: contain; object-position: left top; }

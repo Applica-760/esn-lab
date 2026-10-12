@@ -2,7 +2,8 @@
 
 const ui = Object.fromEntries([
   "group", "parameter", "fold", "mode-filter", "label-filter", "samples",
-  "sample-count", "selection", "status", "error", "warnings", "plots", "foraging", "rumination",
+  "sample-count", "selection", "status", "error", "warnings", "plots", "foraging", "rumination", "overlay",
+  "fold-navigation", "fold-buttons",
 ].map(id => [id, document.getElementById(id)]));
 const labels = { foraging: "採食", rumination: "反芻", train: "訓練", test: "テスト" };
 let samples = [];
@@ -10,6 +11,7 @@ let selected = null;
 let conditionVersion = 0;
 let plotVersion = 0;
 let catalog = [];
+let sampleVersion = 0;
 
 async function request(path, parameters = {}) {
   const response = await fetch(`${path}?${new URLSearchParams(parameters)}`);
@@ -25,15 +27,23 @@ function showError(error) {
 }
 
 function clearPlot() {
-  plotVersion++;
+  sampleVersion++;
   selected = null;
+  ui["fold-navigation"].hidden = true;
+  ui["fold-buttons"].replaceChildren();
+  clearImages();
+  ui.selection.textContent = "データを選択してください";
+}
+
+function clearImages() {
+  plotVersion++;
   ui.plots.hidden = true;
   ui.foraging.removeAttribute("src");
   ui.rumination.removeAttribute("src");
+  ui.overlay.removeAttribute("src");
   ui.warnings.replaceChildren();
   ui.warnings.hidden = true;
   ui.error.hidden = true;
-  ui.selection.textContent = "データを選択してください";
 }
 
 function setOptions(select, values) {
@@ -137,16 +147,54 @@ async function loadConditions(level) {
 async function selectSample(sample, button) {
   clearPlot();
   selected = sample;
-  const version = plotVersion;
+  const version = sampleVersion;
   for (const item of ui.samples.children) {
     if (item.tagName === "BUTTON") item.setAttribute("aria-pressed", String(item === button));
   }
-  ui.selection.textContent = `${sample.id} · ${labels[sample.mode]} · 真値：${labels[sample.true_label]}`;
+  ui.selection.textContent = `${sample.id} · Fold一覧を読み込んでいます…`;
+  ui.status.textContent = "同じデータのFoldを確認しています…";
+  try {
+    const body = await request("/api/sample-folds", {
+      group: ui.group.value, parameter: ui.parameter.value, id: sample.id,
+    });
+    if (version !== sampleVersion) return;
+    renderFoldButtons(sample, body.folds);
+    await showSamplePlot(sample, Number(ui.fold.value), sample.mode);
+  } catch (error) {
+    if (version === sampleVersion) showError(error);
+  }
+}
+
+function renderFoldButtons(sample, folds) {
+  ui["fold-buttons"].replaceChildren();
+  for (const entry of folds) {
+    for (const targetMode of entry.modes.length ? entry.modes : [null]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = `Fold ${entry.fold}・${targetMode ? labels[targetMode] : "データなし"}`;
+      button.disabled = targetMode === null;
+      button.value = `${entry.fold}:${targetMode}`;
+      if (targetMode) button.addEventListener("click", () => showSamplePlot(sample, entry.fold, targetMode));
+      ui["fold-buttons"].append(button);
+    }
+  }
+  ui["fold-navigation"].hidden = false;
+}
+
+async function showSamplePlot(sample, fold, mode) {
+  if (sample !== selected) return;
+  clearImages();
+  const version = plotVersion;
+  ui.selection.textContent = `${sample.id} · 表示中：Group ${ui.group.value} · Fold ${fold} · ${labels[mode]}`;
+  for (const button of ui["fold-buttons"].children) {
+    button.setAttribute("aria-pressed", String(button.value === `${fold}:${mode}`));
+  }
   ui.status.textContent = "グラフを生成しています…";
   try {
-    const body = await request("/api/plots", { ...conditions(), mode: sample.mode, id: sample.id });
+    const body = await request("/api/plots", { ...conditions(), fold, mode, id: sample.id });
     if (version !== plotVersion) return;
-    for (const node of ["foraging", "rumination"]) {
+    ui.selection.textContent += ` · 真値：${labels[body.true_label]}`;
+    for (const node of ["foraging", "rumination", "overlay"]) {
       ui[node].src = `data:image/png;base64,${body.images[node]}`;
     }
     for (const warning of body.warnings) {

@@ -136,6 +136,21 @@ class ResultStore:
             raise FileNotFoundError("指定したfoldのデータが見つかりません。")
         return result
 
+    def list_sample_folds(self, group, parameter, sample_id):
+        self._load(group, parameter)
+        result = [
+            {
+                "fold": fold,
+                "modes": [
+                    mode for mode in ("train", "test") if (fold, mode, sample_id) in self._samples
+                ],
+            }
+            for fold in sorted({key[0] for key in self._samples})
+        ]
+        if not any(item["modes"] for item in result):
+            raise FileNotFoundError("指定した条件・IDのデータが見つかりません。")
+        return result
+
     def get_sample(self, group, parameter, fold, mode, sample_id):
         self._load(group, parameter)
         try:
