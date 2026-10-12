@@ -72,8 +72,8 @@ async function setup(empty = false) {
   return { nodes, pending, change, settle };
 }
 
-function plot(marker, warnings = []) {
-  return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings };
+function plot(marker, warnings = [], judgment = { status: "disabled" }) {
+  return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings, judgment };
 }
 
 const folds = { folds: [
@@ -150,6 +150,8 @@ test("changing conditions discards pending images and stale condition lists", as
   assert.equal(nodes.fold.value, "0");
   assert.equal(pending.length, 3);
   assert.equal(nodes["fold-navigation"].hidden, true);
+  assert.equal(nodes.judgment.hidden, true);
+  assert.equal(nodes.judgment.textContent, "");
 });
 
 test("parameter changes select only compatible groups and automatically load the first fold", async () => {
@@ -182,6 +184,54 @@ test("API errors show a message and leave old images hidden", async () => {
   assert.equal(nodes.error.hidden, false);
   assert.equal(nodes.error.textContent, "データが見つかりません。");
   assert.equal(nodes.plots.hidden, true);
+  assert.equal(nodes.judgment.hidden, true);
+});
+
+for (const [judgment, message, className] of [
+  [{ status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true }, "多数決判定：採食　真値：採食　［正答］", "correct"],
+  [{ status: "available", pred_label: "rumination", true_label: "foraging", is_correct: false }, "多数決判定：反芻　真値：採食　［誤判定］", "incorrect"],
+  [{ status: "disabled" }, "判定結果の参照先が未設定です。", "unavailable"],
+  [{ status: "not_found" }, "対応する判定結果がありません。", "unavailable"],
+  [{ status: "invalid_data", message: "真値が一致しません。" }, "判定結果を表示できません。 真値が一致しません。", "unavailable"],
+]) {
+  test(`judgment ${judgment.status}/${className} is displayed separately from images`, async () => {
+    const view = await setup();
+    const { done, request } = await beginPlot(view);
+    request.respond(plot("png", [], judgment));
+    await done;
+    assert.equal(view.nodes.judgment.textContent, message);
+    assert.equal(view.nodes.judgment.className, className);
+    assert.equal(view.nodes.judgment.hidden, false);
+    assert.equal(view.nodes.plots.hidden, false);
+  });
+}
+
+test("judgment follows the latest fold response and clears on ID changes and failures", async () => {
+  const view = await setup();
+  const { nodes, pending } = view;
+  const correct = { status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true };
+  const incorrect = { ...correct, pred_label: "rumination", is_correct: false };
+  const first = await beginPlot(view);
+  first.request.respond(plot("initial", [], correct));
+  await first.done;
+  const older = nodes["fold-buttons"].children[2].events.click();
+  const olderRequest = pending.shift();
+  assert.equal(nodes.judgment.hidden, true);
+  assert.equal(nodes.judgment.textContent, "");
+  const newer = nodes["fold-buttons"].children[1].events.click();
+  pending.shift().respond(plot("latest", [], incorrect));
+  await newer;
+  olderRequest.respond(plot("old", [], correct));
+  await older;
+  assert.equal(nodes.judgment.className, "incorrect");
+  assert.match(nodes.judgment.textContent, /誤判定/);
+  const selection = await beginPlot(view, 1);
+  assert.equal(nodes.judgment.hidden, true);
+  assert.equal(nodes.judgment.textContent, "");
+  selection.request.respond({ error: { message: "描画失敗" } }, false);
+  await selection.done;
+  assert.equal(nodes.judgment.hidden, true);
+  assert.equal(nodes.error.textContent, "描画失敗");
 });
 
 test("fold switches preserve button elements, selection state and list conditions", async () => {

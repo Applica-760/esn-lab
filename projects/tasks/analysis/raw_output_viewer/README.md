@@ -27,6 +27,8 @@ Task層はFastAPIによる起動・結果読み込み・APIを担う。グラフ
 
 ## バックエンドの起動とAPI
 
+`judgment_result_dir` は保存判定のルート。配下の `<parameter>/judgment_results_{train,test}.csv` を参照し、未指定・空なら判定表示を無効にする。
+
 `cfg.yaml` の `pred_result_dir` に、ローカルへ取得した予測結果のルートを指定する。既存の `group/parameter/train_results.npz`・`test_results.npz` の配置を使い、同名のJSONにも対応する。両形式がある場合は既存ローダーと同じくJSONを優先する。ノード順は2ラベル変換処理に合わせて採食・反芻とする。
 
 リポジトリルートで実行する。
@@ -43,6 +45,8 @@ uv run -m projects.tasks.cli analysis.raw_output_viewer
 | `/api/samples` | `group, parameter, fold` | `samples`: ID・mode・true_label・lengthの一覧 |
 | `/api/sample-folds` | `group, parameter, id` | `folds`: Fold番号と指定IDの訓練／テスト区分の一覧 |
 | `/api/plots` | `group, parameter, fold, mode, id` | 条件・ID・真値・系列長、`images`、`warnings` |
+
+`/api/plots` は画像と独立した `judgment` も返す。`status` が `available` なら `pred_label`・`true_label`・`is_correct`、`disabled`・`not_found`・`invalid_data` なら `message` を含む。判定の欠落・不正でも画像は返す。判定CSVは現在のparameter・modeを保持するため、差し替え後は再起動する。WebUIのグラフ見出し直下に判定・真値・正誤を表示し、ID・Fold切替で更新する。
 
 `mode` は `train` または `test`。`true_label` は `foraging` または `rumination`。`images.foraging`・`images.rumination`・`images.overlay` はそれぞれPNGをBase64にした文字列で、応答の `mime_type` は `image/png`、`encoding` は `base64`。
 

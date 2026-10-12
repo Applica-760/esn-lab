@@ -3,7 +3,7 @@
 const ui = Object.fromEntries([
   "group", "parameter", "fold", "mode-filter", "label-filter", "samples",
   "sample-count", "selection", "status", "error", "warnings", "plots", "foraging", "rumination", "overlay",
-  "fold-navigation", "fold-buttons",
+  "fold-navigation", "fold-buttons", "judgment",
 ].map(id => [id, document.getElementById(id)]));
 const labels = { foraging: "採食", rumination: "反芻", train: "訓練", test: "テスト" };
 let samples = [];
@@ -37,6 +37,9 @@ function clearPlot() {
 
 function clearImages() {
   plotVersion++;
+  ui.judgment.hidden = true;
+  ui.judgment.textContent = "";
+  ui.judgment.className = "";
   ui.plots.hidden = true;
   ui.foraging.removeAttribute("src");
   ui.rumination.removeAttribute("src");
@@ -165,6 +168,25 @@ async function selectSample(sample, button) {
   }
 }
 
+function renderJudgment(judgment) {
+  if (judgment?.status === "available") {
+    ui.judgment.textContent = `多数決判定：${labels[judgment.pred_label]}　真値：${labels[judgment.true_label]}　［${judgment.is_correct ? "正答" : "誤判定"}］`;
+    ui.judgment.className = judgment.is_correct ? "correct" : "incorrect";
+  } else {
+    const messages = {
+      disabled: "判定結果の参照先が未設定です。",
+      not_found: "対応する判定結果がありません。",
+      invalid_data: "判定結果を表示できません。",
+    };
+    ui.judgment.textContent = messages[judgment?.status] || "判定情報がありません。サーバーを再起動してください。";
+    if (judgment?.status === "invalid_data" && judgment.message) {
+      ui.judgment.textContent += ` ${judgment.message}`;
+    }
+    ui.judgment.className = "unavailable";
+  }
+  ui.judgment.hidden = false;
+}
+
 function renderFoldButtons(sample, folds) {
   ui["fold-buttons"].replaceChildren();
   for (const entry of folds) {
@@ -194,6 +216,7 @@ async function showSamplePlot(sample, fold, mode) {
     const body = await request("/api/plots", { ...conditions(), fold, mode, id: sample.id });
     if (version !== plotVersion) return;
     ui.selection.textContent += ` · 真値：${labels[body.true_label]}`;
+    renderJudgment(body.judgment);
     for (const node of ["foraging", "rumination", "overlay"]) {
       ui[node].src = `data:image/png;base64,${body.images[node]}`;
     }

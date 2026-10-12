@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from projects.tasks.analysis.raw_output_viewer.data import ResultStore
+from projects.tasks.analysis.raw_output_viewer.data import JudgmentStore, ResultStore
 from projects.tasks.analysis.raw_output_viewer.plots import render_node_png
 from projects.utils.app_init import setup_task_environment
 
@@ -18,6 +18,7 @@ from projects.utils.app_init import setup_task_environment
 def create_app(cfg):
     app = FastAPI(title="Raw output viewer")
     store = ResultStore(cfg.pred_result_dir)
+    judgments = JudgmentStore(getattr(cfg, "judgment_result_dir", None))
     lock = Lock()
     frontend = Path(__file__).resolve().parents[3] / "app" / "raw_output_viewer"
     app.mount("/assets", StaticFiles(directory=frontend), name="assets")
@@ -117,6 +118,9 @@ def create_app(cfg):
                 "encoding": "base64",
                 "images": images,
                 "warnings": warnings,
+                "judgment": judgments.get_judgment(
+                    group, parameter, fold, mode, id, sample["true_label"]
+                ),
             }
 
     return app

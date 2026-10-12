@@ -13,6 +13,7 @@ from projects.tasks import cli
 from projects.tasks.analysis.raw_output_viewer import app as viewer_app
 from projects.tasks.analysis.raw_output_viewer import data as viewer_data
 from projects.tasks.analysis.raw_output_viewer import plots as viewer_plots
+from projects.utils.eval.judgment import save_judgment_results
 from projects.utils.prediction import save_pred_results
 
 PARAMETER = "Nx400_dens0.5_inscl0.001_rho0.9"
@@ -40,6 +41,151 @@ def write_results(root, mode="test", samples=None, extension="npz", group="a", f
 
 def client(root):
     return TestClient(viewer_app.create_app(SimpleNamespace(pred_result_dir=root)))
+
+
+def write_judgments(root, mode="test", parameter=PARAMETER, rows=None):
+    path = root / parameter / f"judgment_results_{mode}.csv"
+    save_judgment_results(
+        rows
+        if rows is not None
+        else [
+            {
+                "group": "a",
+                "fold_index": 0,
+                "id": "same-id",
+                "pred_label": 1,
+                "true_label": 0,
+                "is_correct": False,
+            }
+        ],
+        path,
+    )
+    return path
+
+
+@pytest.mark.parametrize(
+    "state", ["available", "disabled", "missing_file", "missing_id", "corrupt", "mismatch"]
+)
+def test_judgment_status_is_separate_from_images(tmp_path, state):
+    write_results(tmp_path)
+    root = tmp_path / "external_judgments"
+    path = write_judgments(root)
+    if state == "missing_file":
+        path.unlink()
+    elif state == "missing_id":
+        path.write_text(path.read_text().replace("same-id", "other-id"))
+    elif state == "corrupt":
+        path.write_text("bad header\n")
+    elif state == "mismatch":
+        write_results(tmp_path, samples=[sample(label=1)])
+    cfg = SimpleNamespace(pred_result_dir=tmp_path)
+    if state != "disabled":
+        cfg.judgment_result_dir = root
+    response = TestClient(viewer_app.create_app(cfg)).get("/api/plots", params=QUERY)
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body["images"]) == {"foraging", "rumination", "overlay"}
+    assert all(body["images"].values())
+    if state == "available":
+        assert body["judgment"] == {
+            "status": "available",
+            "pred_label": "rumination",
+            "true_label": "foraging",
+            "is_correct": False,
+        }
+    else:
+        expected = (
+            "disabled"
+            if state == "disabled"
+            else ("not_found" if state.startswith("missing") else "invalid_data")
+        )
+        assert body["judgment"]["status"] == expected
+        assert body["judgment"]["message"]
+        assert "pred_label" not in body["judgment"]
+
+
+def test_judgment_cache_and_exact_selection(tmp_path, monkeypatch):
+    wrong = {
+        "group": "a",
+        "fold_index": 0,
+        "id": "same-id",
+        "pred_label": 1,
+        "true_label": 0,
+        "is_correct": False,
+    }
+    correct = {**wrong, "pred_label": 0, "is_correct": True}
+    write_judgments(tmp_path, rows=[wrong, {**correct, "group": "b"}, {**correct, "fold_index": 1}])
+    write_judgments(tmp_path, mode="train", rows=[correct])
+    write_judgments(tmp_path, parameter="other", rows=[correct])
+    original = viewer_data.load_judgment_results
+    calls = []
+
+    def counted(path):
+        calls.append(path)
+        return original(path)
+
+    monkeypatch.setattr(viewer_data, "load_judgment_results", counted)
+    store = viewer_data.JudgmentStore(tmp_path)
+
+    def get(group="a", parameter=PARAMETER, fold=0, mode="test", sample_id="same-id"):
+        return store.get_judgment(group, parameter, fold, mode, sample_id, "foraging")
+
+    assert get()["is_correct"] is False
+    assert get(group="b")["is_correct"] is True
+    assert get(fold=1)["is_correct"] is True
+    assert get(sample_id="same")["status"] == "not_found"
+    assert len(calls) == 1
+    assert get(mode="train")["is_correct"] is True
+    assert get(parameter="other")["is_correct"] is True
+    assert get()["is_correct"] is False
+    assert len(calls) == 4
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"pred_label": 2},
+        {"true_label": -1},
+        {"is_correct": True},
+        {"is_correct": "garbage"},
+        {"fold_index": -1},
+        {"id": ""},
+    ],
+)
+def test_invalid_judgment_rows_are_not_used(tmp_path, change):
+    row = {
+        "group": "a",
+        "fold_index": 0,
+        "id": "same-id",
+        "pred_label": 1,
+        "true_label": 0,
+        "is_correct": False,
+    }
+    write_judgments(tmp_path, rows=[{**row, **change}])
+    result = viewer_data.JudgmentStore(tmp_path).get_judgment(
+        "a", PARAMETER, 0, "test", "same-id", "foraging"
+    )
+    assert result["status"] == "invalid_data"
+
+
+def test_duplicate_judgments_and_paths_outside_root_are_rejected(tmp_path):
+    path = write_judgments(tmp_path)
+    with path.open("a") as f:
+        f.write("a,0,same-id,0,0,True\n")
+    store = viewer_data.JudgmentStore(tmp_path)
+    assert (
+        store.get_judgment("a", PARAMETER, 0, "test", "same-id", "foraging")["status"]
+        == "invalid_data"
+    )
+    root = tmp_path / "nested"
+    root.mkdir()
+    (root / PARAMETER).symlink_to(path.parent, target_is_directory=True)
+    store = viewer_data.JudgmentStore(root)
+    for parameter in (PARAMETER, "..", "/outside"):
+        assert (
+            store.get_judgment("a", parameter, 0, "test", "same-id", "foraging")["status"]
+            == "invalid_data"
+        )
 
 
 @pytest.mark.parametrize("extension", ["npz", "json"])
