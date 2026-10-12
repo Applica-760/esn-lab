@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -177,3 +178,22 @@ def test_analysis_pred_cli_and_config_resolution(tmp_path, monkeypatch):
             explicit_config.output_dir / "config.lock.yaml",
         ),
     ]
+
+
+def test_viewer_cli_without_output_dir_does_not_write(monkeypatch):
+    from projects.tasks.analysis.raw_output_viewer import app as viewer_app
+
+    calls = []
+
+    def unexpected_write(*args, **kwargs):
+        raise AssertionError("出力のないTaskはディレクトリ作成・設定保存を行わない")
+
+    monkeypatch.setattr(Path, "mkdir", unexpected_write)
+    monkeypatch.setattr(app_init.shutil, "copy", unexpected_write)
+    monkeypatch.setattr(viewer_app.uvicorn, "run", lambda app, **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["cli", "analysis.raw_output_viewer"])
+    cfg = app_init.setup_task_environment("projects.tasks.analysis.raw_output_viewer.app")
+    assert not hasattr(cfg, "output_dir")
+    assert cfg.pred_result_dir and cfg.judgment_result_dir
+    task_cli.main()
+    assert calls == [{"host": "127.0.0.1", "port": cfg.port}]

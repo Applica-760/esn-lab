@@ -40,6 +40,7 @@ def setup_task_environment(module_path: str, config_name: str | None = None) -> 
     """
     モジュールパスから対応するcfg.yamlを読み込み、設定を返す。
     config_name が指定された場合はタスクディレクトリ内の同名ファイルを優先する。
+    output_dirが指定されたTaskだけ出力先を作成し、設定を保存する。
     """
     # "projects.tasks.train.app" -> "projects/tasks/train"
     parts = module_path.split(".")
@@ -50,6 +51,8 @@ def setup_task_environment(module_path: str, config_name: str | None = None) -> 
         config_path = task_dir / "cfg.yaml"
 
     cfg = load_config(str(config_path))
+    if not hasattr(cfg, "output_dir"):
+        return cfg
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(str(config_path), output_dir / "config.lock.yaml")

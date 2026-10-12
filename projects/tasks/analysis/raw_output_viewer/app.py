@@ -10,7 +10,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from projects.tasks.analysis.raw_output_viewer.data import JudgmentStore, ResultStore
+from projects.tasks.analysis.raw_output_viewer.data import ResultStore
+from projects.tasks.analysis.raw_output_viewer.judgments import JudgmentStore, summarize_votes
 from projects.tasks.analysis.raw_output_viewer.plots import render_node_png
 from projects.utils.app_init import setup_task_environment
 
@@ -106,6 +107,9 @@ def create_app(cfg):
                         }
                     },
                 )
+            judgment = judgments.get_judgment(
+                group, parameter, fold, mode, id, sample["true_label"]
+            )
             return {
                 "group": group,
                 "parameter": parameter,
@@ -118,9 +122,8 @@ def create_app(cfg):
                 "encoding": "base64",
                 "images": images,
                 "warnings": warnings,
-                "judgment": judgments.get_judgment(
-                    group, parameter, fold, mode, id, sample["true_label"]
-                ),
+                "judgment": judgment,
+                "votes": summarize_votes(sample["predictions"], judgment),
             }
 
     return app

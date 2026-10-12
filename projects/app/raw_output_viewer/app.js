@@ -168,10 +168,24 @@ async function selectSample(sample, button) {
   }
 }
 
-function renderJudgment(judgment) {
+function renderJudgment(judgment, votes) {
   if (judgment?.status === "available") {
-    ui.judgment.textContent = `多数決判定：${labels[judgment.pred_label]}　真値：${labels[judgment.true_label]}　［${judgment.is_correct ? "正答" : "誤判定"}］`;
+    const ratio = votes?.ratios?.[judgment.pred_label];
+    const matched = votes?.matches_saved_judgment === true && votes.pred_label === judgment.pred_label;
+    const hasRatio = matched && Number.isFinite(ratio) && ratio >= 0 && ratio <= 1;
+    const percentage = hasRatio ? ` ${(ratio * 100).toFixed(1)}%` : "";
+    ui.judgment.textContent = `［${judgment.is_correct ? "正答" : "誤判定"}］${labels[judgment.pred_label]}${percentage} ｜ 真値：${labels[judgment.true_label]}`;
     ui.judgment.className = judgment.is_correct ? "correct" : "incorrect";
+    if (votes?.matches_saved_judgment === false || (votes?.pred_label && votes.pred_label !== judgment.pred_label)) {
+      ui.judgment.textContent += "　保存判定と生出力の多数決が一致しません。";
+      ui.judgment.className = "unavailable";
+    } else if (hasRatio) {
+      const note = document.createElement("small");
+      note.textContent = "　（最大値の多数決で判定した場合）";
+      ui.judgment.append(note);
+    } else {
+      ui.judgment.textContent += "　得票率を確認できません。";
+    }
   } else {
     const messages = {
       disabled: "判定結果の参照先が未設定です。",
@@ -216,7 +230,7 @@ async function showSamplePlot(sample, fold, mode) {
     const body = await request("/api/plots", { ...conditions(), fold, mode, id: sample.id });
     if (version !== plotVersion) return;
     ui.selection.textContent += ` · 真値：${labels[body.true_label]}`;
-    renderJudgment(body.judgment);
+    renderJudgment(body.judgment, body.votes);
     for (const node of ["foraging", "rumination", "overlay"]) {
       ui[node].src = `data:image/png;base64,${body.images[node]}`;
     }

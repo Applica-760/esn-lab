@@ -12,8 +12,9 @@ from PIL import Image
 from projects.tasks import cli
 from projects.tasks.analysis.raw_output_viewer import app as viewer_app
 from projects.tasks.analysis.raw_output_viewer import data as viewer_data
+from projects.tasks.analysis.raw_output_viewer import judgments as viewer_judgments
 from projects.tasks.analysis.raw_output_viewer import plots as viewer_plots
-from projects.utils.eval.judgment import save_judgment_results
+from projects.utils.eval.judgment import judge_sample_by_majority_vote, save_judgment_results
 from projects.utils.prediction import save_pred_results
 
 PARAMETER = "Nx400_dens0.5_inscl0.001_rho0.9"
@@ -86,6 +87,14 @@ def test_judgment_status_is_separate_from_images(tmp_path, state):
     body = response.json()
     assert set(body["images"]) == {"foraging", "rumination", "overlay"}
     assert all(body["images"].values())
+    assert body["votes"] == {
+        "source": "saved_predictions",
+        "total": 4,
+        "counts": {"foraging": 4, "rumination": 0},
+        "ratios": {"foraging": 1.0, "rumination": 0.0},
+        "pred_label": "foraging",
+        "matches_saved_judgment": False if state == "available" else None,
+    }
     if state == "available":
         assert body["judgment"] == {
             "status": "available",
@@ -104,6 +113,52 @@ def test_judgment_status_is_separate_from_images(tmp_path, state):
         assert "pred_label" not in body["judgment"]
 
 
+@pytest.mark.parametrize(
+    "predictions,counts,pred_label",
+    [
+        ([[0.5, 0.5]], [1, 0], 0),
+        ([[0.9, 0.1], [0.1, 0.9]], [1, 1], 0),
+        ([[0.1, 0.9]] * 3, [0, 3], 1),
+        ([[0.9, 0.1], [0.1, 0.9], [0.2, 0.8]], [1, 2], 1),
+    ],
+)
+def test_votes_match_existing_evaluation(predictions, counts, pred_label):
+    predictions = np.array(predictions)
+    predictions.setflags(write=False)
+    labels = [[0, 1]] * len(predictions)
+    expected = judge_sample_by_majority_vote(predictions, labels)
+    names = ("foraging", "rumination")
+    judgment = {"status": "available", "pred_label": names[expected["pred_label"]]}
+    votes = viewer_judgments.summarize_votes(predictions, judgment)
+    assert votes["counts"] == dict(zip(names, counts))
+    assert votes["total"] == len(predictions)
+    assert votes["ratios"] == dict(zip(names, [count / len(predictions) for count in counts]))
+    assert votes["pred_label"] == names[pred_label] == names[expected["pred_label"]]
+    assert votes["matches_saved_judgment"] is True
+
+
+@pytest.mark.parametrize("extension", ["json", "npz"])
+def test_votes_api_uses_selected_sample_without_writing_inputs(tmp_path, extension):
+    write_results(tmp_path, samples=[sample()], extension=extension)
+    write_results(tmp_path, mode="train", samples=[sample(value=0.1)], extension=extension)
+    write_results(tmp_path, group="b", fold=1, samples=[sample(length=3)], extension=extension)
+    root = tmp_path / "judgments"
+    write_judgments(root, mode="train")
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    api = TestClient(
+        viewer_app.create_app(SimpleNamespace(pred_result_dir=tmp_path, judgment_result_dir=root))
+    )
+    test = api.get("/api/plots", params=QUERY).json()
+    train = api.get("/api/plots", params={**QUERY, "mode": "train"}).json()
+    other = api.get("/api/plots", params={**QUERY, "group": "b", "fold": 1}).json()
+    assert test["votes"]["counts"] == {"foraging": 4, "rumination": 0}
+    assert train["votes"]["counts"] == {"foraging": 0, "rumination": 4}
+    assert train["votes"]["matches_saved_judgment"] is True
+    assert other["votes"]["total"] == 3
+    assert other["votes"]["matches_saved_judgment"] is None
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
+
+
 def test_judgment_cache_and_exact_selection(tmp_path, monkeypatch):
     wrong = {
         "group": "a",
@@ -117,15 +172,15 @@ def test_judgment_cache_and_exact_selection(tmp_path, monkeypatch):
     write_judgments(tmp_path, rows=[wrong, {**correct, "group": "b"}, {**correct, "fold_index": 1}])
     write_judgments(tmp_path, mode="train", rows=[correct])
     write_judgments(tmp_path, parameter="other", rows=[correct])
-    original = viewer_data.load_judgment_results
+    original = viewer_judgments.load_judgment_results
     calls = []
 
     def counted(path):
         calls.append(path)
         return original(path)
 
-    monkeypatch.setattr(viewer_data, "load_judgment_results", counted)
-    store = viewer_data.JudgmentStore(tmp_path)
+    monkeypatch.setattr(viewer_judgments, "load_judgment_results", counted)
+    store = viewer_judgments.JudgmentStore(tmp_path)
 
     def get(group="a", parameter=PARAMETER, fold=0, mode="test", sample_id="same-id"):
         return store.get_judgment(group, parameter, fold, mode, sample_id, "foraging")
@@ -162,7 +217,7 @@ def test_invalid_judgment_rows_are_not_used(tmp_path, change):
         "is_correct": False,
     }
     write_judgments(tmp_path, rows=[{**row, **change}])
-    result = viewer_data.JudgmentStore(tmp_path).get_judgment(
+    result = viewer_judgments.JudgmentStore(tmp_path).get_judgment(
         "a", PARAMETER, 0, "test", "same-id", "foraging"
     )
     assert result["status"] == "invalid_data"
@@ -172,7 +227,7 @@ def test_duplicate_judgments_and_paths_outside_root_are_rejected(tmp_path):
     path = write_judgments(tmp_path)
     with path.open("a") as f:
         f.write("a,0,same-id,0,0,True\n")
-    store = viewer_data.JudgmentStore(tmp_path)
+    store = viewer_judgments.JudgmentStore(tmp_path)
     assert (
         store.get_judgment("a", PARAMETER, 0, "test", "same-id", "foraging")["status"]
         == "invalid_data"
@@ -180,7 +235,7 @@ def test_duplicate_judgments_and_paths_outside_root_are_rejected(tmp_path):
     root = tmp_path / "nested"
     root.mkdir()
     (root / PARAMETER).symlink_to(path.parent, target_is_directory=True)
-    store = viewer_data.JudgmentStore(root)
+    store = viewer_judgments.JudgmentStore(root)
     for parameter in (PARAMETER, "..", "/outside"):
         assert (
             store.get_judgment("a", parameter, 0, "test", "same-id", "foraging")["status"]

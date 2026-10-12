@@ -1,4 +1,3 @@
 pred_result_dir: outputs/downloads/genkai/experiments/pred_beta_2class
 judgment_result_dir: outputs/downloads/genkai/eval/judgement_beta_2class
-output_dir: outputs/raw_output_viewer
 port: 8000

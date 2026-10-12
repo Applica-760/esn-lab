@@ -72,8 +72,8 @@ async function setup(empty = false) {
   return { nodes, pending, change, settle };
 }
 
-function plot(marker, warnings = [], judgment = { status: "disabled" }) {
-  return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings, judgment };
+function plot(marker, warnings = [], judgment = { status: "disabled" }, votes) {
+  return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings, judgment, votes };
 }
 
 const folds = { folds: [
@@ -188,8 +188,8 @@ test("API errors show a message and leave old images hidden", async () => {
 });
 
 for (const [judgment, message, className] of [
-  [{ status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true }, "多数決判定：採食　真値：採食　［正答］", "correct"],
-  [{ status: "available", pred_label: "rumination", true_label: "foraging", is_correct: false }, "多数決判定：反芻　真値：採食　［誤判定］", "incorrect"],
+  [{ status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true }, "［正答］採食 ｜ 真値：採食　得票率を確認できません。", "correct"],
+  [{ status: "available", pred_label: "rumination", true_label: "foraging", is_correct: false }, "［誤判定］反芻 ｜ 真値：採食　得票率を確認できません。", "incorrect"],
   [{ status: "disabled" }, "判定結果の参照先が未設定です。", "unavailable"],
   [{ status: "not_found" }, "対応する判定結果がありません。", "unavailable"],
   [{ status: "invalid_data", message: "真値が一致しません。" }, "判定結果を表示できません。 真値が一致しません。", "unavailable"],
@@ -206,25 +206,66 @@ for (const [judgment, message, className] of [
   });
 }
 
+for (const [predLabel, trueLabel, ratio, expected] of [
+  ["foraging", "foraging", 0.7523084025854109, "［正答］採食 75.2% ｜ 真値：採食"],
+  ["foraging", "rumination", 0.9988590986879635, "［誤判定］採食 99.9% ｜ 真値：反芻"],
+  ["rumination", "rumination", 1, "［正答］反芻 100.0% ｜ 真値：反芻"],
+  ["foraging", "foraging", 0.5, "［正答］採食 50.0% ｜ 真値：採食"],
+]) {
+  test(`winning vote ratio is displayed: ${expected}`, async () => {
+    const view = await setup();
+    const { done, request } = await beginPlot(view);
+    request.respond(plot("png", [], {
+      status: "available", pred_label: predLabel, true_label: trueLabel, is_correct: predLabel === trueLabel,
+    }, { pred_label: predLabel, ratios: { [predLabel]: ratio }, matches_saved_judgment: true }));
+    await done;
+    assert.equal(view.nodes.judgment.textContent, expected);
+    assert.equal(view.nodes.judgment.children[0].tagName, "SMALL");
+    assert.equal(view.nodes.judgment.children[0].textContent, "　（最大値の多数決で判定した場合）");
+    assert.equal(view.nodes.judgment.className, predLabel === trueLabel ? "correct" : "incorrect");
+  });
+}
+
+for (const [votes, message] of [
+  [{ pred_label: "rumination", ratios: { rumination: 0.8 }, matches_saved_judgment: false }, "保存判定と生出力の多数決が一致しません。"],
+  [{ pred_label: "foraging", ratios: { foraging: 0.8 }, matches_saved_judgment: null }, "得票率を確認できません。"],
+  [{ pred_label: "foraging", ratios: { foraging: null }, matches_saved_judgment: true }, "得票率を確認できません。"],
+]) {
+  test(`unverified votes are not attached to saved judgment: ${JSON.stringify(votes)}`, async () => {
+    const view = await setup();
+    const { done, request } = await beginPlot(view);
+    request.respond(plot("png", [], {
+      status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true,
+    }, votes));
+    await done;
+    assert.equal(view.nodes.judgment.textContent, `［正答］採食 ｜ 真値：採食　${message}`);
+    assert.equal(view.nodes.judgment.className, votes.matches_saved_judgment === false ? "unavailable" : "correct");
+    assert.equal(view.nodes.plots.hidden, false);
+  });
+}
+
 test("judgment follows the latest fold response and clears on ID changes and failures", async () => {
   const view = await setup();
   const { nodes, pending } = view;
   const correct = { status: "available", pred_label: "foraging", true_label: "foraging", is_correct: true };
   const incorrect = { ...correct, pred_label: "rumination", is_correct: false };
   const first = await beginPlot(view);
-  first.request.respond(plot("initial", [], correct));
+  const correctVotes = { pred_label: "foraging", ratios: { foraging: 0.75 }, matches_saved_judgment: true };
+  const incorrectVotes = { pred_label: "rumination", ratios: { rumination: 0.9 }, matches_saved_judgment: true };
+  first.request.respond(plot("initial", [], correct, correctVotes));
   await first.done;
   const older = nodes["fold-buttons"].children[2].events.click();
   const olderRequest = pending.shift();
   assert.equal(nodes.judgment.hidden, true);
   assert.equal(nodes.judgment.textContent, "");
   const newer = nodes["fold-buttons"].children[1].events.click();
-  pending.shift().respond(plot("latest", [], incorrect));
+  pending.shift().respond(plot("latest", [], incorrect, incorrectVotes));
   await newer;
-  olderRequest.respond(plot("old", [], correct));
+  olderRequest.respond(plot("old", [], correct, correctVotes));
   await older;
   assert.equal(nodes.judgment.className, "incorrect");
   assert.match(nodes.judgment.textContent, /誤判定/);
+  assert.match(nodes.judgment.textContent, /反芻 90\.0%/);
   const selection = await beginPlot(view, 1);
   assert.equal(nodes.judgment.hidden, true);
   assert.equal(nodes.judgment.textContent, "");

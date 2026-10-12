@@ -37,7 +37,7 @@ Task層はFastAPIによる起動・結果読み込み・APIを担う。グラフ
 uv run -m projects.tasks.cli analysis.raw_output_viewer
 ```
 
-`127.0.0.1:8000` で起動する。ポートは `cfg.yaml` で変更できる。`output_dir` は既存Taskの設定保存先であり、画像は保存しない。
+`127.0.0.1:8000` で起動する。ポートは `cfg.yaml` で変更できる。このTaskはファイルを出力せず、起動時にも設定を書き出さない。
 
 | GET API | 引数 | 応答 |
 | --- | --- | --- |
@@ -46,7 +46,9 @@ uv run -m projects.tasks.cli analysis.raw_output_viewer
 | `/api/sample-folds` | `group, parameter, id` | `folds`: Fold番号と指定IDの訓練／テスト区分の一覧 |
 | `/api/plots` | `group, parameter, fold, mode, id` | 条件・ID・真値・系列長、`images`、`warnings` |
 
-`/api/plots` は画像と独立した `judgment` も返す。`status` が `available` なら `pred_label`・`true_label`・`is_correct`、`disabled`・`not_found`・`invalid_data` なら `message` を含む。判定の欠落・不正でも画像は返す。判定CSVは現在のparameter・modeを保持するため、差し替え後は再起動する。WebUIのグラフ見出し直下に判定・真値・正誤を表示し、ID・Fold切替で更新する。
+`/api/plots` は画像と独立した `judgment` も返す。`status` が `available` なら `pred_label`・`true_label`・`is_correct`、`disabled`・`not_found`・`invalid_data` なら `message` を含む。判定の欠落・不正でも画像は返す。判定CSVは現在のparameter・modeを保持するため、差し替え後は再起動する。WebUIのグラフ見出し直下に「［正答／誤判定］予測ラベル 得票率% ｜ 真値」を表示し、ID・Fold切替で更新する。%は予測ラベルの得票率を小数1桁で示す。保存判定と再計算が不一致なら得票率を結びつけず警告し、得票情報がない場合は確認不可と表示する。
+
+`/api/plots` の `votes` は保存生出力の全時刻から算出した得票情報（`source: saved_predictions`、`total`、ラベル別の `counts`・`ratios`、`pred_label`）を返す。割合は0〜1で丸めず、同値・同票は採食を選ぶ。`matches_saved_judgment` は保存予測との一致／不一致を真偽値、照合不可を `null` で示す。入力ファイルは変更せず、集計結果も保存しない。
 
 `mode` は `train` または `test`。`true_label` は `foraging` または `rumination`。`images.foraging`・`images.rumination`・`images.overlay` はそれぞれPNGをBase64にした文字列で、応答の `mime_type` は `image/png`、`encoding` は `base64`。
 
