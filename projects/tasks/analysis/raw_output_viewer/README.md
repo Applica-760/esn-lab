@@ -14,14 +14,14 @@
 - 左側にスクロール可能なID一覧を置き、訓練／テストと真値（採食／反芻）のバッジ・フィルターを付ける。
 - ID選択後、プロット上部の「同じデータを別Foldで見る」にFold・訓練／テストのボタンを表示する。選択中を強調し、対象IDがないFoldは「データなし」として無効にする。両区分にあるFoldは別ボタンにする。
 - FoldボタンではID・Group・パラメータを保持し、3画像だけを切り替える。上部の「データ一覧の条件」と左一覧は維持し、グラフ見出しに表示中のGroup・Fold・区分・真値を示す。左側のフィルターは一覧に対して適用する。
-- IDクリックで3画像を取得し、採食ノード、反芻ノード、両ノードの重ね描きの順に配置する。重ね描きは採食が青、反芻がオレンジで、凡例を付ける。ズームは実装しない。
+- IDクリックで元画像、両ノードの重ね描き、個別の採食・反芻ノードの順に表示する。元画像と重ね描きは横軸を揃え、採食が青、反芻がオレンジ。画像の列中心x＝保存出力の時刻インデックスx（先頭0）で、秒換算・ズームは行わない。元画像がない場合は重ね描きから表示する。
 - 横軸は保存系列の先頭を0とし、データごとの系列長の違いを許容する。縦軸は−1.5〜2.5に固定する。
-- Matplotlibの画像サイズは元の1000×300pxを使い、表示サイズはWeb側だけで調整する。1枚の表示上限は幅1080px・高さ300px。3枚を縦に配置し、収まらない場合はグラフ欄をスクロールする。画面が小さい場合は縦横比を保って縮小する。
+- 通常のグラフは1000×300px、元画像との比較図は1000×500px。画面では幅1080pxを上限に縦横比を保って表示し、収まらない場合はグラフ欄をスクロールする。
 - 縦軸の範囲外の値があっても画像を描画し、画面上に警告を表示する。データの欠損はエラーとして表示する。
 
 ## Task層でデータを提供し、App層で表示する
 
-Task層はFastAPIによる起動・結果読み込み・APIを担う。グラフはPythonのMatplotlibで個別の2画像と重ね描き1画像を返す。フロントエンドはHTML・JavaScriptで実装して `projects/app/` に置き、画像の配置を担う。
+Task層はFastAPIによる起動・結果読み込み・APIと、Matplotlibによるグラフ・比較図の生成を担う。フロントエンドはHTML・JavaScriptで実装して `projects/app/` に置き、画像の配置を担う。
 
 選択中の結果ファイルを保持し、毎クリックで読み直さない。サンプルはID・実験条件・訓練／テストの区分で識別する。
 
@@ -29,11 +29,14 @@ Task層はFastAPIによる起動・結果読み込み・APIを担う。グラフ
 
 `judgment_result_dir` は保存判定のルート。配下の `<parameter>/judgment_results_{train,test}.csv` を参照し、未指定・空なら判定表示を無効にする。
 
+`source_image_dir` は元画像の参照先（現在は `data/all_s`）。`<ID>_ffmpeg.jpg`を読み、画像幅と選択系列長が一致した場合だけ比較図を生成する。未設定・画像なし・読込不正・幅不一致は画面に明示し、生出力グラフは表示する。元画像・outputsは変更せず、表示用データはメモリ上で扱う。対応の根拠は [#6の調査記録](https://github.com/Applica-760/research-slide/issues/6#issuecomment-6118593917)を参照。
+
 `cfg.yaml` の `pred_result_dir` に、ローカルへ取得した予測結果のルートを指定する。既存の `group/parameter/train_results.npz`・`test_results.npz` の配置を使い、同名のJSONにも対応する。両形式がある場合は既存ローダーと同じくJSONを優先する。ノード順は2ラベル変換処理に合わせて採食・反芻とする。
 
 リポジトリルートで実行する。
 
 ```sh
+cd /Users/murakamitakumi/Developer/projects/esn-lab
 uv run -m projects.tasks.cli analysis.raw_output_viewer
 ```
 
@@ -51,6 +54,8 @@ uv run -m projects.tasks.cli analysis.raw_output_viewer
 `/api/plots` の `votes` は保存生出力の全時刻から算出した得票情報（`source: saved_predictions`、`total`、ラベル別の `counts`・`ratios`、`pred_label`）を返す。割合は0〜1で丸めず、同値・同票は採食を選ぶ。`matches_saved_judgment` は保存予測との一致／不一致を真偽値、照合不可を `null` で示す。入力ファイルは変更せず、集計結果も保存しない。
 
 `mode` は `train` または `test`。`true_label` は `foraging` または `rumination`。`images.foraging`・`images.rumination`・`images.overlay` はそれぞれPNGをBase64にした文字列で、応答の `mime_type` は `image/png`、`encoding` は `base64`。
+
+`source_image.status` は `available`・`disabled`・`not_found`・`invalid_data`・`width_mismatch`。対応可能な場合は寸法・対応規則と `images.comparison`（同じPNG/Base64形式）を返し、WebUIは重ね描き欄に比較図を表示する。
 
 範囲外でもHTTP 200で画像と `warnings` を返す。警告は `code: out_of_range`、対象の `node`、`message` を持つ。警告がなければ空配列となる。
 

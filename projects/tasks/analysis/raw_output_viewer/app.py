@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from projects.tasks.analysis.raw_output_viewer.data import ResultStore
+from projects.tasks.analysis.raw_output_viewer.data import ResultStore, load_source_image
 from projects.tasks.analysis.raw_output_viewer.judgments import JudgmentStore, summarize_votes
 from projects.tasks.analysis.raw_output_viewer.plots import render_node_png
 from projects.utils.app_init import setup_task_environment
@@ -20,6 +20,7 @@ def create_app(cfg):
     app = FastAPI(title="Raw output viewer")
     store = ResultStore(cfg.pred_result_dir)
     judgments = JudgmentStore(getattr(cfg, "judgment_result_dir", None))
+    source_image_dir = getattr(cfg, "source_image_dir", None)
     lock = Lock()
     frontend = Path(__file__).resolve().parents[3] / "app" / "raw_output_viewer"
     app.mount("/assets", StaticFiles(directory=frontend), name="assets")
@@ -79,6 +80,9 @@ def create_app(cfg):
         # Matplotlibと選択中の結果キャッシュを同時に操作しない。
         with lock:
             sample = store.get_sample(group, parameter, fold, mode, id)
+            pixels, source_image = load_source_image(
+                source_image_dir, id, len(sample["predictions"])
+            )
             images = {}
             warnings = []
             try:
@@ -96,6 +100,10 @@ def create_app(cfg):
                 images["overlay"] = base64.b64encode(
                     render_node_png(sample["predictions"], "foraging / rumination")
                 ).decode("ascii")
+                if pixels is not None:
+                    images["comparison"] = base64.b64encode(
+                        render_node_png(sample["predictions"], "foraging / rumination", pixels)
+                    ).decode("ascii")
             except Exception:
                 logging.exception("Failed to render sample %s", id)
                 return JSONResponse(
@@ -121,6 +129,7 @@ def create_app(cfg):
                 "mime_type": "image/png",
                 "encoding": "base64",
                 "images": images,
+                "source_image": source_image,
                 "warnings": warnings,
                 "judgment": judgment,
                 "votes": summarize_votes(sample["predictions"], judgment),

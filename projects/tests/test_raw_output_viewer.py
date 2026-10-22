@@ -44,6 +44,140 @@ def client(root):
     return TestClient(viewer_app.create_app(SimpleNamespace(pred_result_dir=root)))
 
 
+@pytest.mark.parametrize(
+    "state",
+    ["available", "disabled", "empty", "not_found", "invalid_data", "width_mismatch"],
+)
+def test_source_image_api_status_and_input_preservation(tmp_path, state):
+    write_results(tmp_path / "results")
+    root = tmp_path / "images"
+    root.mkdir()
+    path = root / "same-id_ffmpeg.jpg"
+    if state != "not_found":
+        Image.new("L", (3 if state == "width_mismatch" else 4, 2), 128).save(path)
+    if state == "invalid_data":
+        path.write_bytes(b"not an image")
+    cfg = SimpleNamespace(pred_result_dir=tmp_path / "results")
+    if state != "disabled":
+        cfg.source_image_dir = "" if state == "empty" else root
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    response = TestClient(viewer_app.create_app(cfg)).get("/api/plots", params=QUERY)
+    assert response.status_code == 200
+    body = response.json()
+    info = body["source_image"]
+    assert info["status"] == ("disabled" if state == "empty" else state)
+    assert {"foraging", "rumination", "overlay"} <= body["images"].keys()
+    if state == "available":
+        assert info == {
+            "status": "available",
+            "width": 4,
+            "height": 2,
+            "mapping": "image_column_equals_time_index",
+        }
+        with Image.open(BytesIO(base64.b64decode(body["images"]["comparison"]))) as image:
+            assert image.size == (1000, 500)
+            image.verify()
+    else:
+        assert info["message"]
+        assert "mapping" not in info
+        assert "comparison" not in body["images"]
+        if state == "width_mismatch":
+            assert (info["width"], info["height"]) == (3, 2)
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
+
+
+@pytest.mark.parametrize("sample_id", ["../outside", "/outside", "..", "a/b", "a\\b", "\x00"])
+def test_source_image_rejects_path_ids(tmp_path, sample_id):
+    pixels, info = viewer_data.load_source_image(tmp_path, sample_id, 4)
+    assert pixels is None
+    assert info["status"] == "invalid_data"
+
+
+def test_source_image_rejects_external_symlink(tmp_path):
+    root = tmp_path / "images"
+    root.mkdir()
+    external = tmp_path / "outside.jpg"
+    Image.new("L", (4, 2)).save(external)
+    (root / "same-id_ffmpeg.jpg").symlink_to(external)
+    pixels, info = viewer_data.load_source_image(root, "same-id", 4)
+    assert pixels is None
+    assert info["status"] == "invalid_data"
+
+
+def test_source_image_follows_selected_id_and_condition(tmp_path, monkeypatch):
+    root = tmp_path / "images"
+    root.mkdir()
+    for name, width, color in (("same-id", 4, 64), ("other-id", 3, 192)):
+        Image.new("L", (width, 2), color).save(root / f"{name}_ffmpeg.jpg")
+    results = tmp_path / "results"
+    write_results(results)
+    write_results(results, mode="train", fold=1, samples=[sample(length=4, value=0.3)])
+    write_results(results, group="b", samples=[sample(length=3)])
+    write_results(results, group="c", samples=[{**sample(length=3), "id": "other-id"}])
+    captured = []
+    original = viewer_app.render_node_png
+
+    def render(values, node, source_image=None):
+        if source_image is not None:
+            captured.append((values.copy(), source_image.copy()))
+        return original(values, node, source_image)
+
+    monkeypatch.setattr(viewer_app, "render_node_png", render)
+    api = TestClient(
+        viewer_app.create_app(SimpleNamespace(pred_result_dir=results, source_image_dir=root))
+    )
+    for update in ({}, {"fold": 1, "mode": "train"}, {"group": "c", "id": "other-id"}):
+        assert (
+            api.get("/api/plots", params={**QUERY, **update}).json()["source_image"]["status"]
+            == "available"
+        )
+    assert [pixels.shape[1] for _, pixels in captured] == [4, 4, 3]
+    assert [int(pixels[0, 0]) for _, pixels in captured] == [64, 64, 192]
+    assert [values[0, 0] for values, _ in captured] == pytest.approx([0.8, 0.3, 0.8])
+    mismatch = api.get("/api/plots", params={**QUERY, "group": "b"}).json()
+    assert mismatch["source_image"]["status"] == "width_mismatch"
+    assert "comparison" not in mismatch["images"]
+    assert api.get("/api/plots", params={**QUERY, "id": "other-id"}).status_code == 404
+
+
+@pytest.mark.parametrize("length", [1, 4, 8664])
+def test_comparison_aligns_pixel_centers_and_preserves_values(monkeypatch, length):
+    figures = []
+    original = viewer_plots.FigureCanvasAgg.print_png
+
+    def inspect(self, output):
+        result = original(self, output)
+        figures.append(self.figure)
+        return result
+
+    monkeypatch.setattr(viewer_plots.FigureCanvasAgg, "print_png", inspect)
+    values = np.column_stack((np.linspace(-0.5, 1.5, length), np.ones(length)))
+    pixels = np.arange(2 * length, dtype=np.uint8).reshape(2, length)
+    values.setflags(write=False)
+    pixels.setflags(write=False)
+    viewer_plots.render_node_png(values, "comparison", pixels)
+    image_axes, output_axes = figures[0].axes
+    assert image_axes.get_position().y0 > output_axes.get_position().y1
+    assert output_axes.get_xlabel() == "Time index (image column)"
+    displayed = image_axes.images[0]
+    np.testing.assert_array_equal(displayed.get_array(), pixels)
+    assert displayed.get_extent() == [-0.5, length - 0.5, 1.5, -0.5]
+    assert displayed.get_clim() == (0, 255)
+    assert image_axes.get_ylim() == (1.5, -0.5)
+    assert output_axes.get_ylim() == (-1.5, 2.5)
+    assert image_axes.get_xlim() == output_axes.get_xlim() == (-0.5, length - 0.5)
+    for x in (0, length // 2, length - 1):
+        assert image_axes.transData.transform((x, 0))[0] == pytest.approx(
+            output_axes.transData.transform((x, 0))[0]
+        )
+    for index, line in enumerate(output_axes.lines):
+        np.testing.assert_array_equal(line.get_xdata(), np.arange(length))
+        np.testing.assert_array_equal(line.get_ydata(), values[:, index])
+    assert [line.get_color() for line in output_axes.lines] == ["tab:blue", "tab:orange"]
+    np.testing.assert_array_equal(image_axes.get_xticks(), output_axes.get_xticks())
+    assert all(line.get_visible() for line in image_axes.get_xgridlines())
+
+
 def write_judgments(root, mode="test", parameter=PARAMETER, rows=None):
     path = root / parameter / f"judgment_results_{mode}.csv"
     save_judgment_results(

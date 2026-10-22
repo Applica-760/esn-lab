@@ -31,6 +31,8 @@ TASK_REGISTRY = {
     "analysis.margin.output_trajectory": "projects.tasks.analysis.margin.output_trajectory.app",
     "analysis.bayesian": "projects.tasks.analysis.bayesian.app",
     "analysis.raw_output_viewer": "projects.tasks.analysis.raw_output_viewer.app",
+    "analysis.raw_output_export": "projects.tasks.analysis.raw_output_export.app",
+    "analysis.condition_heatmap": "projects.tasks.analysis.condition_heatmap.app",
 }
 
 

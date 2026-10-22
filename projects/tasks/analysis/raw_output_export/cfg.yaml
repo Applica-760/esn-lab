@@ -1,0 +1,8 @@
+pred_result_dir: outputs/downloads/genkai/experiments/pred_beta_2class
+judgment_result_dir: outputs/downloads/genkai/eval/judgement_beta_2class
+source_image_dir: data/all_s
+output_dir: outputs/tasks/analysis/raw_output_export
+groups: [a, b, c, d, e, f, g, h, i, j]
+parameters: [Nx400_dens0.5_inscl0.001_rho0.9]
+# 空リストは全ID。指定した場合は、そのIDだけ出力する。
+sample_ids: []

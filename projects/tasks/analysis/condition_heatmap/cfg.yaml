@@ -1,0 +1,7 @@
+pred_result_dir: outputs/downloads/genkai/experiments/pred_beta_2class
+judgment_result_dir: outputs/downloads/genkai/eval/judgement_beta_2class
+output_dir: outputs/tasks/analysis/condition_heatmap
+groups: [a, b, c, d, e, f, g, h, i, j]
+parameters: [Nx400_dens0.5_inscl0.001_rho0.9]
+fold_indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+modes: [train, test]

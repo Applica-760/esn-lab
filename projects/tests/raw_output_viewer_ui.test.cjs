@@ -76,6 +76,93 @@ function plot(marker, warnings = [], judgment = { status: "disabled" }, votes) {
   return { true_label: "foraging", length: 4, images: { foraging: marker, rumination: marker, overlay: marker }, warnings, judgment, votes };
 }
 
+function comparison(marker) {
+  const body = plot(marker);
+  body.images.comparison = `${marker}-comparison`;
+  body.source_image = { status: "available", mapping: "image_column_equals_time_index" };
+  return body;
+}
+
+test("comparison places the source above the overlay and explains the shared index", async () => {
+  const view = await setup();
+  const { done, request } = await beginPlot(view);
+  request.respond(comparison("current"));
+  await done;
+  assert.equal(view.nodes.overlay.src, "data:image/png;base64,current-comparison");
+  assert.match(view.nodes.overlay.alt, /上段：同じIDの明度分布画像.*下段：採食/);
+  assert.equal(view.nodes.plots.className, "comparison");
+  assert.equal(view.nodes["source-image-status"].hidden, false);
+  assert.match(view.nodes["source-image-status"].textContent, /横位置 x ＝ 出力の時刻インデックス x/);
+  assert.equal(view.nodes.foraging.src, "data:image/png;base64,current");
+  const html = readFileSync(join(__dirname, "../app/raw_output_viewer/index.html"), "utf8");
+  assert.ok(html.indexOf('id="overlay"') < html.indexOf('id="foraging"'));
+  assert.ok(html.indexOf('id="foraging"') < html.indexOf('id="rumination"'));
+});
+
+for (const [source, message] of [
+  [{ status: "disabled" }, "参照先が未設定"],
+  [{ status: "not_found" }, "元画像がありません"],
+  [{ status: "invalid_data" }, "読み込めません"],
+  [{ status: "width_mismatch", message: "元画像の幅3と出力の系列長4が一致しません。" }, "幅3"],
+  [{ status: "available", mapping: "unknown" }, "対応または比較画像を確認できません"],
+  [{ status: "available", mapping: "image_column_equals_time_index" }, "対応または比較画像を確認できません"],
+  [undefined, "サーバーを再起動"],
+]) {
+  test(`source image unavailable keeps the overlay: ${JSON.stringify(source)}`, async () => {
+    const view = await setup();
+    const { done, request } = await beginPlot(view);
+    const body = plot("fallback");
+    body.source_image = source;
+    request.respond(body);
+    await done;
+    assert.equal(view.nodes.overlay.src, "data:image/png;base64,fallback");
+    assert.equal(view.nodes.plots.hidden, false);
+    assert.equal(view.nodes.plots.className, "");
+    assert.ok(view.nodes["source-image-status"].textContent.includes(message));
+    assert.equal(view.nodes["source-image-status"].className, "unavailable");
+  });
+}
+
+test("comparison and its status follow the latest selection and clear on errors", async () => {
+  const view = await setup();
+  const { nodes, pending, change } = view;
+  const initial = await beginPlot(view);
+  initial.request.respond(comparison("initial"));
+  await initial.done;
+  const older = nodes["fold-buttons"].children[2].events.click();
+  const stale = pending.shift();
+  assert.equal(nodes.overlay.src, undefined);
+  assert.equal(nodes["source-image-status"].hidden, true);
+  assert.equal(nodes["source-image-status"].textContent, "");
+  assert.equal(nodes.plots.className, "");
+  const newer = nodes["fold-buttons"].children[0].events.click();
+  const fallback = plot("latest");
+  fallback.source_image = { status: "not_found" };
+  pending.shift().respond(fallback);
+  await newer;
+  stale.respond(comparison("old"));
+  await older;
+  assert.equal(nodes.overlay.src, "data:image/png;base64,latest");
+  assert.match(nodes["source-image-status"].textContent, /元画像がありません/);
+  const selection = await beginPlot(view, 1);
+  assert.equal(nodes["source-image-status"].hidden, true);
+  selection.request.respond({ error: { message: "描画失敗" } }, false);
+  await selection.done;
+  assert.equal(nodes.overlay.src, undefined);
+  assert.equal(nodes["source-image-status"].hidden, true);
+  const current = await beginPlot(view, 1);
+  current.request.respond(comparison("current"));
+  await current.done;
+  const unfinished = nodes["fold-buttons"].children[2].events.click();
+  const late = pending.shift();
+  await change("parameter", "q", [{ folds: [0] }, { samples: [] }]);
+  late.respond(comparison("late"));
+  await unfinished;
+  assert.equal(nodes.plots.hidden, true);
+  assert.equal(nodes["source-image-status"].hidden, true);
+  assert.equal(nodes.overlay.src, undefined);
+});
+
 const folds = { folds: [
   { fold: 0, modes: ["train", "test"] },
   { fold: 1, modes: ["train"] },

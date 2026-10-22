@@ -3,7 +3,7 @@
 const ui = Object.fromEntries([
   "group", "parameter", "fold", "mode-filter", "label-filter", "samples",
   "sample-count", "selection", "status", "error", "warnings", "plots", "foraging", "rumination", "overlay",
-  "fold-navigation", "fold-buttons", "judgment",
+  "fold-navigation", "fold-buttons", "judgment", "source-image-status",
 ].map(id => [id, document.getElementById(id)]));
 const labels = { foraging: "採食", rumination: "反芻", train: "訓練", test: "テスト" };
 let samples = [];
@@ -41,6 +41,10 @@ function clearImages() {
   ui.judgment.textContent = "";
   ui.judgment.className = "";
   ui.plots.hidden = true;
+  ui.plots.className = "";
+  ui["source-image-status"].hidden = true;
+  ui["source-image-status"].textContent = "";
+  ui["source-image-status"].className = "";
   ui.foraging.removeAttribute("src");
   ui.rumination.removeAttribute("src");
   ui.overlay.removeAttribute("src");
@@ -217,6 +221,34 @@ function renderFoldButtons(sample, folds) {
   ui["fold-navigation"].hidden = false;
 }
 
+function renderComparison(body) {
+  const source = body.source_image;
+  const available = source?.status === "available"
+    && source.mapping === "image_column_equals_time_index" && body.images.comparison;
+  ui.overlay.src = `data:image/png;base64,${available ? body.images.comparison : body.images.overlay}`;
+  ui.overlay.alt = available
+    ? "上段：同じIDの明度分布画像。下段：採食と反芻の生出力。横位置は時刻インデックスに対応。"
+    : "採食と反芻の生出力を重ねた時系列";
+  ui.plots.className = available ? "comparison" : "";
+  const status = ui["source-image-status"];
+  if (available) {
+    status.textContent = "上段：明度分布画像。画像の横位置 x ＝ 出力の時刻インデックス x（先頭は0、秒換算なし）。";
+    status.className = "";
+  } else {
+    const messages = {
+      disabled: "元画像の参照先が未設定です。",
+      not_found: "対応する元画像がありません。",
+      invalid_data: "元画像を読み込めません。",
+      width_mismatch: "元画像の幅と出力の系列長が一致しません。",
+      available: "元画像との対応または比較画像を確認できません。",
+    };
+    status.textContent = source?.message || messages[source?.status]
+      || "元画像の情報がありません。サーバーを再起動してください。";
+    status.className = "unavailable";
+  }
+  status.hidden = false;
+}
+
 async function showSamplePlot(sample, fold, mode) {
   if (sample !== selected) return;
   clearImages();
@@ -231,9 +263,10 @@ async function showSamplePlot(sample, fold, mode) {
     if (version !== plotVersion) return;
     ui.selection.textContent += ` · 真値：${labels[body.true_label]}`;
     renderJudgment(body.judgment, body.votes);
-    for (const node of ["foraging", "rumination", "overlay"]) {
+    for (const node of ["foraging", "rumination"]) {
       ui[node].src = `data:image/png;base64,${body.images[node]}`;
     }
+    renderComparison(body);
     for (const warning of body.warnings) {
       const message = document.createElement("p");
       message.textContent = warning.message;

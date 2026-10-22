@@ -10,8 +10,7 @@
 <body>
   <header>
     <h1>生出力ビューアー</h1>
-    <p class="conditions-caption">データ一覧の条件</p>
-    <div class="conditions">
+    <div class="conditions" role="group" aria-label="データ一覧の条件">
       <label>パラメータ<select id="parameter" disabled><option value="">選択してください</option></select></label>
       <label>Group<select id="group" disabled><option value="">選択してください</option></select></label>
       <label>Fold<select id="fold" disabled><option value="">選択してください</option></select></label>
@@ -32,8 +31,10 @@
     </aside>
     <section class="viewer" aria-label="出力グラフ">
       <h2 id="selection">データを選択してください</h2>
-      <p id="judgment" role="status" aria-live="polite" hidden></p>
-      <p id="status" role="status" aria-live="polite">条件を読み込んでいます…</p>
+      <div class="selection-summary">
+        <p id="judgment" role="status" aria-live="polite" hidden></p>
+        <p id="status" role="status" aria-live="polite">条件を読み込んでいます…</p>
+      </div>
       <p id="error" role="alert" hidden></p>
       <div id="warnings" role="status" aria-live="polite" hidden></div>
       <nav id="fold-navigation" aria-label="同じデータを別Foldで見る" hidden>
@@ -41,9 +42,13 @@
         <div id="fold-buttons"></div>
       </nav>
       <div id="plots" hidden>
+        <figure id="comparison-figure">
+          <figcaption>重ね描き：採食（青）・反芻（オレンジ）</figcaption>
+          <img id="overlay" alt="採食と反芻の生出力を重ねた時系列" aria-describedby="source-image-status">
+          <p id="source-image-status" role="status" hidden></p>
+        </figure>
         <figure><figcaption>採食ノードの生出力</figcaption><img id="foraging" alt="採食ノードの生出力の時系列"></figure>
         <figure><figcaption>反芻ノードの生出力</figcaption><img id="rumination" alt="反芻ノードの生出力の時系列"></figure>
-        <figure><figcaption>重ね描き：採食（青）・反芻（オレンジ）</figcaption><img id="overlay" alt="採食と反芻の生出力を重ねた時系列"></figure>
       </div>
     </section>
   </main>

@@ -1,9 +1,52 @@
 import json
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from projects.utils.prediction import load_pred_results
+
+
+def load_source_image(root, sample_id, length):
+    """画像は保存せず、選択系列と対応する画素とAPI用の状態を返す。"""
+    if not root:
+        return None, {"status": "disabled", "message": "元画像の参照先が未設定です。"}
+    try:
+        root = Path(root).resolve()
+        if (
+            not sample_id
+            or sample_id in (".", "..")
+            or Path(sample_id).name != sample_id
+            or "\\" in sample_id
+            or "\x00" in sample_id
+        ):
+            raise ValueError("元画像のIDにはファイル名だけを指定してください。")
+        path = (root / f"{sample_id}_ffmpeg.jpg").resolve()
+        if not path.is_relative_to(root):
+            raise ValueError("元画像は参照先ディレクトリ内に置いてください。")
+        if not path.is_file():
+            return None, {"status": "not_found", "message": "対応する元画像がありません。"}
+        pixels = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if pixels is None:
+            raise ValueError("元画像をグレースケール画像として読み込めません。")
+    except (OSError, ValueError, RuntimeError, cv2.error):
+        return None, {
+            "status": "invalid_data",
+            "message": "元画像のパスまたは画像データが不正です。",
+        }
+    height, width = pixels.shape
+    dimensions = {"width": width, "height": height}
+    if width != length:
+        return None, {
+            "status": "width_mismatch",
+            **dimensions,
+            "message": f"元画像の幅{width}と出力の系列長{length}が一致しません。",
+        }
+    return pixels, {
+        "status": "available",
+        **dimensions,
+        "mapping": "image_column_equals_time_index",
+    }
 
 
 class ResultStore:
